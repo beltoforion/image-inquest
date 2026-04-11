@@ -5,17 +5,12 @@ from ui.menu_provider_base import MenuProviderBase
 class NodeEditor(MenuProviderBase):
     def __init__(self, parent : str) -> None:
         self._tag : str = "node_editor"
-        self._build_demo_nodes(parent)
-   
-    
-    def _build_demo_nodes(self, parent_tag : str) -> None:
-        with dpg.node_editor(tag=self._tag, parent=parent_tag, callback=self._link, delink_callback=self._delink):
-            self._add_node(label="Node 1", attr_in="A1", attr_out="A2", width=200)
-            self._add_node(label="Node 2", attr_in="A3", attr_out="A4", width=200)
+        self._node_count : int = 0
+        dpg.add_node_editor(tag=self._tag, parent=parent, callback=self._link, delink_callback=self._delink)
 
 
     def _add_node(self, label, attr_in, attr_out, width) -> None:
-        with dpg.node(label=label):
+        with dpg.node(label=label, parent=self._tag):
             with dpg.node_attribute(label=attr_in):
                 dpg.add_input_float(label="F", width=width)
             with dpg.node_attribute(label=attr_out, attribute_type=dpg.mvNode_Attr_Output):
@@ -37,7 +32,9 @@ class NodeEditor(MenuProviderBase):
 
 
     def _on_add_node(self, sender) -> None:
-        print(f"Add Node: {sender}")
+        self._node_count += 1
+        n = self._node_count
+        self._add_node(label=f"Node {n}", attr_in=f"attr_in_{n}", attr_out=f"attr_out_{n}", width=200)
 
 
     def _on_clear_nodes(self, sender) -> None:
