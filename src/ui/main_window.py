@@ -10,7 +10,7 @@ class MainWindow:
             self._start_page = StartPage(parent="main_window", on_create_flow=self._open_flow)
 
             with dpg.child_window(tag="editor_page", show=False, border=False):
-                self._node_editor = NodeEditor(parent="editor_page")
+                self._node_editor = NodeEditor(parent="editor_page", on_exit=self._close_flow)
 
         with dpg.viewport_menu_bar(tag="main_menu"):
             with dpg.menu(label="File"):
@@ -24,6 +24,11 @@ class MainWindow:
         self._start_page.hide()
         dpg.show_item("editor_page")
         dpg.show_item("node_editor_menu")
+
+    def _close_flow(self) -> None:
+        dpg.hide_item("node_editor_menu")
+        dpg.hide_item("editor_page")
+        self._start_page.show()
 
     def _on_new(self, sender):
         print(f"New: {sender}")
