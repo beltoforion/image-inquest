@@ -39,7 +39,7 @@ class Page(ABC):
         ...
 
     @property
-    def active(self) -> bool:
+    def is_active(self) -> bool:
         return self._active
 
     def activate(self) -> None:
