@@ -8,8 +8,8 @@ from ui.start_page import StartPage
 
 class MainWindow:
     def __init__(self):
-        self._window_tag: int = dpg.generate_uuid()
-        self._menu_tag: int = dpg.generate_uuid()
+        self._window_tag: int | str = dpg.generate_uuid()
+        self._menu_tag: int | str = dpg.generate_uuid()
 
         with dpg.window(tag=self._window_tag):
             pass
@@ -37,7 +37,7 @@ class MainWindow:
         self._pages.activate(self._start_page)
 
     @property
-    def window_tag(self) -> int:
+    def window_tag(self) -> int | str:
         return self._window_tag
 
     def _open_flow(self, flow: Flow) -> None:

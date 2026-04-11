@@ -7,9 +7,9 @@ from ui.page import Page
 class NodeEditorPage(Page):
     name = "editor"
 
-    def __init__(self, parent: int, menu_bar: int, on_exit) -> None:
+    def __init__(self, parent: int | str, menu_bar: int | str, on_exit) -> None:
         self._on_exit = on_exit
-        self._node_editor_tag: int = dpg.generate_uuid()
+        self._node_editor_tag: int | str = dpg.generate_uuid()
         self._node_count: int = 0
         self._flow: Flow | None = None
         super().__init__(parent=parent, menu_bar=menu_bar)
