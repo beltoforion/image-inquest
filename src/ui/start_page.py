@@ -7,7 +7,7 @@ from ui.page import Page
 class StartPage(Page):
     name = "start"
 
-    def __init__(self, parent: str, menu_bar: str, on_create_flow, on_load_flow) -> None:
+    def __init__(self, parent: int, menu_bar: int, on_create_flow, on_load_flow) -> None:
         self._on_create_flow = on_create_flow
         self._on_load_flow = on_load_flow
         super().__init__(parent=parent, menu_bar=menu_bar)

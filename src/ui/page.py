@@ -25,9 +25,9 @@ class Page(ABC):
 
     name: str
 
-    def __init__(self, parent: str, menu_bar: str) -> None:
-        self._parent: str = parent
-        self._menu_bar: str = menu_bar
+    def __init__(self, parent: int, menu_bar: int) -> None:
+        self._parent: int = parent
+        self._menu_bar: int = menu_bar
         self._content_tag: int = dpg.generate_uuid()
         self._menu_tags: list[int | str] = []
         self._active: bool = False

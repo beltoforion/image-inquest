@@ -7,14 +7,14 @@ from constants import *
 class App:
     def __init__(self):
         dpg.create_context()
-        MainWindow()
+        self._main_window = MainWindow()
 
         dpg.create_viewport(title=APP_NAME, width=APP_WIDTH, height=APP_HEIGHT)
 
     def run(self):
         dpg.setup_dearpygui()
         dpg.show_viewport()
-        dpg.set_primary_window("main_window", True)
+        dpg.set_primary_window(self._main_window.window_tag, True)
         dpg.start_dearpygui()
         dpg.destroy_context()
 
