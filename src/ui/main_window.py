@@ -8,23 +8,26 @@ from ui.start_page import StartPage
 
 class MainWindow:
     def __init__(self):
-        with dpg.window(label="App", tag="main_window"):
+        self._window_tag: int | str = dpg.generate_uuid()
+        self._menu_tag: int | str = dpg.generate_uuid()
+
+        with dpg.window(tag=self._window_tag):
             pass
 
-        with dpg.viewport_menu_bar(tag="main_menu"):
+        with dpg.viewport_menu_bar(tag=self._menu_tag):
             with dpg.menu(label="File"):
                 dpg.add_menu_item(label="New", callback=self._on_new)
                 dpg.add_menu_item(label="Save As", callback=self._on_save)
 
         self._start_page = StartPage(
-            parent="main_window",
-            menu_bar="main_menu",
+            parent=self._window_tag,
+            menu_bar=self._menu_tag,
             on_create_flow=self._open_flow,
             on_load_flow=self._on_load_flow,
         )
         self._node_editor_page = NodeEditorPage(
-            parent="main_window",
-            menu_bar="main_menu",
+            parent=self._window_tag,
+            menu_bar=self._menu_tag,
             on_exit=self._close_flow,
         )
 
@@ -32,6 +35,10 @@ class MainWindow:
         self._pages.register(self._start_page)
         self._pages.register(self._node_editor_page)
         self._pages.activate(self._start_page)
+
+    @property
+    def window_tag(self) -> int | str:
+        return self._window_tag
 
     def _open_flow(self, flow: Flow) -> None:
         self._node_editor_page.set_flow(flow)
