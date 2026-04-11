@@ -31,14 +31,14 @@ class MainWindow:
         self._pages = PageManager()
         self._pages.register(self._start_page)
         self._pages.register(self._node_editor_page)
-        self._pages.activate("start")
+        self._pages.activate(self._start_page)
 
     def _open_flow(self, flow: Flow) -> None:
         self._node_editor_page.set_flow(flow)
-        self._pages.activate("editor")
+        self._pages.activate(self._node_editor_page)
 
     def _close_flow(self) -> None:
-        self._pages.activate("start")
+        self._pages.activate(self._start_page)
 
     def _on_load_flow(self) -> None:
         # TODO: implement flow loading (file dialog + deserialization).
