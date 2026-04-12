@@ -19,6 +19,7 @@ class NodeEditorPage(Page):
     def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         self._node_editor_tag: int | str = dpg.generate_uuid()
         self._flow: Flow | None = None
+        self._file_dialogs: list[int | str] = []
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
     def set_flow(self, flow: Flow) -> None:
@@ -48,11 +49,57 @@ class NodeEditorPage(Page):
     # ── Node creation ──────────────────────────────────────────────────────────
 
     def _add_visual_node(self, node: NodeBase) -> None:
-        """Create a visual node in the editor reflecting the node's ports."""
+        """Create a visual node reflecting the node's ports (generic fallback)."""
         with dpg.node(label=node.display_name, parent=self._node_editor_tag):
             for port in node.inputs:
                 with dpg.node_attribute(label=port.name):
                     dpg.add_text(", ".join(t.value for t in port.accepted_types))
+            for port in node.outputs:
+                with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
+                    dpg.add_text(", ".join(t.value for t in port.emits))
+
+    def _add_file_source_node(self, node: FileSource) -> None:
+        """Create a File Source visual node with a file path input and browse button."""
+        dialog_tag = dpg.generate_uuid()
+        path_input_tag = dpg.generate_uuid()
+
+        def on_file_selected(sender, app_data) -> None:
+            path = app_data.get("file_path_name", "")
+            node.file_path = path
+            dpg.set_value(path_input_tag, path)
+
+        with dpg.file_dialog(
+            label="Select Image or Video File",
+            callback=on_file_selected,
+            tag=dialog_tag,
+            show=False,
+            width=700,
+            height=400,
+        ):
+            dpg.add_file_extension(".png",  color=(0, 255, 0, 255),   custom_text="PNG Image")
+            dpg.add_file_extension(".jpg",  color=(255, 255, 0, 255), custom_text="JPEG Image")
+            dpg.add_file_extension(".jpeg", color=(255, 255, 0, 255), custom_text="JPEG Image")
+            dpg.add_file_extension(".mp4",  color=(0, 200, 255, 255), custom_text="MP4 Video")
+            dpg.add_file_extension(".cr2",  color=(255, 128, 0, 255), custom_text="RAW Image")
+
+        self._file_dialogs.append(dialog_tag)
+
+        with dpg.node(label=node.display_name, parent=self._node_editor_tag):
+            # File path parameter — static (not connectable)
+            with dpg.node_attribute(label="path", attribute_type=dpg.mvNode_Attr_Static):
+                with dpg.group(horizontal=True):
+                    dpg.add_input_text(
+                        tag=path_input_tag,
+                        default_value="",
+                        width=200,
+                        hint="Select a file…",
+                        callback=lambda s, a: setattr(node, "file_path", a),
+                    )
+                    dpg.add_button(
+                        label="…",
+                        callback=lambda: dpg.show_item(dialog_tag),
+                    )
+            # Output ports
             for port in node.outputs:
                 with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
                     dpg.add_text(", ".join(t.value for t in port.emits))
@@ -72,6 +119,10 @@ class NodeEditorPage(Page):
         if children:
             for child in children:
                 dpg.delete_item(child)
+        for dialog_tag in self._file_dialogs:
+            if dpg.does_item_exist(dialog_tag):
+                dpg.delete_item(dialog_tag)
+        self._file_dialogs.clear()
         if self._flow is not None:
             for node in list(self._flow.nodes):
                 self._flow.remove_node(node)
@@ -82,7 +133,7 @@ class NodeEditorPage(Page):
         node = FileSource()
         if self._flow is not None:
             self._flow.add_node(node)
-        self._add_visual_node(node)
+        self._add_file_source_node(node)
 
     def _on_clear_nodes(self, sender=None) -> None:
         self._clear_nodes()
