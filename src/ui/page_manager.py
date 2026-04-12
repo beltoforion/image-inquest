@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from PyQt6.QtWidgets import QStackedWidget, QMenuBar
+
 from ui.page import Page
 
 if TYPE_CHECKING:
@@ -10,9 +12,16 @@ if TYPE_CHECKING:
 
 
 class PageManager:
-    """Owns all pages and guarantees that only one is active at a time."""
+    """Owns all pages and guarantees that only one is active at a time.
 
-    def __init__(self) -> None:
+    Pages are added to a QStackedWidget so Qt handles their visibility.
+    activate() additionally calls the page's activate()/deactivate() hooks
+    so each page can install or remove its menu bar entries.
+    """
+
+    def __init__(self, stack: QStackedWidget, menu_bar: QMenuBar) -> None:
+        self._stack: QStackedWidget = stack
+        self._menu_bar: QMenuBar = menu_bar
         self._pages: dict[str, Page] = {}
         self._active: Page | None = None
 
@@ -20,6 +29,7 @@ class PageManager:
         if page.name in self._pages:
             raise ValueError(f"Page '{page.name}' is already registered")
         self._pages[page.name] = page
+        self._stack.addWidget(page)
 
     def activate(self, page: Page) -> None:
         if page.name not in self._pages:
@@ -28,6 +38,7 @@ class PageManager:
             return
         if self._active is not None:
             self._active.deactivate()
+        self._stack.setCurrentWidget(page)
         page.activate()
         self._active = page
 

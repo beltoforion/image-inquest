@@ -1,22 +1,20 @@
-import dearpygui.dearpygui as dpg
+import sys
 import argparse
 
-from ui.main_window import *
-from constants import *
+from PyQt6.QtWidgets import QApplication
+
+from constants import APP_NAME, APP_WIDTH, APP_HEIGHT
+from ui.main_window import MainWindow
+
 
 class App:
-    def __init__(self):
-        dpg.create_context()
-        self._main_window = MainWindow()
+    def __init__(self, width: int, height: int) -> None:
+        self._qt_app = QApplication(sys.argv)
+        self._main_window = MainWindow(width, height)
 
-        dpg.create_viewport(title=APP_NAME, width=APP_WIDTH, height=APP_HEIGHT)
-
-    def run(self):
-        dpg.setup_dearpygui()
-        dpg.show_viewport()
-        dpg.set_primary_window(self._main_window.window_tag, True)
-        dpg.start_dearpygui()
-        dpg.destroy_context()
+    def run(self) -> None:
+        self._main_window.show()
+        sys.exit(self._qt_app.exec())
 
 
 if __name__ == "__main__":
@@ -24,8 +22,4 @@ if __name__ == "__main__":
     parser.add_argument("--width", type=int, default=APP_WIDTH, help="Width of the application window")
     parser.add_argument("--height", type=int, default=APP_HEIGHT, help="Height of the application window")
     args = parser.parse_args()
-    
-    APP_WIDTH = args.width
-    APP_HEIGHT = args.height
-
-    App().run()
+    App(args.width, args.height).run()

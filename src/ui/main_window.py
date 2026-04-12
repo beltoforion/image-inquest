@@ -1,42 +1,31 @@
-import dearpygui.dearpygui as dpg
+from PyQt6.QtWidgets import QMainWindow, QStackedWidget
 
+from constants import APP_NAME
 from ui.node_editor_page import NodeEditorPage
 from ui.page_manager import PageManager
 from ui.start_page import StartPage
 
 
-class MainWindow:
-    def __init__(self):
-        self._window_tag: int | str = dpg.generate_uuid()
-        self._menu_tag: int | str = dpg.generate_uuid()
+class MainWindow(QMainWindow):
+    def __init__(self, width: int, height: int) -> None:
+        super().__init__()
+        self.setWindowTitle(APP_NAME)
+        self.resize(width, height)
 
-        with dpg.window(tag=self._window_tag):
-            pass
+        file_menu = self.menuBar().addMenu("File")
+        file_menu.addAction("New", self._on_new)
+        file_menu.addAction("Save As", self._on_save)
 
-        with dpg.viewport_menu_bar(tag=self._menu_tag):
-            with dpg.menu(label="File"):
-                dpg.add_menu_item(label="New", callback=self._on_new)
-                dpg.add_menu_item(label="Save As", callback=self._on_save)
+        self._stack = QStackedWidget()
+        self.setCentralWidget(self._stack)
 
-        self._pages = PageManager()
-        self._pages.register(StartPage(
-            parent=self._window_tag,
-            menu_bar=self._menu_tag,
-            page_manager=self._pages,
-        ))
-        self._pages.register(NodeEditorPage(
-            parent=self._window_tag,
-            menu_bar=self._menu_tag,
-            page_manager=self._pages,
-        ))
+        self._pages = PageManager(self._stack, self.menuBar())
+        self._pages.register(StartPage(self.menuBar(), self._pages))
+        self._pages.register(NodeEditorPage(self.menuBar(), self._pages))
         self._pages.activate(self._pages.start_page)
 
-    @property
-    def window_tag(self) -> int | str:
-        return self._window_tag
+    def _on_new(self) -> None:
+        print("New")
 
-    def _on_new(self, sender):
-        print(f"New: {sender}")
-
-    def _on_save(self, sender):
-        print(f"Save As: {sender}")
+    def _on_save(self) -> None:
+        print("Save As")

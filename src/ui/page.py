@@ -1,52 +1,44 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-import dearpygui.dearpygui as dpg
+from PyQt6.QtWidgets import QWidget, QMenuBar, QMenu
 
 if TYPE_CHECKING:
     from ui.page_manager import PageManager
 
 
-class Page(ABC):
+class Page(QWidget):
     """Abstract base class for a top-level application page.
 
-    A Page owns a content container built once under a parent and a set of
-    menus that are added to a menu bar on activation and removed on
-    deactivation. Only one page in the application should be active at any
-    given time; the PageManager enforces this.
+    A Page is a QWidget whose visibility is managed by PageManager via a
+    QStackedWidget.  Each page also owns a set of QMenu objects that are
+    added to the application menu bar on activation and removed on
+    deactivation, so only the active page's menus are visible.
 
     Subclasses must define:
         name             - unique string identifier used by PageManager.
-        _build_ui()      - add content widgets; the child window container
-                           is already created by the base class and is the
-                           implicit DearPyGUI parent when _build_ui() runs.
-        _install_menus() - create the page's menus under self._menu_bar
-                           and append each created menu's tag to
-                           self._menu_tags so the base class can remove
-                           them automatically on deactivation.
+        _build_ui()      - build and lay out child widgets using self as root.
+        _install_menus() - add any page-specific QMenu objects to
+                           self._menu_bar and append them to self._menus so
+                           the base class can remove them on deactivation.
     """
 
     name: str
 
-    def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
-        self._parent: int | str = parent
-        self._menu_bar: int | str = menu_bar
+    def __init__(self, menu_bar: QMenuBar, page_manager: PageManager) -> None:
+        super().__init__()
+        self._menu_bar: QMenuBar = menu_bar
         self._page_manager: PageManager = page_manager
-        self._content_tag: int | str = dpg.generate_uuid()
-        self._menu_tags: list[int | str] = []
+        self._menus: list[QMenu] = []
         self._active: bool = False
-        with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
-            self._build_ui()
+        self._build_ui()
 
-    @abstractmethod
     def _build_ui(self) -> None:
-        ...
+        raise NotImplementedError
 
-    @abstractmethod
     def _install_menus(self) -> None:
-        ...
+        raise NotImplementedError
 
     @property
     def is_active(self) -> bool:
@@ -55,16 +47,13 @@ class Page(ABC):
     def activate(self) -> None:
         if self._active:
             return
-        dpg.show_item(self._content_tag)
         self._install_menus()
         self._active = True
 
     def deactivate(self) -> None:
         if not self._active:
             return
-        dpg.hide_item(self._content_tag)
-        for tag in self._menu_tags:
-            if dpg.does_item_exist(tag):
-                dpg.delete_item(tag)
-        self._menu_tags.clear()
+        for menu in self._menus:
+            self._menu_bar.removeAction(menu.menuAction())
+        self._menus.clear()
         self._active = False
