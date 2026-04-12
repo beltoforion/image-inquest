@@ -1,5 +1,16 @@
 import ast
+from dataclasses import dataclass
 from pathlib import Path
+
+
+@dataclass
+class ScanError:
+    """Describes a problem encountered while scanning a node file."""
+    file: Path
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.file.name}: {self.message}"
 
 
 class NodeRegistry:
@@ -8,23 +19,59 @@ class NodeRegistry:
     The registry maps class names to display names without importing or
     instantiating any node class.  Use it to populate menus or node
     palettes in the UI.
+
+    Typical usage at application startup:
+
+        registry = NodeRegistry()
+        errors  = registry.scan_builtin(BUILTIN_NODES_DIR)
+        errors += registry.scan_user(USER_NODES_DIR)
+        if errors:
+            # show popup with errors (handled by UI layer)
+            ...
     """
 
     def __init__(self) -> None:
         self._nodes: dict[str, str] = {}  # class_name -> display_name
 
-    def scan(self, folder: str | Path, skip_files: frozenset[str] = frozenset()) -> None:
-        """Scan a folder for node classes and register all discovered nodes.
+    # ── Scanning ───────────────────────────────────────────────────────────────
 
-        Args:
-            folder:     Directory to scan for .py files.
-            skip_files: File names (not paths) to ignore.
+    def scan_builtin(self, folder: Path) -> list[ScanError]:
+        """Scan the built-in nodes folder recursively.
+
+        All .py files under folder and its subdirectories are scanned.
+        Returns a list of any parse errors encountered.
         """
-        folder = Path(folder)
-        for path in sorted(folder.glob("*.py")):
-            if path.name in skip_files:
-                continue
-            self._nodes.update(_parse_node_file(path))
+        return self._scan(folder, reject_conflicts=False)
+
+    def scan_user(self, folder: Path) -> list[ScanError]:
+        """Scan the user nodes folder recursively, creating it if absent.
+
+        User node class names must not conflict with already-registered
+        built-in nodes — conflicts are rejected and reported as errors.
+        Returns a list of parse errors and conflict rejections.
+        """
+        _ensure_user_nodes_dir(folder)
+        return self._scan(folder, reject_conflicts=True)
+
+    def _scan(self, folder: Path, reject_conflicts: bool) -> list[ScanError]:
+        errors: list[ScanError] = []
+        for path in sorted(folder.rglob("*.py")):
+            found, file_errors = _parse_node_file(path)
+            errors.extend(file_errors)
+            for class_name, display_name in found.items():
+                if reject_conflicts and class_name in self._nodes:
+                    errors.append(ScanError(
+                        file=path,
+                        message=(
+                            f"'{class_name}' conflicts with a built-in node "
+                            f"and was not loaded"
+                        ),
+                    ))
+                else:
+                    self._nodes[class_name] = display_name
+        return errors
+
+    # ── Access ─────────────────────────────────────────────────────────────────
 
     @property
     def nodes(self) -> dict[str, str]:
@@ -38,14 +85,25 @@ class NodeRegistry:
         return iter(self._nodes.items())
 
 
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _ensure_user_nodes_dir(folder: Path) -> None:
+    """Create the user nodes folder and its subdirectories if they don't exist."""
+    for subdir in (folder, folder / "sources", folder / "sinks", folder / "filters"):
+        subdir.mkdir(parents=True, exist_ok=True)
+
+
 # ── Internal AST helpers ───────────────────────────────────────────────────────
 
-def _parse_node_file(path: Path) -> dict[str, str]:
-    """Return {class_name: display_name} for all node classes found in path."""
+def _parse_node_file(path: Path) -> tuple[dict[str, str], list[ScanError]]:
+    """Return ({class_name: display_name}, [errors]) for a single file."""
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except SyntaxError:
-        return {}
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError as e:
+        return {}, [ScanError(file=path, message=f"Syntax error: {e.msg} (line {e.lineno})")]
+    except OSError as e:
+        return {}, [ScanError(file=path, message=f"Could not read file: {e}")]
 
     result = {}
     for node in ast.walk(tree):
@@ -54,7 +112,7 @@ def _parse_node_file(path: Path) -> dict[str, str]:
             if entry is not None:
                 class_name, display_name = entry
                 result[class_name] = display_name
-    return result
+    return result, []
 
 
 def _extract_node_entry(class_node: ast.ClassDef) -> tuple[str, str] | None:
