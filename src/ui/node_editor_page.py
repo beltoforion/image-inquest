@@ -25,10 +25,14 @@ class NodeEditorPage(Page):
 
     def _build_ui(self) -> None:
         with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Add Node", callback=self._on_add_node)
+                dpg.add_button(label="Clear All", callback=self._on_clear_nodes)
             dpg.add_node_editor(
                 tag=self._node_editor_tag,
                 callback=self._link,
                 delink_callback=self._delink,
+                height=-1,
             )
 
     def _install_menus(self) -> None:
