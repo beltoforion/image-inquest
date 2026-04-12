@@ -24,6 +24,11 @@ _COL_SINK   = ((180, 100,  20, 255), (200, 120,  30, 255), (210, 130,  40, 255))
 _COL_PIN_INPUT  = ((210, 210, 210, 255), (255, 255, 255, 255))
 _COL_PIN_OUTPUT = ((220, 180,   0, 255), (240, 200,  30, 255))
 
+# ── Link colours (normal, hovered, selected) ──────────────────────────────────
+_COL_LINK          = (180, 180, 180, 255)   # neutral grey
+_COL_LINK_HOVERED  = (255, 255, 255, 255)   # bright white  – hover feedback
+_COL_LINK_SELECTED = (220, 160,   0, 255)   # gold/orange   – matches output pins
+
 
 def _make_node_theme(title, hovered, selected) -> int | str:
     with dpg.theme() as theme:
@@ -39,6 +44,15 @@ def _make_pin_theme(normal, hovered) -> int | str:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvNodeCol_Pin,        normal,  category=dpg.mvThemeCat_Nodes)
             dpg.add_theme_color(dpg.mvNodeCol_PinHovered, hovered, category=dpg.mvThemeCat_Nodes)
+    return theme
+
+
+def _make_editor_theme(link, hovered, selected) -> int | str:
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvNodeCol_Link,         link,     category=dpg.mvThemeCat_Nodes)
+            dpg.add_theme_color(dpg.mvNodeCol_LinkHovered,  hovered,  category=dpg.mvThemeCat_Nodes)
+            dpg.add_theme_color(dpg.mvNodeCol_LinkSelected, selected, category=dpg.mvThemeCat_Nodes)
     return theme
 
 
@@ -85,6 +99,7 @@ class NodeEditorPage(Page):
         self._theme_sink       = _make_node_theme(*_COL_SINK)
         self._theme_pin_input  = _make_pin_theme(*_COL_PIN_INPUT)
         self._theme_pin_output = _make_pin_theme(*_COL_PIN_OUTPUT)
+        editor_theme           = _make_editor_theme(_COL_LINK, _COL_LINK_HOVERED, _COL_LINK_SELECTED)
 
         # ── Context menus (floating windows, shown/hidden on demand) ───────────
         with dpg.window(
@@ -149,6 +164,7 @@ class NodeEditorPage(Page):
                         width=-1,
                         height=-1,
                     )
+                    dpg.bind_item_theme(self._node_editor_tag, editor_theme)
 
     # ── Palette ────────────────────────────────────────────────────────────────
 
