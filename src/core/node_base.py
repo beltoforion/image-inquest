@@ -88,7 +88,7 @@ class NodeBase(ABC):
 
 # ── Concrete node base classes ─────────────────────────────────────────────────
 
-class SourceNode(NodeBase):
+class SourceNode(NodeBase, ABC):
     """A node with outputs only.  Drives the pipeline by calling start()."""
 
     @abstractmethod
@@ -113,7 +113,7 @@ class ProcessingNode(NodeBase):
     def process(self) -> None: ...
 
 
-class SinkNode(NodeBase):
+class SinkNode(NodeBase, ABC):
     """A node with inputs only.  Consumes data (file write, display, etc.)."""
 
     @abstractmethod
