@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import dearpygui.dearpygui as dpg
 
 from core.flow import Flow
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType, SourceNodeBase
 from nodes.sources.file_source import FileSource
 from ui.page import Page
 
@@ -50,7 +50,7 @@ class NodeEditorPage(Page):
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
-    def _add_file_source_node(self, node: FileSource) -> None:
+    def _add_visual_node(self, node: NodeBase) -> None:
         """Create a File Source visual node with a file path input and browse button."""
         
         assert node is not None, "Node to add cannot be None"
@@ -60,7 +60,7 @@ class NodeEditorPage(Page):
 
         def on_file_selected(sender: int | str, app_data: dict) -> None:
             path = app_data.get("file_path_name", "")
-            node.file_path = path
+            setattr(node, "file_path", path)
             dpg.set_value(path_input_tag, path)
 
         with dpg.file_dialog(
@@ -78,7 +78,15 @@ class NodeEditorPage(Page):
 
         self._file_dialogs.append(dialog_tag)
 
-        with dpg.node(label=node.display_name, parent=self._node_editor_tag):
+        with dpg.node(label=node.display_name, parent=self._node_editor_tag) as node_tag:
+            if isinstance(node, SourceNodeBase):
+                with dpg.theme() as source_theme:
+                    with dpg.theme_component(dpg.mvAll):
+                        dpg.add_theme_color(dpg.mvNodeCol_TitleBar, (0, 128, 0, 255), category=dpg.mvThemeCat_Nodes)
+                        dpg.add_theme_color(dpg.mvNodeCol_TitleBarHovered, (0, 160, 0, 255), category=dpg.mvThemeCat_Nodes)
+                        dpg.add_theme_color(dpg.mvNodeCol_TitleBarSelected, (0, 180, 0, 255), category=dpg.mvThemeCat_Nodes)
+                dpg.bind_item_theme(node_tag, source_theme)
+
             for i, param in enumerate(node.params):
                 with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
                     if i > 0:
@@ -145,7 +153,7 @@ class NodeEditorPage(Page):
         if self._flow is not None:
             self._flow.add_node(node)
 
-        self._add_file_source_node(node)
+        self._add_visual_node(node)
 
     def _on_clear_nodes(self, sender=None) -> None:
         self._clear_nodes()
