@@ -38,6 +38,7 @@ class NodeEditorPage(Page):
         self._flow = flow
 
     def _build_ui(self) -> None:
+        dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
             # ── Left: node palette ─────────────────────────────────────────────
             with dpg.child_window(width=_PALETTE_WIDTH, height=-1, border=True):
