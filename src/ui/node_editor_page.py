@@ -53,6 +53,7 @@ class NodeEditorPage(Page):
         registry: NodeRegistry,
     ) -> None:
         self._node_editor_tag: int | str = dpg.generate_uuid()
+        self._canvas_tag:      int | str = dpg.generate_uuid()
         self._flow: Flow | None = None
         self._file_dialogs: list[int | str] = []
         self._registry: NodeRegistry = registry
@@ -86,15 +87,21 @@ class NodeEditorPage(Page):
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Clear All", callback=self._on_clear_nodes)
-                dpg.add_node_editor(
-                    tag=self._node_editor_tag,
-                    callback=self._link,
-                    delink_callback=self._delink,
+                with dpg.child_window(
+                    tag=self._canvas_tag,
                     drop_callback=self._on_node_dropped,
                     payload_type="NODE_PALETTE",
                     width=-1,
                     height=-1,
-                )
+                    border=False,
+                ):
+                    dpg.add_node_editor(
+                        tag=self._node_editor_tag,
+                        callback=self._link,
+                        delink_callback=self._delink,
+                        width=-1,
+                        height=-1,
+                    )
 
     # ── Palette ────────────────────────────────────────────────────────────────
 
@@ -139,10 +146,10 @@ class NodeEditorPage(Page):
         node_tag = self._add_visual_node(node)
         # Position the new node at the drop location
         mouse_pos  = dpg.get_mouse_pos(local=False)
-        editor_min = dpg.get_item_rect_min(self._node_editor_tag)
+        canvas_min = dpg.get_item_rect_min(self._canvas_tag)
         dpg.set_item_pos(node_tag, [
-            mouse_pos[0] - editor_min[0],
-            mouse_pos[1] - editor_min[1],
+            mouse_pos[0] - canvas_min[0],
+            mouse_pos[1] - canvas_min[1],
         ])
 
     # ── Node creation ──────────────────────────────────────────────────────────
