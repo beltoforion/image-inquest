@@ -4,17 +4,11 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import rawpy
 
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase
+from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
-
-# rawpy is only needed for CR2 RAW files; treat it as optional
-try:
-    import rawpy
-    _RAWPY_AVAILABLE = True
-except ImportError:
-    _RAWPY_AVAILABLE = False
 
 _SUPPORTED_IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 _SUPPORTED_VIDEO_EXTS = {".mp4"}
@@ -41,6 +35,11 @@ class FileSource(SourceNodeBase):
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 
     # ── Parameters ─────────────────────────────────────────────────────────────
+
+    @property
+    def params(self) -> list[NodeParam]:
+        return [NodeParam("file_path", NodeParamType.FILE_PATH, {"extensions": [...]}),
+                NodeParam("max_num_frames", NodeParamType.INT, {"default": -1})]
 
     @property
     def file_path(self) -> Path:
@@ -104,8 +103,6 @@ class FileSource(SourceNodeBase):
         self.outputs[0].send(IoData.end_of_stream())
 
     def _read_raw(self) -> None:
-        if not _RAWPY_AVAILABLE:
-            raise ImportError("rawpy is required to read CR2 files: pip install rawpy")
         image: np.ndarray = rawpy.imread(str(self._file_path)).postprocess()
         self.outputs[0].send(IoData.from_image(image))
         self.outputs[0].send(IoData.end_of_stream())

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import dearpygui.dearpygui as dpg
 
 from core.flow import Flow
-from core.node_base import NodeBase
+from core.node_base import NodeBase, NodeParam, NodeParamType
 from nodes.sources.file_source import FileSource
 from ui.page import Page
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class NodeEditorPage(Page):
-    name = "editor"
+    name : str = "editor"
 
     def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         self._node_editor_tag: int | str = dpg.generate_uuid()
@@ -48,22 +48,15 @@ class NodeEditorPage(Page):
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
-    def _add_visual_node(self, node: NodeBase) -> None:
-        """Create a visual node reflecting the node's ports (generic fallback)."""
-        with dpg.node(label=node.display_name, parent=self._node_editor_tag):
-            for port in node.inputs:
-                with dpg.node_attribute(label=port.name):
-                    dpg.add_text(", ".join(t.value for t in port.accepted_types))
-            for port in node.outputs:
-                with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
-                    dpg.add_text(", ".join(t.value for t in port.emits))
-
     def _add_file_source_node(self, node: FileSource) -> None:
         """Create a File Source visual node with a file path input and browse button."""
+        
+        assert node is not None, "Node to add cannot be None"
+
         dialog_tag = dpg.generate_uuid()
         path_input_tag = dpg.generate_uuid()
 
-        def on_file_selected(sender, app_data) -> None:
+        def on_file_selected(sender: int | str, app_data: dict) -> None:
             path = app_data.get("file_path_name", "")
             node.file_path = path
             dpg.set_value(path_input_tag, path)
@@ -85,20 +78,30 @@ class NodeEditorPage(Page):
         self._file_dialogs.append(dialog_tag)
 
         with dpg.node(label=node.display_name, parent=self._node_editor_tag):
-            # File path parameter — static (not connectable)
-            with dpg.node_attribute(label="path", attribute_type=dpg.mvNode_Attr_Static):
-                with dpg.group(horizontal=True):
-                    dpg.add_input_text(
-                        tag=path_input_tag,
-                        default_value="",
-                        width=200,
-                        hint="Select a file…",
-                        callback=lambda s, a: setattr(node, "file_path", a),
-                    )
-                    dpg.add_button(
-                        label="…",
-                        callback=lambda: dpg.show_item(dialog_tag),
-                    )
+            for param in node.params:
+                with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
+                    dpg.add_spacer(height=5)
+                    dpg.add_text(param.name)
+                    if param.param_type == NodeParamType.FILE_PATH:
+                        with dpg.group(horizontal=True):
+                            dpg.add_input_text(
+                                tag=path_input_tag,
+                                default_value="",
+                                width=200,
+                                hint="Select a file…",
+                                callback=lambda s, a: setattr(node, param.name, a),
+                            )
+                            dpg.add_button(
+                                label="…",
+                                callback=lambda: dpg.show_item(dialog_tag),
+                            )
+                    elif param.param_type == NodeParamType.INT:
+                        dpg.add_input_int(
+                            default_value=param.metadata.get("default", 0),
+                            width=100,
+                            callback=lambda s, a: setattr(node, param.name, a),
+                        )
+
             # Output ports
             for port in node.outputs:
                 with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):

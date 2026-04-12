@@ -2,8 +2,27 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from enum import Enum
 from core.io_data import IoData
 from core.port import InputPort, OutputPort
+
+
+class NodeParamType(Enum):
+    """Enumeration of parameter types for node parameters."""
+    FILE_PATH = 0,
+    FOLDER = 1,
+    INT = 2,
+    FLOAT = 3,
+    STRING = 4,
+    BOOL = 5,
+
+
+class NodeParam:
+    """Descriptor for a node parameter, used by the UI to generate controls."""
+    def __init__(self, name: str, param_type: NodeParamType, metadata: dict) -> None:
+        self.name : str = name
+        self.param_type : NodeParamType = param_type
+        self.metadata : dict = metadata
 
 
 class NodeBase(ABC):
@@ -38,6 +57,11 @@ class NodeBase(ABC):
         self._outputs.append(port)
 
     # ── Public accessors ───────────────────────────────────────────────────────
+
+    @property
+    @abstractmethod
+    def params(self) -> list[NodeParam]:
+        ...
 
     @property
     def display_name(self) -> str:

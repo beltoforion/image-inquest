@@ -28,7 +28,7 @@ class Page(ABC):
                            them automatically on deactivation.
     """
 
-    name: str
+    name : str
 
     def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         self._parent: int | str = parent

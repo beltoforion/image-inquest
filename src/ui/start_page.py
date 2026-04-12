@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 
 
 class StartPage(Page):
-    name = "start"
-
+    name : str = "start"
     def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
@@ -21,6 +20,7 @@ class StartPage(Page):
         dpg.add_spacer(height=60)
         dpg.add_text("Image Inquest", indent=20)
         dpg.add_spacer(height=20)
+        
         with dpg.group(horizontal=True, indent=20):
             dpg.add_button(label="New Flow", callback=self._on_new_flow_clicked)
             dpg.add_button(label="Load Flow", callback=self._on_load_flow_clicked)
