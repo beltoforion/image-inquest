@@ -106,13 +106,6 @@ class SourceNode(NodeBase, ABC):
         pass  # Sources have no inputs, so this is never triggered
 
 
-class ProcessingNode(NodeBase):
-    """A node with both inputs and outputs.  Transforms data."""
-
-    @abstractmethod
-    def process(self) -> None: ...
-
-
 class SinkNode(NodeBase, ABC):
     """A node with inputs only.  Consumes data (file write, display, etc.)."""
 
