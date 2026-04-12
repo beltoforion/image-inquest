@@ -39,11 +39,13 @@ class NodeEditorPage(Page):
 
     def _install_menus(self) -> None:
         menu_tag = dpg.generate_uuid()
+        
         with dpg.menu(label="Node Editor", parent=self._menu_bar, tag=menu_tag):
             dpg.add_menu_item(label="Add Node", callback=self._on_add_node)
             dpg.add_menu_item(label="Clear All", callback=self._on_clear_nodes)
             dpg.add_separator()
             dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)
+
         self._menu_tags.append(menu_tag)
 
     # ── Node creation ──────────────────────────────────────────────────────────
@@ -67,8 +69,7 @@ class NodeEditorPage(Page):
             tag=dialog_tag,
             show=False,
             width=700,
-            height=400,
-        ):
+            height=400):
             dpg.add_file_extension(".png",  color=(0, 255, 0, 255),   custom_text="PNG Image")
             dpg.add_file_extension(".jpg",  color=(255, 255, 0, 255), custom_text="JPEG Image")
             dpg.add_file_extension(".jpeg", color=(255, 255, 0, 255), custom_text="JPEG Image")
@@ -82,12 +83,13 @@ class NodeEditorPage(Page):
                 with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
                     if i > 0:
                         dpg.add_spacer(height=2)
+
                     dpg.add_text(param.name)
                     if param.param_type == NodeParamType.FILE_PATH:
                         with dpg.group(horizontal=True):
                             dpg.add_input_text(
                                 tag=path_input_tag,
-                                default_value="",
+                                default_value=param.metadata.get("default", ""),
                                 width=200,
                                 hint="Select a file…",
                                 callback=lambda s, a: setattr(node, param.name, a),
@@ -126,9 +128,11 @@ class NodeEditorPage(Page):
         if children:
             for child in children:
                 dpg.delete_item(child)
+
         for dialog_tag in self._file_dialogs:
             if dpg.does_item_exist(dialog_tag):
                 dpg.delete_item(dialog_tag)
+
         self._file_dialogs.clear()
         if self._flow is not None:
             for node in list(self._flow.nodes):
@@ -140,6 +144,7 @@ class NodeEditorPage(Page):
         node = FileSource()
         if self._flow is not None:
             self._flow.add_node(node)
+
         self._add_file_source_node(node)
 
     def _on_clear_nodes(self, sender=None) -> None:
