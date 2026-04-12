@@ -68,6 +68,7 @@ class NodeEditorPage(Page):
         self._node_map:        dict[int | str, NodeBase]         = {}
         self._node_dialog_map: dict[int | str, int | str | None] = {}
         self._ctx_target:      tuple[int | str, NodeBase] | None = None
+        self._ctx_links:       list[int | str]                   = []
         # Context-menu window tags (created in _build_ui)
         self._node_ctx_tag:    int | str = dpg.generate_uuid()
         self._link_ctx_tag:    int | str = dpg.generate_uuid()
@@ -317,7 +318,10 @@ class NodeEditorPage(Page):
                 dpg.configure_item(self._node_ctx_tag, show=True)
                 return
 
-        # No node hovered — offer link deletion (select a link first, then right-click)
+        # No node hovered — snapshot selected links now (selection may clear later)
+        self._ctx_links = dpg.get_selected_links(self._node_editor_tag)
+        if not self._ctx_links:
+            return
         self._hide_ctx_menus()
         dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
         dpg.configure_item(self._link_ctx_tag, show=True)
@@ -375,11 +379,12 @@ class NodeEditorPage(Page):
             self._flow.remove_node(node)
 
     def _delete_selected_links(self) -> None:
-        """Delete all currently selected links."""
+        """Delete the links that were selected when the context menu was opened."""
         dpg.configure_item(self._link_ctx_tag, show=False)
-        for link in dpg.get_selected_links(self._node_editor_tag):
+        for link in self._ctx_links:
             if dpg.does_item_exist(link):
                 dpg.delete_item(link)
+        self._ctx_links = []
 
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
@@ -405,6 +410,7 @@ class NodeEditorPage(Page):
         self._node_map.clear()
         self._node_dialog_map.clear()
         self._ctx_target = None
+        self._ctx_links = []
 
         if self._flow is not None:
             for node in list(self._flow.nodes):
