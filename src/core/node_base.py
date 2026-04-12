@@ -7,19 +7,21 @@ from core.port import InputPort, OutputPort
 
 
 class NodeBase(ABC):
-    """Abstract base class for all nodes in a processing flow.
+    """Abstract base class for all processing nodes.
 
-    Subclasses register their ports in __init__ via _add_input() and
-    _add_output(), then implement process() to do their work.
+    Concrete processing nodes subclass NodeBase directly.
+    Source and sink nodes subclass SourceNodeBase or SinkNodeBase instead.
 
     Execution model (push-based):
-      - An OutputPort.send() pushes IoData to all connected InputPorts.
-      - Each InputPort calls _signal_input_ready() on its owner node.
-      - Once all inputs have data, process() is called automatically.
-      - After process() returns, all inputs are cleared so the node is
-        ready to accept the next batch of data.
-      - If any arriving data is EndOfStream, _on_end_of_stream() is called
-        instead of process().
+      - SourceNodeBase.start() pushes IoData to its OutputPorts.
+      - OutputPort.send() forwards data to all connected InputPorts.
+      - Each InputPort notifies its owner node via _signal_input_ready().
+      - Once all inputs have data, process() is invoked automatically.
+      - Inputs are cleared after each process() call so the node is ready
+        for the next frame.
+      - If any input carries EndOfStream, _on_end_of_stream() is called
+        instead of process(). By default this forwards EndOfStream to all
+        outputs so the signal propagates to the end of the graph.
     """
 
     def __init__(self, display_name: str) -> None:
@@ -52,10 +54,10 @@ class NodeBase(ABC):
     # ── Internal signal handling ───────────────────────────────────────────────
 
     def _signal_input_ready(self) -> None:
-        """Called by an InputPort when it receives new data.
+        """Called by an InputPort whenever it receives new data.
 
-        Waits until all inputs have data, then dispatches to either
-        _on_end_of_stream() or process().
+        Waits until every input has data, then dispatches to process() or
+        _on_end_of_stream() as appropriate, and clears all inputs afterwards.
         """
         if not all(p.has_data for p in self._inputs):
             return
@@ -72,24 +74,29 @@ class NodeBase(ABC):
 
     @abstractmethod
     def process(self) -> None:
-        """Read from self._inputs, compute, write to self._outputs."""
+        """Read from self._inputs, compute, and write results to self._outputs."""
         ...
 
     def _on_end_of_stream(self) -> None:
         """Called when any input receives EndOfStream.
 
         Default: forward EndOfStream to all outputs so the signal propagates
-        through the graph.  Override in SinkNodeBase where there is nothing to forward.
+        through the graph. SinkNodeBase overrides this to do nothing.
         """
         eos = IoData.end_of_stream()
         for port in self._outputs:
             port.send(eos)
 
 
-# ── Concrete node base classes ─────────────────────────────────────────────────
+# ── Abstract base classes for sources and sinks ────────────────────────────────
 
 class SourceNodeBase(NodeBase, ABC):
-    """A node with outputs only.  Drives the pipeline by calling start()."""
+    """Abstract base class for source nodes.
+
+    A source has outputs only — it produces data and drives the pipeline by
+    implementing start(). Subclasses must call OutputPort.send() for each
+    frame and send IoData.end_of_stream() on all outputs when done.
+    """
 
     @abstractmethod
     def start(self) -> None:
@@ -107,7 +114,11 @@ class SourceNodeBase(NodeBase, ABC):
 
 
 class SinkNodeBase(NodeBase, ABC):
-    """A node with inputs only.  Consumes data (file write, display, etc.)."""
+    """Abstract base class for sink nodes.
+
+    A sink has inputs only — it consumes data as a side effect (writing to
+    a file, displaying to screen, etc.) and does not propagate data further.
+    """
 
     @abstractmethod
     def process(self) -> None: ...
