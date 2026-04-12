@@ -19,10 +19,9 @@ class Page(ABC):
 
     Subclasses must define:
         name             - unique string identifier used by PageManager.
-        _build_ui()      - create the page content (use self._content_tag
-                           as the root container tag, self._parent as the
-                           parent, and pass show=False so the page starts
-                           hidden).
+        _build_ui()      - add content widgets; the child window container
+                           is already created by the base class and is the
+                           implicit DearPyGUI parent when _build_ui() runs.
         _install_menus() - create the page's menus under self._menu_bar
                            and append each created menu's tag to
                            self._menu_tags so the base class can remove
@@ -38,7 +37,8 @@ class Page(ABC):
         self._content_tag: int | str = dpg.generate_uuid()
         self._menu_tags: list[int | str] = []
         self._active: bool = False
-        self._build_ui()
+        with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
+            self._build_ui()
 
     @abstractmethod
     def _build_ui(self) -> None:
