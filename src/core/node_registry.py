@@ -1,89 +1,129 @@
 import ast
+from dataclasses import dataclass
 from pathlib import Path
 
-from core.node_definition import NodeDefinition
 
+@dataclass
+class ScanError:
+    """Describes a problem encountered while scanning a node file."""
+    file: Path
+    message: str
 
-# Files that are infrastructure, not nodes
-PROCESSOR_SKIP_FILES: frozenset[str] = frozenset({"processor_base.py", "io_data.py", "input_output.py"})
-SOURCE_SKIP_FILES: frozenset[str] = frozenset({"source_sink.py"})
+    def __str__(self) -> str:
+        return f"{self.file.name}: {self.message}"
 
 
 class NodeRegistry:
+    """Discovers node classes in Python source files via AST scanning.
+
+    The registry maps class names to display names without importing or
+    instantiating any node class.  Use it to populate menus or node
+    palettes in the UI.
+
+    Typical usage at application startup:
+
+        registry = NodeRegistry()
+        errors  = registry.scan_builtin(BUILTIN_NODES_DIR)
+        errors += registry.scan_user(USER_NODES_DIR)
+        if errors:
+            # show popup with errors (handled by UI layer)
+            ...
+    """
+
     def __init__(self) -> None:
-        self._nodes: dict[str, NodeDefinition] = {}
+        self._nodes: dict[str, str] = {}  # class_name -> display_name
 
-    def scan(self, folder: str | Path, skip_files: frozenset[str] = frozenset()) -> None:
-        """Scan a folder for node files and register all discovered nodes.
+    # ── Scanning ───────────────────────────────────────────────────────────────
 
-        Args:
-            folder: Directory to scan for .py files.
-            skip_files: File names (not paths) to ignore, e.g. base-class files.
+    def scan_builtin(self, folder: Path) -> list[ScanError]:
+        """Scan the built-in nodes folder recursively.
+
+        All .py files under folder and its subdirectories are scanned.
+        Returns a list of any parse errors encountered.
         """
-        folder = Path(folder)
-        for path in sorted(folder.glob("*.py")):
-            if path.name in skip_files:
-                continue
-            for definition in _parse_node_file(path):
-                self._nodes[definition.class_name] = definition
+        return self._scan(folder, reject_conflicts=False)
+
+    def scan_user(self, folder: Path) -> list[ScanError]:
+        """Scan the user nodes folder recursively, creating it if absent.
+
+        User node class names must not conflict with already-registered
+        built-in nodes — conflicts are rejected and reported as errors.
+        Returns a list of parse errors and conflict rejections.
+        """
+        _ensure_user_nodes_dir(folder)
+        return self._scan(folder, reject_conflicts=True)
+
+    def _scan(self, folder: Path, reject_conflicts: bool) -> list[ScanError]:
+        errors: list[ScanError] = []
+        for path in sorted(folder.rglob("*.py")):
+            found, file_errors = _parse_node_file(path)
+            errors.extend(file_errors)
+            for class_name, display_name in found.items():
+                if reject_conflicts and class_name in self._nodes:
+                    errors.append(ScanError(
+                        file=path,
+                        message=(
+                            f"'{class_name}' conflicts with a built-in node "
+                            f"and was not loaded"
+                        ),
+                    ))
+                else:
+                    self._nodes[class_name] = display_name
+        return errors
+
+    # ── Access ─────────────────────────────────────────────────────────────────
 
     @property
-    def nodes(self) -> dict[str, NodeDefinition]:
+    def nodes(self) -> dict[str, str]:
+        """Return a {class_name: display_name} snapshot of all registered nodes."""
         return dict(self._nodes)
 
     def __len__(self) -> int:
         return len(self._nodes)
 
     def __iter__(self):
-        return iter(self._nodes.values())
+        return iter(self._nodes.items())
 
 
-# ---------------------------------------------------------------------------
-# Internal AST helpers
-# ---------------------------------------------------------------------------
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _parse_node_file(path: Path) -> list[NodeDefinition]:
-    source = path.read_text(encoding="utf-8")
+def _ensure_user_nodes_dir(folder: Path) -> None:
+    """Create the user nodes folder and its subdirectories if they don't exist."""
+    for subdir in (folder, folder / "sources", folder / "sinks", folder / "filters"):
+        subdir.mkdir(parents=True, exist_ok=True)
+
+
+# ── Internal AST helpers ───────────────────────────────────────────────────────
+
+def _parse_node_file(path: Path) -> tuple[dict[str, str], list[ScanError]]:
+    """Return ({class_name: display_name}, [errors]) for a single file."""
     try:
+        source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    except SyntaxError as e:
+        return {}, [ScanError(file=path, message=f"Syntax error: {e.msg} (line {e.lineno})")]
+    except OSError as e:
+        return {}, [ScanError(file=path, message=f"Could not read file: {e}")]
 
-    return [
-        definition
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ClassDef)
-        for definition in [_extract_node_definition(node)]
-        if definition is not None
-    ]
+    result = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            entry = _extract_node_entry(node)
+            if entry is not None:
+                class_name, display_name = entry
+                result[class_name] = display_name
+    return result, []
 
 
-def _extract_node_definition(class_node: ast.ClassDef) -> NodeDefinition | None:
-    init_method = _find_init(class_node)
-    if init_method is None:
+def _extract_node_entry(class_node: ast.ClassDef) -> tuple[str, str] | None:
+    """Return (class_name, display_name) if the class looks like a node, else None."""
+    init = _find_init(class_node)
+    if init is None or not _has_super_init(init):
         return None
-
-    # Must have a super().__init__() call — that's how we recognise nodes
-    if not _has_super_init(init_method):
+    if _count_self_calls(init, "_add_input") == 0 and _count_self_calls(init, "_add_output") == 0:
         return None
-
-    # Use the string passed to super().__init__("name"), fall back to class name
-    display_name = _extract_super_init_name(init_method) or class_node.name
-
-    num_inputs = _count_self_calls(init_method, "_add_input")
-    num_outputs = _count_self_calls(init_method, "_add_output")
-
-    # Old-style nodes that never wired up inputs/outputs are skipped
-    if num_inputs == 0 and num_outputs == 0:
-        return None
-
-    return NodeDefinition(
-        class_name=class_node.name,
-        display_name=display_name,
-        num_inputs=num_inputs,
-        num_outputs=num_outputs,
-        parameters=_extract_parameters(class_node),
-    )
+    display_name = _extract_super_init_name(init) or class_node.name
+    return class_node.name, display_name
 
 
 def _find_init(class_node: ast.ClassDef) -> ast.FunctionDef | None:
@@ -94,29 +134,25 @@ def _find_init(class_node: ast.ClassDef) -> ast.FunctionDef | None:
 
 
 def _has_super_init(init_node: ast.FunctionDef) -> bool:
-    """Return True if __init__ contains any super().__init__(...) call."""
     for node in ast.walk(init_node):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         if not (isinstance(func, ast.Attribute) and func.attr == "__init__"):
             continue
-        receiver = func.value
-        if isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Name) and receiver.func.id == "super":
+        if isinstance(func.value, ast.Call) and isinstance(func.value.func, ast.Name) and func.value.func.id == "super":
             return True
     return False
 
 
 def _extract_super_init_name(init_node: ast.FunctionDef) -> str | None:
-    """Return the first string argument of super().__init__("name"), or None."""
     for node in ast.walk(init_node):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         if not (isinstance(func, ast.Attribute) and func.attr == "__init__"):
             continue
-        receiver = func.value
-        if not (isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Name) and receiver.func.id == "super"):
+        if not (isinstance(func.value, ast.Call) and isinstance(func.value.func, ast.Name) and func.value.func.id == "super"):
             continue
         if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
             return node.args[0].value
@@ -124,7 +160,6 @@ def _extract_super_init_name(init_node: ast.FunctionDef) -> str | None:
 
 
 def _count_self_calls(init_node: ast.FunctionDef, method_name: str) -> int:
-    """Count self.<method_name>(...) calls in __init__."""
     count = 0
     for node in ast.walk(init_node):
         if not isinstance(node, ast.Call):
@@ -138,24 +173,3 @@ def _count_self_calls(init_node: ast.FunctionDef, method_name: str) -> int:
         ):
             count += 1
     return count
-
-
-def _extract_parameters(class_node: ast.ClassDef) -> list[str]:
-    """Return names of properties that also have a setter."""
-    properties: set[str] = set()
-    setters: set[str] = set()
-
-    for item in class_node.body:
-        if not isinstance(item, ast.FunctionDef):
-            continue
-        for decorator in item.decorator_list:
-            if isinstance(decorator, ast.Name) and decorator.id == "property":
-                properties.add(item.name)
-            if (
-                isinstance(decorator, ast.Attribute)
-                and decorator.attr == "setter"
-                and isinstance(decorator.value, ast.Name)
-            ):
-                setters.add(item.name)
-
-    return sorted(properties & setters)

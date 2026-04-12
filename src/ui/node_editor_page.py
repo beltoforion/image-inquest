@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QWidget, QMenuBar, QMenu,
     QGraphicsView, QGraphicsScene, QGraphicsItem,
-    QGraphicsEllipseItem, QGraphicsPathItem,
+    QGraphicsEllipseItem, QGraphicsPathItem, QGraphicsProxyWidget,
+    QLabel, QLineEdit, QSpinBox, QFileDialog,
 )
 from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import (
@@ -13,6 +14,8 @@ from PyQt6.QtGui import (
 )
 
 from core.flow import Flow
+from core.node_base import NodeBase, NodeParamType, SourceNodeBase
+from nodes.sources.file_source import FileSource
 from ui.page import Page
 
 if TYPE_CHECKING:
@@ -21,11 +24,10 @@ if TYPE_CHECKING:
 
 # ── Node editor visual constants ──────────────────────────────────────────────
 
-_PORT_RADIUS = 7
-_NODE_WIDTH = 180
+_PORT_RADIUS   = 7
+_NODE_WIDTH    = 260
 _NODE_HEADER_H = 30
-_PORT_START_Y = 18   # distance from header bottom to first port centre
-_PORT_SPACING = 26   # vertical distance between successive ports
+_PORT_SPACING  = 26   # vertical distance between successive ports
 
 
 # ── Graphics items ─────────────────────────────────────────────────────────────
@@ -33,7 +35,7 @@ _PORT_SPACING = 26   # vertical distance between successive ports
 class NodePort(QGraphicsEllipseItem):
     """A small circle representing an input or output connection point."""
 
-    INPUT = "input"
+    INPUT  = "input"
     OUTPUT = "output"
 
     def __init__(self, node: NodeItem, port_type: str) -> None:
@@ -92,7 +94,6 @@ class EdgeItem(QGraphicsPathItem):
         self.setPath(path)
 
     def shape(self) -> QPainterPath:
-        # Widen the clickable area so right-click is easier to land.
         stroker = QPainterPathStroker()
         stroker.setWidth(12)
         return stroker.createStroke(self.path())
@@ -106,31 +107,114 @@ class EdgeItem(QGraphicsPathItem):
 
 
 class NodeItem(QGraphicsItem):
-    """A draggable node rectangle with labelled input and output ports."""
+    """A draggable node with parameter widgets and connection ports."""
 
-    def __init__(self, label: str, num_inputs: int = 1, num_outputs: int = 1) -> None:
+    def __init__(self, node: NodeBase) -> None:
         super().__init__()
-        self._label = label
-        self._input_ports: list[NodePort] = []
+        self._node = node
+        self._input_ports:  list[NodePort] = []
         self._output_ports: list[NodePort] = []
 
-        num_port_rows = max(num_inputs, num_outputs, 1)
-        self._height = _NODE_HEADER_H + _PORT_START_Y + num_port_rows * _PORT_SPACING + 10
+        # Build the body widget that holds parameter controls
+        self._body_widget = self._build_body_widget()
+        body_h = self._body_widget.sizeHint().height()
 
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self._height = _NODE_HEADER_H + body_h + (len(node.outputs) * _PORT_SPACING) + 16
+
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,    True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setZValue(1)
 
-        for i in range(num_inputs):
-            port = NodePort(self, NodePort.INPUT)
-            port.setPos(0.0, _NODE_HEADER_H + _PORT_START_Y + i * _PORT_SPACING)
-            self._input_ports.append(port)
+        # Embed the body widget via a proxy
+        proxy = QGraphicsProxyWidget(self)
+        proxy.setWidget(self._body_widget)
+        proxy.setPos(0, _NODE_HEADER_H)
 
-        for i in range(num_outputs):
+        # Output ports placed below the body
+        port_area_top = _NODE_HEADER_H + body_h + 8
+        for i, _ in enumerate(node.outputs):
             port = NodePort(self, NodePort.OUTPUT)
-            port.setPos(_NODE_WIDTH, _NODE_HEADER_H + _PORT_START_Y + i * _PORT_SPACING)
+            port.setPos(_NODE_WIDTH, port_area_top + _PORT_SPACING * i + _PORT_SPACING // 2)
             self._output_ports.append(port)
+
+    def _build_body_widget(self) -> QWidget:
+        """Build a QWidget containing controls for each NodeParam."""
+        container = QWidget()
+        container.setFixedWidth(_NODE_WIDTH)
+        container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(8, 4, 8, 8)
+        layout.setSpacing(4)
+
+        node = self._node
+
+        for param in node.params:
+            row = QHBoxLayout()
+            row.setSpacing(4)
+            lbl = QLabel(param.name + ":")
+            lbl.setFixedWidth(90)
+            lbl.setStyleSheet("color: #aaaaaa; font-size: 9pt;")
+            row.addWidget(lbl)
+
+            if param.param_type == NodeParamType.FILE_PATH:
+                edit = QLineEdit()
+                edit.setPlaceholderText("Select a file…")
+                edit.setText(str(param.metadata.get("default", "")))
+                edit.setStyleSheet(
+                    "background: #3a3a3a; color: #dddddd; border: 1px solid #555; padding: 1px;"
+                )
+                edit.textChanged.connect(lambda text, p=param: setattr(node, p.name, text))
+                browse_btn = QPushButton("…")
+                browse_btn.setFixedWidth(24)
+                browse_btn.setStyleSheet("background: #555; color: #ddd; padding: 0;")
+
+                def _make_browse(ed: QLineEdit):
+                    def _browse() -> None:
+                        path, _ = QFileDialog.getOpenFileName(
+                            None,
+                            "Select Image or Video File",
+                            "",
+                            "Images & Videos (*.png *.jpg *.jpeg *.mp4 *.cr2);;"
+                            "PNG Images (*.png);;"
+                            "JPEG Images (*.jpg *.jpeg);;"
+                            "MP4 Video (*.mp4);;"
+                            "RAW Images (*.cr2)",
+                        )
+                        if path:
+                            ed.setText(path)
+                    return _browse
+
+                browse_btn.clicked.connect(_make_browse(edit))
+                row.addWidget(edit)
+                row.addWidget(browse_btn)
+
+            elif param.param_type == NodeParamType.INT:
+                spin = QSpinBox()
+                spin.setRange(-1, 999_999)
+                spin.setValue(int(param.metadata.get("default", 0)))
+                spin.setStyleSheet(
+                    "background: #3a3a3a; color: #dddddd; border: 1px solid #555;"
+                )
+                spin.valueChanged.connect(lambda v, p=param: setattr(node, p.name, v))
+                row.addWidget(spin)
+
+            layout.addLayout(row)
+
+        # Output port labels
+        if node.outputs:
+            sep = QWidget()
+            sep.setFixedHeight(1)
+            sep.setStyleSheet("background: #555555;")
+            layout.addWidget(sep)
+            for port in node.outputs:
+                out_lbl = QLabel(", ".join(t.value for t in port.emits))
+                out_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+                out_lbl.setStyleSheet("color: #dd9944; font-size: 9pt; padding-right: 6px;")
+                layout.addWidget(out_lbl)
+
+        container.adjustSize()
+        return container
 
     def all_ports(self) -> list[NodePort]:
         return self._input_ports + self._output_ports
@@ -142,6 +226,8 @@ class NodeItem(QGraphicsItem):
 
     def paint(self, painter: QPainter, option, widget=None) -> None:
         selected = self.isSelected()
+        is_source = isinstance(self._node, SourceNodeBase)
+        header_color = QColor("#2a5a2a") if is_source else QColor("#3d5a8a")
 
         # Body
         body_pen = QPen(QColor("#888888") if selected else QColor("#555555"), 1.5)
@@ -154,7 +240,7 @@ class NodeItem(QGraphicsItem):
         clip.addRoundedRect(QRectF(0, 0, _NODE_WIDTH, self._height), 5, 5)
         painter.setClipPath(clip)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(QColor("#3d5a8a")))
+        painter.setBrush(QBrush(header_color))
         painter.drawRect(QRectF(0, 0, _NODE_WIDTH, _NODE_HEADER_H))
         painter.setClipping(False)
 
@@ -167,25 +253,8 @@ class NodeItem(QGraphicsItem):
         painter.drawText(
             QRectF(8, 0, _NODE_WIDTH - 16, _NODE_HEADER_H),
             Qt.AlignmentFlag.AlignVCenter,
-            self._label,
+            self._node.display_name,
         )
-
-        # Port labels
-        font.setBold(False)
-        painter.setFont(font)
-        painter.setPen(QPen(QColor("#bbbbbb")))
-        for port in self._input_ports:
-            painter.drawText(
-                QRectF(10, port.y() - 8, _NODE_WIDTH / 2 - 14, 16),
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                "Input",
-            )
-        for port in self._output_ports:
-            painter.drawText(
-                QRectF(_NODE_WIDTH / 2, port.y() - 8, _NODE_WIDTH / 2 - 10, 16),
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                "Output",
-            )
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
@@ -208,12 +277,12 @@ class NodeEditorScene(QGraphicsScene):
         super().__init__()
         self.setBackgroundBrush(QBrush(QColor("#1e1e1e")))
 
-    def add_node(self, label: str, num_inputs: int = 1, num_outputs: int = 1) -> NodeItem:
+    def add_node(self, node: NodeBase) -> NodeItem:
         existing = sum(1 for item in self.items() if isinstance(item, NodeItem))
-        node = NodeItem(label, num_inputs, num_outputs)
-        self.addItem(node)
-        node.setPos(40 + existing * 20, 40 + existing * 20)
-        return node
+        item = NodeItem(node)
+        self.addItem(item)
+        item.setPos(40 + existing * 20, 40 + existing * 20)
+        return item
 
     def clear_nodes(self) -> None:
         for item in list(self.items()):
@@ -315,7 +384,6 @@ class NodeEditorPage(Page):
     name = "editor"
 
     def __init__(self, menu_bar: QMenuBar, page_manager: PageManager) -> None:
-        self._node_count: int = 0
         self._flow: Flow | None = None
         self._node_scene: NodeEditorScene | None = None
         self._node_view: NodeEditorView | None = None
@@ -353,13 +421,19 @@ class NodeEditorPage(Page):
         menu.addAction("Exit", self._on_exit_clicked)
         self._menus.append(menu)
 
+    # ── Button / menu callbacks ────────────────────────────────────────────────
+
     def _on_add_node(self) -> None:
-        self._node_count += 1
-        self._node_scene.add_node(f"Node {self._node_count}")
+        node = FileSource()
+        if self._flow is not None:
+            self._flow.add_node(node)
+        self._node_scene.add_node(node)
 
     def _on_clear_nodes(self) -> None:
         self._node_scene.clear_nodes()
-        self._node_count = 0
+        if self._flow is not None:
+            for node in list(self._flow.nodes):
+                self._flow.remove_node(node)
 
     def _on_exit_clicked(self) -> None:
         self._on_clear_nodes()

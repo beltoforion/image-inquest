@@ -28,14 +28,17 @@ class PageManager:
     def register(self, page: Page) -> None:
         if page.name in self._pages:
             raise ValueError(f"Page '{page.name}' is already registered")
+        
         self._pages[page.name] = page
         self._stack.addWidget(page)
 
     def activate(self, page: Page) -> None:
         if page.name not in self._pages:
             raise KeyError(f"Page '{page.name}' is not registered")
+        
         if self._active is page:
             return
+        
         if self._active is not None:
             self._active.deactivate()
         self._stack.setCurrentWidget(page)

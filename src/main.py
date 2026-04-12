@@ -3,12 +3,19 @@ import argparse
 
 from PyQt6.QtWidgets import QApplication
 
-from constants import APP_NAME, APP_WIDTH, APP_HEIGHT
+from constants import APP_NAME, APP_WIDTH, APP_HEIGHT, INPUT_DIR, OUTPUT_DIR, USER_NODES_DIR
 from ui.main_window import MainWindow
+
+
+def _init_directories() -> None:
+    """Create required directories if they don't exist yet."""
+    for directory in (INPUT_DIR, OUTPUT_DIR, USER_NODES_DIR):
+        directory.mkdir(parents=True, exist_ok=True)
 
 
 class App:
     def __init__(self, width: int, height: int) -> None:
+        _init_directories()
         self._qt_app = QApplication(sys.argv)
         self._main_window = MainWindow(width, height)
 

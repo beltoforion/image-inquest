@@ -24,7 +24,7 @@ class Page(QWidget):
                            the base class can remove them on deactivation.
     """
 
-    name: str
+    name : str
 
     def __init__(self, menu_bar: QMenuBar, page_manager: PageManager) -> None:
         super().__init__()
