@@ -359,10 +359,15 @@ class NodeEditorPage(Page):
     # ── Clear ──────────────────────────────────────────────────────────────────
 
     def _clear_nodes(self) -> None:
-        children = dpg.get_item_children(self._node_editor_tag, 1)
-        if children:
-            for child in children:
-                dpg.delete_item(child)
+        # Links live in slot 0, nodes in slot 1.  Delete links first so that
+        # node-attribute references are never dangling when a node is removed.
+        for link in dpg.get_item_children(self._node_editor_tag, 0) or []:
+            if dpg.does_item_exist(link):
+                dpg.delete_item(link)
+
+        for node in dpg.get_item_children(self._node_editor_tag, 1) or []:
+            if dpg.does_item_exist(node):
+                dpg.delete_item(node)
 
         for dialog_tag in self._file_dialogs:
             if dpg.does_item_exist(dialog_tag):
