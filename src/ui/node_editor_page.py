@@ -203,6 +203,7 @@ class NodeEditorPage(Page):
                 width=700,
                 height=400,
             ):
+                dpg.add_file_extension(".*",    color=(200, 200, 200, 255), custom_text="All Files")
                 dpg.add_file_extension(".png",  color=(0, 255, 0, 255),   custom_text="PNG Image")
                 dpg.add_file_extension(".jpg",  color=(255, 255, 0, 255), custom_text="JPEG Image")
                 dpg.add_file_extension(".jpeg", color=(255, 255, 0, 255), custom_text="JPEG Image")
