@@ -359,43 +359,29 @@ class NodeEditorPage(Page):
     # ── Clear ──────────────────────────────────────────────────────────────────
 
     def _clear_nodes(self) -> None:
-        print("[clear] start")
-        children = dpg.get_item_children(self._node_editor_tag, 1) or []
-        print(f"[clear] children: {len(children)}")
-        links = [c for c in children if c not in self._node_map]
-        nodes = [c for c in children if c in self._node_map]
-        print(f"[clear] links={len(links)}  nodes={len(nodes)}")
+        # Links live in slot 0, nodes in slot 1.  Delete links first so that
+        # node-attribute references are never dangling when a node is removed.
+        for link in dpg.get_item_children(self._node_editor_tag, 0) or []:
+            if dpg.does_item_exist(link):
+                dpg.delete_item(link)
 
-        for item in links:
-            print(f"[clear]   delete link {item}, exists={dpg.does_item_exist(item)}")
-            if dpg.does_item_exist(item):
-                dpg.delete_item(item)
-        print("[clear] links done")
-
-        for item in nodes:
-            print(f"[clear]   delete node {item}, exists={dpg.does_item_exist(item)}")
-            if dpg.does_item_exist(item):
-                dpg.delete_item(item)
-        print("[clear] nodes done")
+        for node in dpg.get_item_children(self._node_editor_tag, 1) or []:
+            if dpg.does_item_exist(node):
+                dpg.delete_item(node)
 
         for dialog_tag in self._file_dialogs:
-            print(f"[clear]   delete dialog {dialog_tag}")
             if dpg.does_item_exist(dialog_tag):
                 dpg.delete_item(dialog_tag)
-        print("[clear] dialogs done")
 
         self._file_dialogs.clear()
         self._node_map.clear()
         self._node_dialog_map.clear()
         self._ctx_target = None
         self._ctx_links = []
-        print("[clear] tracking cleared")
 
         if self._flow is not None:
             for node in list(self._flow.nodes):
-                print(f"[clear]   remove flow node {node.display_name}")
                 self._flow.remove_node(node)
-        print("[clear] done")
 
     # ── Menu ───────────────────────────────────────────────────────────────────
 
@@ -410,12 +396,8 @@ class NodeEditorPage(Page):
     # ── Button / menu callbacks ────────────────────────────────────────────────
 
     def _on_clear_nodes(self, sender=None) -> None:
-        print("[on_clear_nodes]")
         self._clear_nodes()
 
     def _on_exit_clicked(self, sender=None) -> None:
-        print("[on_exit_clicked] start")
         self._clear_nodes()
-        print("[on_exit_clicked] after clear, activating start page")
         self._page_manager.activate(self._page_manager.start_page)
-        print("[on_exit_clicked] done")
