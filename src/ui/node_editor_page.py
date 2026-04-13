@@ -47,10 +47,10 @@ def _make_pin_theme(normal, hovered) -> int | str:
     return theme
 
 
-def _make_editor_theme(link, hovered, selected) -> int | str:
+def _make_link_theme(normal, hovered, selected) -> int | str:
     with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvNodeCol_Link,         link,     category=dpg.mvThemeCat_Nodes)
+        with dpg.theme_component(dpg.mvNodeLink):
+            dpg.add_theme_color(dpg.mvNodeCol_Link,         normal,   category=dpg.mvThemeCat_Nodes)
             dpg.add_theme_color(dpg.mvNodeCol_LinkHovered,  hovered,  category=dpg.mvThemeCat_Nodes)
             dpg.add_theme_color(dpg.mvNodeCol_LinkSelected, selected, category=dpg.mvThemeCat_Nodes)
     return theme
@@ -78,6 +78,7 @@ class NodeEditorPage(Page):
         self._theme_sink:        int | str | None = None
         self._theme_pin_input:   int | str | None = None
         self._theme_pin_output:  int | str | None = None
+        self._theme_link:        int | str | None = None
         # Node tracking for delete / context-menu support
         self._node_map:        dict[int | str, NodeBase]         = {}
         self._node_dialog_map: dict[int | str, int | str | None] = {}
@@ -99,7 +100,7 @@ class NodeEditorPage(Page):
         self._theme_sink       = _make_node_theme(*_COL_SINK)
         self._theme_pin_input  = _make_pin_theme(*_COL_PIN_INPUT)
         self._theme_pin_output = _make_pin_theme(*_COL_PIN_OUTPUT)
-        editor_theme           = _make_editor_theme(_COL_LINK, _COL_LINK_HOVERED, _COL_LINK_SELECTED)
+        self._theme_link       = _make_link_theme(_COL_LINK, _COL_LINK_HOVERED, _COL_LINK_SELECTED)
 
         # ── Context menus (floating windows, shown/hidden on demand) ───────────
         with dpg.window(
@@ -164,7 +165,6 @@ class NodeEditorPage(Page):
                         width=-1,
                         height=-1,
                     )
-                    dpg.bind_item_theme(self._node_editor_tag, editor_theme)
 
     # ── Palette ────────────────────────────────────────────────────────────────
 
@@ -405,7 +405,9 @@ class NodeEditorPage(Page):
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
     def _link(self, sender, app_data) -> None:
-        dpg.add_node_link(app_data[0], app_data[1], parent=sender)
+        link_tag = dpg.add_node_link(app_data[0], app_data[1], parent=sender)
+        if self._theme_link is not None:
+            dpg.bind_item_theme(link_tag, self._theme_link)
 
     def _delink(self, sender, app_data) -> None:
         dpg.delete_item(app_data)
