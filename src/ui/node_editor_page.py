@@ -374,7 +374,7 @@ class NodeEditorPage(Page):
                 if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
                     dpg.delete_item(child)
             except Exception:
-                pass
+                pass  # child may already be deleted or not a configurable link
 
         # Clean up file dialog owned by this node (if any)
         dialog_tag = self._node_dialog_map.pop(node_tag, None)
