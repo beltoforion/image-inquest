@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import importlib
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
 
+from constants import INPUT_DIR
 from core.flow import Flow
 from core.node_base import NodeBase, NodeParamType
 from core.node_registry import NodeEntry, NodeRegistry
@@ -230,13 +232,22 @@ class NodeEditorPage(Page):
                                 hint="Select a file…",
                                 callback=lambda s, a, p=param: setattr(node, p.name, a),
                             )
+                            def _open_browse(
+                                s=None, a=None,
+                                _p=param.name,
+                                _it=input_tag,
+                                _dt=dialog_tag,
+                            ):
+                                current = dpg.get_value(_it) or ""
+                                parent = Path(current).parent
+                                initial = str(parent) if parent.is_dir() else str(INPUT_DIR)
+                                dpg.configure_item(_dt, user_data=_p, default_path=initial)
+                                dpg.show_item(_dt)
+
                             dpg.add_button(
                                 label="…",
                                 user_data=param.name,
-                                callback=lambda s, a, p=param.name: (
-                                    dpg.configure_item(dialog_tag, user_data=p),
-                                    dpg.show_item(dialog_tag),
-                                ),
+                                callback=_open_browse,
                             )
 
                     elif param.param_type == NodeParamType.INT:
