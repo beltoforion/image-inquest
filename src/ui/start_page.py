@@ -6,7 +6,7 @@ import dearpygui.dearpygui as dpg
 from typing_extensions import override
 
 from constants import APP_VERSION
-from core.flow import DEFAULT_FLOW_NAME, Flow
+from core.flow import DEFAULT_FLOW_NAME, Flow, is_valid_flow_name
 from ui._types import DpgTag
 from ui.page import Page
 
@@ -19,6 +19,7 @@ class StartPage(Page):
 
     def __init__(self, parent: DpgTag, menu_bar: DpgTag, page_manager: PageManager) -> None:
         self._flow_name_input_tag: DpgTag = dpg.generate_uuid()
+        self._create_button_tag:   DpgTag = dpg.generate_uuid()
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
     @override
@@ -29,9 +30,7 @@ class StartPage(Page):
         dpg.add_spacer(height=20)
 
         # Primary action: name the flow then create it. Enter in the input
-        # also triggers creation, so a flow can be created without using
-        # the mouse at all (optionally leaving the name blank to accept
-        # the default).
+        # also triggers creation. Create is disabled until the name is valid.
         with dpg.group(horizontal=True, indent=20):
             dpg.add_input_text(
                 tag=self._flow_name_input_tag,
@@ -40,7 +39,18 @@ class StartPage(Page):
                 on_enter=True,
                 callback=self._on_create_flow,
             )
-            dpg.add_button(label="Create", callback=self._on_create_flow)
+            dpg.add_button(
+                label="Create",
+                tag=self._create_button_tag,
+                enabled=False,
+                callback=self._on_create_flow,
+            )
+
+        # Live-validate the name on every keystroke so the Create button's
+        # enabled state stays in sync with the input.
+        with dpg.item_handler_registry() as handlers:
+            dpg.add_item_edited_handler(callback=self._on_name_edited)
+        dpg.bind_item_handler_registry(self._flow_name_input_tag, handlers)
 
         dpg.add_spacer(height=8)
         dpg.add_button(label="Load Flow", indent=20, callback=self._on_load_flow_clicked)
@@ -56,12 +66,17 @@ class StartPage(Page):
 
     # ── Callbacks ──────────────────────────────────────────────────────────────
 
+    def _on_name_edited(self, sender: DpgTag, app_data: object) -> None:
+        name = dpg.get_value(self._flow_name_input_tag) or ""
+        dpg.configure_item(self._create_button_tag, enabled=is_valid_flow_name(name))
+
     def _on_create_flow(self, sender: DpgTag | None = None, app_data: object = None) -> None:
-        raw_name = dpg.get_value(self._flow_name_input_tag) or ""
-        flow = Flow(name=raw_name)
-        # Reflect the sanitized/defaulted name back into the input so the
-        # user sees what will be saved.
-        dpg.set_value(self._flow_name_input_tag, flow.name)
+        name = dpg.get_value(self._flow_name_input_tag) or ""
+        if not is_valid_flow_name(name):
+            # Ignore Enter presses on an invalid/empty input; the Create
+            # button is already disabled for the same reason.
+            return
+        flow = Flow(name=name)
         self._page_manager.editor_page.set_flow(flow)
         self._page_manager.activate(self._page_manager.editor_page)
 

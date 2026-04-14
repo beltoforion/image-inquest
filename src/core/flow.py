@@ -6,19 +6,28 @@ from core.node_base import NodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
 
 
-DEFAULT_FLOW_NAME: str = "Untitled flow"
+DEFAULT_FLOW_NAME: str = "Untitled_flow"
 
-# Characters that are invalid in filenames on at least one major platform
-# (Windows is the strictest here), plus ASCII control characters.
-_INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+# Allowed flow-name characters: ASCII letters, digits, underscore, hash,
+# plus and minus. The set is intentionally narrow so that names are safe to
+# use as filename stems on every platform without further escaping.
+_DISALLOWED_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_#+\-]")
+_VALID_NAME_RE = re.compile(r"\A[a-zA-Z0-9_#+\-]+\Z")
+
+
+def is_valid_flow_name(name: str) -> bool:
+    """Return True iff ``name`` is non-empty and only uses allowed chars."""
+    return _VALID_NAME_RE.match(name) is not None
 
 
 def sanitize_flow_name(name: str) -> str:
-    """Return ``name`` stripped of filesystem-invalid characters and trimmed.
+    """Return ``name`` with disallowed characters stripped.
 
     Falls back to :data:`DEFAULT_FLOW_NAME` if the sanitized result is empty.
+    Defensive helper: the UI should reject invalid names up-front, but code
+    paths that construct :class:`Flow` directly still get a safe value.
     """
-    cleaned = _INVALID_FILENAME_CHARS.sub("", name).strip()
+    cleaned = _DISALLOWED_NAME_CHARS.sub("", name)
     return cleaned or DEFAULT_FLOW_NAME
 
 
