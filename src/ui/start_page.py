@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
 from typing_extensions import override
 
-from constants import APP_VERSION
+from constants import APP_VERSION, FLOW_DIR
 from core.flow import DEFAULT_FLOW_NAME, Flow, is_valid_flow_name
 from ui._types import DpgTag
+from ui.flow_file_dialog import make_open_flow_dialog
 from ui.page import Page
 
 if TYPE_CHECKING:
@@ -27,6 +29,7 @@ class StartPage(Page):
     ) -> None:
         self._flow_name_input_tag: DpgTag = dpg.generate_uuid()
         self._create_button_tag:   DpgTag = dpg.generate_uuid()
+        self._open_dialog_tag:     DpgTag = dpg.generate_uuid()
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager, themes=themes)
 
     @override
@@ -61,7 +64,11 @@ class StartPage(Page):
         dpg.bind_item_handler_registry(self._flow_name_input_tag, handlers)
 
         dpg.add_spacer(height=8)
-        dpg.add_button(label="Load Flow", indent=20, callback=self._on_load_flow_clicked)
+        dpg.add_button(label="Open", indent=20, callback=self._on_open_clicked)
+
+        # Persistent file dialog used by the Open button. Same factory as
+        # NodeEditorPage so both pages share filter / layout.
+        make_open_flow_dialog(self._open_dialog_tag, self._on_flow_file_selected)
 
     @override
     def _install_menus(self) -> None:
@@ -88,5 +95,17 @@ class StartPage(Page):
         self._page_manager.editor_page.set_flow(flow)
         self._page_manager.activate(self._page_manager.editor_page)
 
-    def _on_load_flow_clicked(self, sender: DpgTag | None = None) -> None:
-        pass  # TODO: implement flow loading (file dialog + deserialization)
+    def _on_open_clicked(self, sender: DpgTag | None = None) -> None:
+        FLOW_DIR.mkdir(parents=True, exist_ok=True)
+        dpg.configure_item(self._open_dialog_tag, default_path=str(FLOW_DIR))
+        dpg.show_item(self._open_dialog_tag)
+
+    def _on_flow_file_selected(self, sender: DpgTag, app_data: dict) -> None:
+        path_str = app_data.get("file_path_name", "")
+        if not path_str:
+            return
+        # Delegate to NodeEditorPage — single source of truth for the load
+        # routine (clears canvas, rebuilds nodes/links, refreshes menu).
+        editor = self._page_manager.editor_page
+        editor.load_flow(Path(path_str))
+        self._page_manager.activate(editor)
