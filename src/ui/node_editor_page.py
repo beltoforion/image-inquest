@@ -2,43 +2,23 @@ from __future__ import annotations
 
 import importlib
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 import dearpygui.dearpygui as dpg
 
-from constants import INPUT_DIR, OUTPUT_DIR
 from core.flow import Flow
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase
 from core.node_registry import NodeEntry, NodeRegistry
 from ui._types import DpgTag
+from ui.dpg_node_builder import DpgNodeBuilder
+from ui.dpg_node_list_builder import DpgNodeListBuilder
 from ui.node_editor_theme import NodeEditorTheme
-from ui.node_palette_widget import NodePaletteWidget
 from ui.page import Page
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from core.port import InputPort, OutputPort
     from ui.page_manager import PageManager
-
-
-# ── File-dialog extension registrations ────────────────────────────────────────
-# Each entry is (extension, rgba, label).
-
-_SAVE_EXTS: tuple[tuple[str, tuple[int, int, int, int], str], ...] = (
-    (".png",  (0,   255, 0,   255), "PNG Image"),
-    (".jpg",  (255, 255, 0,   255), "JPEG Image")
-)
-
-_OPEN_EXTS: tuple[tuple[str, tuple[int, int, int, int], str], ...] = (
-    (".*",    (200, 200, 200, 255), "All Files"),
-    (".png",  (0,   255, 0,   255), "PNG Image"),
-    (".jpg",  (255, 255, 0,   255), "JPEG Image"),
-    (".jpeg", (255, 255, 0,   255), "JPEG Image"),
-    (".mp4",  (0,   200, 255, 255), "MP4 Video"),
-    (".cr2",  (255, 128, 0,   255), "RAW Image"),
-)
 
 
 class NodeEditorPage(Page):
@@ -56,6 +36,7 @@ class NodeEditorPage(Page):
         self._flow:     Flow | None    = None
         self._theme:    NodeEditorTheme = NodeEditorTheme()
         self._registry: NodeRegistry    = registry
+        self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, self._theme)
 
         # Node tracking for delete / context-menu support
         self._node_map:        dict[DpgTag, NodeBase]       = {}
@@ -101,7 +82,7 @@ class NodeEditorPage(Page):
     def _build_canvas(self) -> None:
         dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
-            NodePaletteWidget(self._registry)
+            DpgNodeListBuilder(self._registry)
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Clear All", callback=self._clear_nodes)
@@ -109,7 +90,7 @@ class NodeEditorPage(Page):
                 with dpg.child_window(
                     tag=self._canvas_tag,
                     drop_callback=self._on_node_dropped,
-                    payload_type=NodePaletteWidget.PAYLOAD_TYPE,
+                    payload_type=DpgNodeListBuilder.PAYLOAD_TYPE,
                     width=-1,
                     height=-1,
                     border=False):
@@ -127,10 +108,10 @@ class NodeEditorPage(Page):
         cls = getattr(module, app_data.class_name)
         node: NodeBase = cls()
         logger.debug("Adding node '%s'", node.display_name)
-        
+
         if self._flow is not None:
             self._flow.add_node(node)
-        
+
         node_tag = self._add_visual_node(node)
         mouse_pos  = dpg.get_mouse_pos(local=True)
         canvas_pos = dpg.get_item_pos(self._canvas_tag)
@@ -140,124 +121,10 @@ class NodeEditorPage(Page):
         ])
 
     def _add_visual_node(self, node: NodeBase) -> DpgTag:
-        """Create a visual node driven by node.params, node.inputs, and node.outputs."""
-        dialog_tag, path_input_tags = self._build_file_dialog(node)
-
-        with dpg.node(label=node.display_name, parent=self._node_editor_tag) as node_tag:
-            self._theme.apply_to_node(node_tag, node)
-
-            for i, param in enumerate(node.params):
-                with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
-                    if i > 0:
-                        dpg.add_spacer(height=2)
-                    dpg.add_text(param.name)
-
-                    if param.param_type == NodeParamType.FILE_PATH:
-                        assert dialog_tag is not None
-                        self._build_file_path_param(node, param, path_input_tags, dialog_tag)
-                    elif param.param_type == NodeParamType.INT:
-                        self._build_int_param(node, param)
-
-            for port in node.inputs:
-                self._build_input_port(port)
-
-            for i, port in enumerate(node.outputs):
-                self._build_output_port(port, is_first=(i == 0))
-
+        node_tag, dialog_tag = self._node_builder.build(node)
         self._node_map[node_tag] = node
         self._node_dialog_map[node_tag] = dialog_tag
         return node_tag
-
-
-    def _build_file_dialog(self, node: NodeBase) -> tuple[DpgTag | None, dict[str, DpgTag]]:
-        """Build the node's file dialog, if any. Returns (dialog_tag, path_input_tags)."""
-        file_params = [p for p in node.params if p.param_type == NodeParamType.FILE_PATH]
-        if not file_params:
-            return None, {}
-
-        dialog_tag: DpgTag = dpg.generate_uuid()
-        path_input_tags: dict[str, DpgTag] = {}
-        is_save = any(p.metadata.get("mode") == "save" for p in file_params)
-
-        def on_file_selected(sender: DpgTag, app_data: dict) -> None:
-            path = app_data.get("file_path_name", "")
-            active_param = dpg.get_item_user_data(sender)
-            assert active_param in path_input_tags, f"Unknown file-dialog target: {active_param!r}"
-            dpg.set_value(path_input_tags[active_param], path)
-            setattr(node, active_param, path)
-
-        extensions = _SAVE_EXTS if is_save else _OPEN_EXTS
-        with dpg.file_dialog(
-            label="Save File As" if is_save else "Select File",
-            callback=on_file_selected,
-            tag=dialog_tag,
-            show=False,
-            width=700,
-            height=400,
-        ):
-            for ext, color, label in extensions:
-                dpg.add_file_extension(ext, color=color, custom_text=label)
-
-        return dialog_tag, path_input_tags
-
-    def _build_file_path_param(
-        self,
-        node: NodeBase,
-        param: NodeParam,
-        path_input_tags: dict[str, DpgTag],
-        dialog_tag: DpgTag) -> None:
-        input_tag: DpgTag = dpg.generate_uuid()
-        path_input_tags[param.name] = input_tag
-        is_save = param.metadata.get("mode") == "save"
-
-        with dpg.group(horizontal=True):
-            dpg.add_input_text(
-                tag=input_tag,
-                default_value=str(param.metadata.get("default", "")),
-                width=200,
-                hint="Select a file…",
-                callback=lambda s, a, p=param: setattr(node, p.name, a),
-            )
-            dpg.add_button(
-                label="…",
-                callback=self._make_browse_callback(param.name, input_tag, dialog_tag, is_save),
-            )
-
-    @staticmethod
-    def _build_int_param(node: NodeBase, param: NodeParam) -> None:
-        dpg.add_input_int(
-            default_value=int(param.metadata.get("default", 0)),
-            width=100,
-            callback=lambda s, a, p=param: setattr(node, p.name, a))
-
-    def _build_input_port(self, port: InputPort) -> None:
-        with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Input) as attr_tag:
-            self._theme.apply_to_input_pin(attr_tag)
-            dpg.add_text(", ".join(t.value for t in port.accepted_types))
-
-    def _build_output_port(self, port: OutputPort, *, is_first: bool) -> None:
-        with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output) as attr_tag:
-            self._theme.apply_to_output_pin(attr_tag)
-            if is_first:
-                dpg.add_spacer(height=6)
-            dpg.add_text(", ".join(t.value for t in port.emits))
-
-    @staticmethod
-    def _make_browse_callback(
-        param_name: str,
-        input_tag: DpgTag,
-        dialog_tag: DpgTag,
-        is_save: bool,
-    ) -> Callable[..., None]:
-        def _browse(sender: DpgTag | None = None, app_data: object = None) -> None:
-            current = dpg.get_value(input_tag) or ""
-            folder = Path(current).parent.resolve()
-            fallback = OUTPUT_DIR if is_save else INPUT_DIR
-            initial = str(folder) if folder.is_dir() else str(fallback)
-            logger.debug("File dialog initial path: %s", initial)
-            dpg.configure_item(dialog_tag, user_data=param_name, default_path=initial)
-            dpg.show_item(dialog_tag)
-        return _browse
 
     # ── Right-click / context menus ────────────────────────────────────────────
 
@@ -280,7 +147,6 @@ class NodeEditorPage(Page):
         self._hide_ctx_menus()
         dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
         dpg.configure_item(self._link_ctx_tag, show=True)
-
 
     def _on_left_click(self) -> None:
         """Dismiss context menus when clicking outside them."""
