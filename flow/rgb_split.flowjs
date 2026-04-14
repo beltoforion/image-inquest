@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "name": "rgb_split",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.file_source",
+      "class": "FileSource",
+      "position": [
+        -1743.0,
+        -651.0
+      ],
+      "params": {
+        "file_path": ".",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.rgb_split",
+      "class": "RgbSplit",
+      "position": [
+        -1444.0,
+        -616.0
+      ],
+      "params": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -1176.0,
+        -739.0
+      ],
+      "params": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.rgb_join",
+      "class": "RgbJoin",
+      "position": [
+        -893.0,
+        -615.0
+      ],
+      "params": {
+        "three_color": false
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -613.0,
+        -600.0
+      ],
+      "params": {
+        "output_path": "output/out.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 1,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 1,
+      "src_output": 2,
+      "dst_node": 3,
+      "dst_input": 2
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    }
+  ]
+}
