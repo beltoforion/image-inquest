@@ -3,6 +3,7 @@ from __future__ import annotations
 import dearpygui.dearpygui as dpg
 
 from core.node_base import NodeBase, SourceNodeBase, SinkNodeBase
+from ui._types import DpgTag
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
 # Each tuple is (normal, hovered, selected) unless noted.
@@ -17,7 +18,7 @@ _PIN_OUTPUT     = ((220, 180,   0, 255), (240, 200,  30, 255))
 _LINK           = ((180, 180, 180, 255), (255, 255, 255, 255), (220, 160, 0, 255))
 
 
-class NodeEditorTheme:
+class DpgNodeEditorThemes:
     """Creates and owns all DPG theme objects used by the node editor.
 
     Must be instantiated after ``dpg.create_context()`` has been called,
@@ -25,11 +26,11 @@ class NodeEditorTheme:
 
     Usage::
 
-        theme = NodeEditorTheme()
-        theme.apply_to_node(node_tag, node)
-        theme.apply_to_input_pin(attr_tag)
-        theme.apply_to_output_pin(attr_tag)
-        theme.apply_to_link(link_tag)
+        themes = DpgNodeEditorThemes()
+        themes.apply_to_node(node_tag, node)
+        themes.apply_to_input_pin(attr_tag)
+        themes.apply_to_output_pin(attr_tag)
+        themes.apply_to_link(link_tag)
     """
 
     def __init__(self) -> None:
@@ -42,7 +43,7 @@ class NodeEditorTheme:
 
     # ── Apply helpers ──────────────────────────────────────────────────────────
 
-    def apply_to_node(self, tag: int | str, node: NodeBase) -> None:
+    def apply_to_node(self, tag: DpgTag, node: NodeBase) -> None:
         """Bind the correct header theme based on the node's category."""
         if isinstance(node, SourceNodeBase):
             theme = self._source
@@ -52,19 +53,19 @@ class NodeEditorTheme:
             theme = self._filter
         dpg.bind_item_theme(tag, theme)
 
-    def apply_to_input_pin(self, tag: int | str) -> None:
+    def apply_to_input_pin(self, tag: DpgTag) -> None:
         dpg.bind_item_theme(tag, self._pin_input)
 
-    def apply_to_output_pin(self, tag: int | str) -> None:
+    def apply_to_output_pin(self, tag: DpgTag) -> None:
         dpg.bind_item_theme(tag, self._pin_output)
 
-    def apply_to_link(self, tag: int | str) -> None:
+    def apply_to_link(self, tag: DpgTag) -> None:
         dpg.bind_item_theme(tag, self._link)
 
 
 # ── Private factory functions ──────────────────────────────────────────────────
 
-def _make_node_header_theme(title, hovered, selected) -> int | str:
+def _make_node_header_theme(title, hovered, selected) -> DpgTag:
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvNodeCol_TitleBar,         title,    category=dpg.mvThemeCat_Nodes)
@@ -73,7 +74,7 @@ def _make_node_header_theme(title, hovered, selected) -> int | str:
     return theme
 
 
-def _make_pin_theme(normal, hovered) -> int | str:
+def _make_pin_theme(normal, hovered) -> DpgTag:
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvNodeCol_Pin,        normal,  category=dpg.mvThemeCat_Nodes)
@@ -81,7 +82,7 @@ def _make_pin_theme(normal, hovered) -> int | str:
     return theme
 
 
-def _make_link_theme(normal, hovered, selected) -> int | str:
+def _make_link_theme(normal, hovered, selected) -> DpgTag:
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvNodeLink):
             dpg.add_theme_color(dpg.mvNodeCol_Link,         normal,   category=dpg.mvThemeCat_Nodes)
