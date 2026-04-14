@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal
 
@@ -20,6 +21,9 @@ from ui.page import Page
 
 _FLOW_FORMAT_VERSION = 1
 _PortKind = Literal["input", "output"]
+
+_SAVE_OK_COLOR   = ( 90, 200, 100, 255)
+_SAVE_FAIL_COLOR = (220,  80,  80, 255)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,7 @@ class NodeEditorPage(Page):
     ) -> None:
         self._node_editor_tag: DpgTag = dpg.generate_uuid()
         self._canvas_tag:      DpgTag = dpg.generate_uuid()
+        self._save_status_tag: DpgTag = dpg.generate_uuid()
         self._flow:     Flow | None    = None
         self._registry: NodeRegistry    = registry
         self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, themes)
@@ -78,6 +83,10 @@ class NodeEditorPage(Page):
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Save",      callback=self._save_flow)
                     dpg.add_button(label="Clear All", callback=self._clear_nodes)
+                    dpg.add_spacer(width=16)
+                    # Status readout updated by _save_flow. Empty until the
+                    # first save attempt.
+                    dpg.add_text("", tag=self._save_status_tag)
 
                 with dpg.child_window(
                     tag=self._canvas_tag,
@@ -265,16 +274,39 @@ class NodeEditorPage(Page):
     def _save_flow(self, *_: object) -> None:
         if self._flow is None:
             logger.warning("Save requested but no flow is active")
+            self._set_save_status("No flow to save", _SAVE_FAIL_COLOR)
             return
         data = self._serialize_flow(self._flow)
         try:
             FLOW_DIR.mkdir(parents=True, exist_ok=True)
             path = FLOW_DIR / f"{self._flow.name}.json"
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except OSError:
+        except OSError as err:
             logger.exception("Failed to save flow '%s'", self._flow.name)
+            self._set_save_status(f"Save failed ({err.strerror or err.__class__.__name__})",
+                                  _SAVE_FAIL_COLOR)
             return
         logger.info("Saved flow to %s", path)
+        self._set_save_status(
+            f"Saved to {self._display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
+            _SAVE_OK_COLOR,
+        )
+
+    def _set_save_status(self, message: str, color: tuple[int, int, int, int]) -> None:
+        """Update the Save-status readout below the button row."""
+        if not dpg.does_item_exist(self._save_status_tag):
+            return
+        dpg.set_value(self._save_status_tag, message)
+        dpg.configure_item(self._save_status_tag, color=color)
+
+    @staticmethod
+    def _display_path(path: Path) -> str:
+        """Return ``path`` relative to the current working directory when
+        possible, otherwise the absolute path. Keeps the status line short."""
+        try:
+            return str(path.relative_to(Path.cwd()))
+        except ValueError:
+            return str(path)
 
     def _serialize_flow(self, flow: Flow) -> dict:
         """Return a JSON-compatible dict snapshot of the current editor state."""
