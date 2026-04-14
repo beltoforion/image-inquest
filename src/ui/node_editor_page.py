@@ -28,8 +28,7 @@ if TYPE_CHECKING:
 
 _SAVE_EXTS: tuple[tuple[str, tuple[int, int, int, int], str], ...] = (
     (".png",  (0,   255, 0,   255), "PNG Image"),
-    (".jpg",  (255, 255, 0,   255), "JPEG Image"),
-    (".jpeg", (255, 255, 0,   255), "JPEG Image"),
+    (".jpg",  (255, 255, 0,   255), "JPEG Image")
 )
 
 _OPEN_EXTS: tuple[tuple[str, tuple[int, int, int, int], str], ...] = (
