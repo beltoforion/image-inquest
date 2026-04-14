@@ -8,21 +8,26 @@ from typing_extensions import override
 from constants import APP_VERSION
 from core.flow import DEFAULT_FLOW_NAME, Flow, is_valid_flow_name
 from ui._types import DpgTag
-from ui.dpg_themes import DpgThemes
 from ui.page import Page
 
 if TYPE_CHECKING:
+    from ui.dpg_themes import DpgThemes
     from ui.page_manager import PageManager
 
 
 class StartPage(Page):
     name : str = "start"
 
-    def __init__(self, parent: DpgTag, menu_bar: DpgTag, page_manager: PageManager) -> None:
+    def __init__(
+        self,
+        parent: DpgTag,
+        menu_bar: DpgTag,
+        page_manager: PageManager,
+        themes: DpgThemes,
+    ) -> None:
         self._flow_name_input_tag: DpgTag = dpg.generate_uuid()
         self._create_button_tag:   DpgTag = dpg.generate_uuid()
-        self._themes:              DpgThemes = DpgThemes()
-        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
+        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager, themes=themes)
 
     @override
     def _build_ui(self) -> None:

@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
 
+from ui._types import DpgTag
+
 if TYPE_CHECKING:
+    from ui.dpg_themes import DpgThemes
     from ui.page_manager import PageManager
 
 
@@ -16,6 +19,10 @@ class Page(ABC):
     menus that are added to a menu bar on activation and removed on
     deactivation. Only one page in the application should be active at any
     given time; the PageManager enforces this.
+
+    The shared :class:`DpgThemes` instance is owned by the MainWindow and
+    passed in so that all pages render against the same underlying DPG
+    theme handles.
 
     Subclasses must define:
         name             - unique string identifier used by PageManager.
@@ -30,12 +37,19 @@ class Page(ABC):
 
     name : str
 
-    def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
-        self._parent: int | str = parent
-        self._menu_bar: int | str = menu_bar
+    def __init__(
+        self,
+        parent: DpgTag,
+        menu_bar: DpgTag,
+        page_manager: PageManager,
+        themes: DpgThemes,
+    ) -> None:
+        self._parent: DpgTag = parent
+        self._menu_bar: DpgTag = menu_bar
         self._page_manager: PageManager = page_manager
-        self._content_tag: int | str = dpg.generate_uuid()
-        self._menu_tags: list[int | str] = []
+        self._themes: DpgThemes = themes
+        self._content_tag: DpgTag = dpg.generate_uuid()
+        self._menu_tags: list[DpgTag] = []
         self._active: bool = False
         with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
             self._build_ui()
