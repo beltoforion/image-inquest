@@ -13,6 +13,9 @@ BUILTIN_NODES_DIR: Path = Path(__file__).parent / "nodes"
 INPUT_DIR:  Path = Path(__file__).parent.parent / "input"
 OUTPUT_DIR: Path = Path(__file__).parent.parent / "output"
 
+# Folder where saved flows are written (one JSON file per flow).
+FLOW_DIR:   Path = Path(__file__).parent.parent / "flow"
+
 # User-defined nodes (~/.image-inquest/user_nodes/)
 USER_CONFIG_DIR: Path = Path.home() / ".image-inquest"
 USER_NODES_DIR:  Path = USER_CONFIG_DIR / "user_nodes"

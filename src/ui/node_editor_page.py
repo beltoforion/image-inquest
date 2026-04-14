@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import importlib
+import json
 import logging
-from typing import TYPE_CHECKING, Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Literal
 
 import dearpygui.dearpygui as dpg
 from typing_extensions import override
 
+from constants import FLOW_DIR
 from core.flow import Flow
 from core.node_base import NodeBase
 from core.node_registry import NodeEntry, NodeRegistry
@@ -14,6 +17,9 @@ from ui._types import DpgTag
 from ui.dpg_node_builder import DpgNodeBuilder
 from ui.dpg_node_list_builder import DpgNodeListBuilder
 from ui.page import Page
+
+_FLOW_FORMAT_VERSION = 1
+_PortKind = Literal["input", "output"]
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +45,10 @@ class NodeEditorPage(Page):
         self._registry: NodeRegistry    = registry
         self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, themes)
 
-        # Node tracking for delete / context-menu support
+        # Node tracking for delete / context-menu / save support
         self._node_map:        dict[DpgTag, NodeBase]       = {}
         self._node_dialog_map: dict[DpgTag, DpgTag | None]  = {}
+        self._attr_to_port:    dict[DpgTag, tuple[NodeBase, _PortKind, int]] = {}
         self._ctx_target:      tuple[DpgTag, NodeBase] | None = None
         self._ctx_links:       list[DpgTag]                 = []
 
@@ -69,6 +76,7 @@ class NodeEditorPage(Page):
             DpgNodeListBuilder(self._registry)
             with dpg.group():
                 with dpg.group(horizontal=True):
+                    dpg.add_button(label="Save",      callback=self._save_flow)
                     dpg.add_button(label="Clear All", callback=self._clear_nodes)
 
                 with dpg.child_window(
@@ -123,7 +131,25 @@ class NodeEditorPage(Page):
         node_tag, dialog_tag = self._node_builder.build(node)
         self._node_map[node_tag] = node
         self._node_dialog_map[node_tag] = dialog_tag
+        self._index_node_attrs(node_tag, node)
         return node_tag
+
+    def _index_node_attrs(self, node_tag: DpgTag, node: NodeBase) -> None:
+        """Record the mapping from each port's DPG attribute tag to
+        ``(node, 'input'|'output', port_index)``.
+
+        DpgNodeBuilder creates node_attribute children in this order:
+        one per NodeParam (static), then one per input port, then one
+        per output port. We rely on that order to resolve attribute
+        tags back to ports at save time.
+        """
+        children = dpg.get_item_children(node_tag, 1) or []
+        offset = len(node.params)
+        for i in range(len(node.inputs)):
+            self._attr_to_port[children[offset + i]] = (node, "input", i)
+        offset += len(node.inputs)
+        for i in range(len(node.outputs)):
+            self._attr_to_port[children[offset + i]] = (node, "output", i)
 
     # ── Right-click / context menus ────────────────────────────────────────────
 
@@ -180,6 +206,9 @@ class NodeEditorPage(Page):
             if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
                 dpg.delete_item(link_tag)
 
+        for attr_tag in attr_tags:
+            self._attr_to_port.pop(attr_tag, None)
+
         dialog_tag = self._node_dialog_map.pop(node_tag, None)
         if dialog_tag is not None and dpg.does_item_exist(dialog_tag):
             dpg.delete_item(dialog_tag)
@@ -225,10 +254,88 @@ class NodeEditorPage(Page):
         menu_tag = dpg.generate_uuid()
         label = f"Node Editor [{self._flow.name}]" if self._flow is not None else "Node Editor"
         with dpg.menu(label=label, parent=self._menu_bar, tag=menu_tag):
+            dpg.add_menu_item(label="Save",      callback=self._save_flow)
             dpg.add_menu_item(label="Clear All", callback=self._clear_nodes)
             dpg.add_separator()
             dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)
         self._menu_tags.append(menu_tag)
+
+    # ── Save ───────────────────────────────────────────────────────────────────
+
+    def _save_flow(self, *_: object) -> None:
+        if self._flow is None:
+            logger.warning("Save requested but no flow is active")
+            return
+        data = self._serialize_flow(self._flow)
+        try:
+            FLOW_DIR.mkdir(parents=True, exist_ok=True)
+            path = FLOW_DIR / f"{self._flow.name}.json"
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except OSError:
+            logger.exception("Failed to save flow '%s'", self._flow.name)
+            return
+        logger.info("Saved flow to %s", path)
+
+    def _serialize_flow(self, flow: Flow) -> dict:
+        """Return a JSON-compatible dict snapshot of the current editor state."""
+        nodes_in_order = list(self._node_map.items())  # insertion order == creation order
+        node_ids: dict[int, int] = {id(node): idx for idx, (_, node) in enumerate(nodes_in_order)}
+
+        nodes_out = [self._node_to_dict(i, tag, node) for i, (tag, node) in enumerate(nodes_in_order)]
+        connections_out = self._connections_to_list(node_ids)
+
+        return {
+            "version":     _FLOW_FORMAT_VERSION,
+            "name":        flow.name,
+            "nodes":       nodes_out,
+            "connections": connections_out,
+        }
+
+    def _node_to_dict(self, node_id: int, node_tag: DpgTag, node: NodeBase) -> dict:
+        pos = dpg.get_item_pos(node_tag)
+        params = {p.name: _jsonable(getattr(node, p.name, None)) for p in node.params}
+        return {
+            "id":       node_id,
+            "module":   type(node).__module__,
+            "class":    type(node).__name__,
+            "position": [float(pos[0]), float(pos[1])],
+            "params":   params,
+        }
+
+    def _connections_to_list(self, node_ids: dict[int, int]) -> list[dict]:
+        """Derive connections from the DPG node_editor's visible links.
+
+        The editor authoritatively owns link state today (Flow.connect is
+        not yet wired to the UI), so we walk slot 0 of the editor to
+        recover them.
+        """
+        result: list[dict] = []
+        for link_tag in dpg.get_item_children(self._node_editor_tag, 0) or []:
+            try:
+                conf = dpg.get_item_configuration(link_tag)
+            except SystemError:
+                logger.debug("Skipped link %s during save", link_tag, exc_info=True)
+                continue
+            endpoint_a = self._attr_to_port.get(conf.get("attr_1"))
+            endpoint_b = self._attr_to_port.get(conf.get("attr_2"))
+            if endpoint_a is None or endpoint_b is None:
+                continue
+            # Normalise to (output, input) order. DPG doesn't guarantee
+            # which of attr_1 / attr_2 is the source.
+            if endpoint_a[1] == "output" and endpoint_b[1] == "input":
+                src, dst = endpoint_a, endpoint_b
+            elif endpoint_a[1] == "input" and endpoint_b[1] == "output":
+                src, dst = endpoint_b, endpoint_a
+            else:
+                logger.debug("Skipping link with same-kind endpoints: %s", link_tag)
+                continue
+            result.append({
+                "src_node":   node_ids[id(src[0])],
+                "src_output": src[2],
+                "dst_node":   node_ids[id(dst[0])],
+                "dst_input":  dst[2],
+            })
+        return result
 
     # ── Button / menu callbacks ────────────────────────────────────────────────
 
@@ -236,3 +343,16 @@ class NodeEditorPage(Page):
         logger.info("Exiting node editor")
         self._clear_nodes()
         self._page_manager.activate(self._page_manager.start_page)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _jsonable(value: object) -> object:
+    """Coerce ``value`` to a JSON-serialisable form (recursive for containers)."""
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    return value
