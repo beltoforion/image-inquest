@@ -17,6 +17,7 @@ from core.node_registry import NodeEntry, NodeRegistry
 from ui._types import DpgTag
 from ui.dpg_node_builder import DpgNodeBuilder
 from ui.dpg_node_list_builder import DpgNodeListBuilder
+from ui.flow_file_dialog import FLOW_FILE_EXTENSION, make_open_flow_dialog
 from ui.page import Page
 
 _FLOW_FORMAT_VERSION = 1
@@ -108,17 +109,9 @@ class NodeEditorPage(Page):
                         width=-1,
                         height=-1)
 
-        # Persistent file dialog used by the Open button.
-        with dpg.file_dialog(
-            label="Open Flow",
-            tag=self._open_dialog_tag,
-            callback=self._on_flow_file_selected,
-            show=False,
-            modal=True,
-            width=700,
-            height=400,
-        ):
-            dpg.add_file_extension(".json", color=(0, 200, 255, 255), custom_text="Flow JSON")
+        # Persistent file dialog used by the Open button. Shared factory
+        # so StartPage and NodeEditorPage stay in sync on filter / layout.
+        make_open_flow_dialog(self._open_dialog_tag, self._on_flow_file_selected)
 
     @staticmethod
     def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
@@ -306,7 +299,7 @@ class NodeEditorPage(Page):
         data = self._serialize_flow(self._flow)
         try:
             FLOW_DIR.mkdir(parents=True, exist_ok=True)
-            path = FLOW_DIR / f"{self._flow.name}.json"
+            path = FLOW_DIR / f"{self._flow.name}{FLOW_FILE_EXTENSION}"
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except OSError as err:
             logger.exception("Failed to save flow '%s'", self._flow.name)
@@ -408,9 +401,9 @@ class NodeEditorPage(Page):
         path_str = app_data.get("file_path_name", "")
         if not path_str:
             return
-        self._load_flow(Path(path_str))
+        self.load_flow(Path(path_str))
 
-    def _load_flow(self, path: Path) -> None:
+    def load_flow(self, path: Path) -> None:
         """Parse ``path`` as flow JSON and rebuild the editor to match."""
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
