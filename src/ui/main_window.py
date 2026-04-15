@@ -4,12 +4,15 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMenuBar,
     QStackedWidget,
+    QToolBar,
+    QToolButton,
 )
 
 from constants import APP_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
@@ -24,12 +27,24 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Size of icons rendered inside every toolbar button.
+_TOOLBAR_ICON_SIZE = QSize(20, 20)
+
 
 class MainWindow(QMainWindow):
-    """Top-level window. Hosts the page stack and the global menu bar.
+    """Top-level window. Hosts the page stack, the global menu bar, and
+    the application toolbar.
+
+    The toolbar is split into two regions:
+
+    * a **page-selector** radio group (one checkable action per page),
+      which swaps the active page when toggled, and
+    * **page-specific actions** installed next to the selector,
+      contributed by the active page via :meth:`Page.page_toolbar_actions`.
 
     MainWindow is the only place that knows about all pages. Each page
-    contributes its own menus via :meth:`Page.page_menus`; MainWindow
+    contributes its own menus via :meth:`Page.page_menus` and its own
+    toolbar items via :meth:`Page.page_toolbar_actions`; MainWindow
     clears and re-installs them on every page switch.
     """
 
@@ -51,6 +66,10 @@ class MainWindow(QMainWindow):
 
         self._start_page  = StartPage()
         self._editor_page = NodeEditorPage(self._registry)
+        # Seed the editor with an empty flow so the user can switch to it
+        # via the page-selector radio group at any time without first
+        # visiting the start page to create one.
+        self._editor_page.set_flow(Flow())
 
         self._pages.addWidget(self._start_page)
         self._pages.addWidget(self._editor_page)
@@ -58,7 +77,6 @@ class MainWindow(QMainWindow):
         # Wire page signals.
         self._start_page.create_flow_requested.connect(self._on_create_flow)
         self._start_page.open_flow_requested.connect(self._on_open_flow_from_start)
-        self._editor_page.back_requested.connect(self._go_to_start)
         for page in (self._start_page, self._editor_page):
             page.title_changed.connect(self._update_window_title)
 
@@ -66,6 +84,20 @@ class MainWindow(QMainWindow):
         self._menu_bar: QMenuBar = self.menuBar()
         self._app_menu = self._build_app_menu()
         self._installed_page_menus: list[QMenu] = []
+
+        # ── Toolbar ──
+        self._toolbar = self._build_toolbar()
+        self._installed_page_actions: list[QAction] = []
+        self._page_separator: QAction | None = None
+
+        self._page_selector_group = QActionGroup(self)
+        self._page_selector_group.setExclusive(True)
+        self._page_selector_actions: dict[Page, QAction] = {}
+        for page in (self._start_page, self._editor_page):
+            self._add_page_selector_action(page)
+        # Separator between the page-selector radio group and the
+        # page-specific toolbar actions.
+        self._page_separator = self._toolbar.addSeparator()
 
         self._activate_page(self._start_page)
 
@@ -92,6 +124,10 @@ class MainWindow(QMainWindow):
         # Swap.
         self._pages.setCurrentWidget(page)
         self._install_page_menus(page)
+        self._install_page_toolbar_actions(page)
+        selector = self._page_selector_actions.get(page)
+        if selector is not None and not selector.isChecked():
+            selector.setChecked(True)
         self._update_window_title(page.page_title())
         page.on_activated()
 
@@ -110,6 +146,79 @@ class MainWindow(QMainWindow):
         for menu in page.page_menus():
             self._menu_bar.addMenu(menu)
             self._installed_page_menus.append(menu)
+
+    # ── Toolbar ────────────────────────────────────────────────────────────────
+
+    def _build_toolbar(self) -> QToolBar:
+        tb = QToolBar("Main", self)
+        tb.setObjectName("MainToolbar")
+        tb.setMovable(False)
+        tb.setFloatable(False)
+        tb.setIconSize(_TOOLBAR_ICON_SIZE)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
+        return tb
+
+    def _add_page_selector_action(self, page: Page) -> None:
+        action = QAction(page.page_selector_icon(), page.page_selector_label(), self)
+        action.setCheckable(True)
+        action.setToolTip(f"Switch to {page.page_selector_label()}")
+        # ``toggled`` fires both for user clicks and for programmatic
+        # ``setChecked`` calls; guard against re-entering _activate_page
+        # when the selector is being driven from _activate_page itself.
+        action.toggled.connect(lambda checked, p=page: self._on_page_selector_toggled(p, checked))
+        self._page_selector_group.addAction(action)
+        self._toolbar.addAction(action)
+        self._page_selector_actions[page] = action
+
+    def _on_page_selector_toggled(self, page: Page, checked: bool) -> None:
+        if not checked:
+            return
+        if self._pages.currentWidget() is page:
+            return
+        self._activate_page(page)
+
+    def _install_page_toolbar_actions(self, page: Page) -> None:
+        # Remove previously-installed page-specific actions. These
+        # QActions are owned by the page, so we only detach them from the
+        # toolbar — do not deleteLater.
+        for action in self._installed_page_actions:
+            self._toolbar.removeAction(action)
+        self._installed_page_actions = []
+
+        for action in page.page_toolbar_actions():
+            self._toolbar.addAction(action)
+            self._installed_page_actions.append(action)
+
+        self._apply_consistent_button_sizes()
+
+    def _apply_consistent_button_sizes(self) -> None:
+        """Force every QToolButton in the main toolbar to the same size.
+
+        Computed as the max size hint across all buttons so the longest
+        label (plus icon) fits, and every button matches.
+        """
+        buttons: list[QToolButton] = []
+        for action in self._toolbar.actions():
+            if action.isSeparator():
+                continue
+            widget = self._toolbar.widgetForAction(action)
+            if isinstance(widget, QToolButton):
+                # Clear any previously-set fixed size so sizeHint reflects
+                # the button's natural content for the current action set.
+                widget.setMinimumSize(0, 0)
+                widget.setMaximumSize(16777215, 16777215)
+                widget.adjustSize()
+                buttons.append(widget)
+
+        if not buttons:
+            return
+
+        max_w = max(b.sizeHint().width()  for b in buttons)
+        max_h = max(b.sizeHint().height() for b in buttons)
+        size  = QSize(max_w, max_h)
+        for b in buttons:
+            b.setFixedSize(size)
 
     # ── Menus ──────────────────────────────────────────────────────────────────
 
@@ -137,11 +246,6 @@ class MainWindow(QMainWindow):
             self._activate_page(self._editor_page)
         # On failure stay on the start page (status label won't help there
         # today; a follow-up could surface the error via QMessageBox).
-
-    def _go_to_start(self) -> None:
-        # Reset the editor so returning to it doesn't show stale nodes.
-        self._editor_page.set_flow(Flow())
-        self._activate_page(self._start_page)
 
     def _update_window_title(self, page_title: str) -> None:
         if page_title:

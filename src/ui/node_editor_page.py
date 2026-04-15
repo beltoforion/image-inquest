@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QStatusBar,
-    QToolBar,
+    QStyle,
     QVBoxLayout,
 )
 
@@ -42,15 +42,13 @@ class NodeEditorPage(Page):
     """The editor. Central canvas + palette dock (left) + viewer dock (bottom).
 
     Dockable panels are hosted on an inner QMainWindow so the palette and
-    viewer can be dragged around, floated, or closed by the user — the
-    native Qt replacement for the old DPG show/hide button.
+    viewer can be dragged around, floated, or closed by the user. Toolbar
+    actions are exposed via :meth:`page_toolbar_actions` so MainWindow can
+    render them in the global toolbar next to the page-selector radio group.
 
-    Signals up to MainWindow:
-      * :attr:`back_requested` when the user clicks Back.
-      * :attr:`title_changed` when the active flow name changes.
+    Signal :attr:`title_changed` fires up to MainWindow whenever the active
+    flow name changes.
     """
-
-    back_requested = Signal()
 
     def __init__(self, registry: NodeRegistry) -> None:
         super().__init__()
@@ -89,10 +87,8 @@ class NodeEditorPage(Page):
         self._viewer_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         self._inner.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._viewer_dock)
 
-        # Toolbar.
+        # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
-        self._toolbar = self._build_toolbar()
-        self._inner.addToolBar(Qt.ToolBarArea.TopToolBarArea, self._toolbar)
 
         # Status bar at the bottom of the inner window.
         self._status_bar = QStatusBar(self._inner)
@@ -109,6 +105,21 @@ class NodeEditorPage(Page):
         if self._flow is not None:
             return f"Node Editor [{self._flow.name}]"
         return "Node Editor"
+
+    def page_selector_label(self) -> str:
+        return "Editor"
+
+    def page_selector_icon(self) -> QIcon:
+        return self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+
+    def page_toolbar_actions(self) -> list[QAction]:
+        return [
+            self._actions["run"],
+            self._actions["save"],
+            self._actions["save_as"],
+            self._actions["open"],
+            self._actions["clear"],
+        ]
 
     def page_menus(self) -> list[QMenu]:
         # Single "Node Editor" menu mirroring the toolbar actions plus
@@ -127,9 +138,6 @@ class NodeEditorPage(Page):
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._palette_dock.toggleViewAction())
         view_menu.addAction(self._viewer_dock.toggleViewAction())
-
-        menu.addSeparator()
-        menu.addAction(self._actions["back"])
         return [menu]
 
     def on_activated(self) -> None:
@@ -167,36 +175,23 @@ class NodeEditorPage(Page):
         )
         return True
 
-    # ── Toolbar and actions ────────────────────────────────────────────────────
+    # ── Actions ────────────────────────────────────────────────────────────────
 
     def _build_actions(self) -> dict[str, QAction]:
-        def mk(name: str, text: str, slot) -> QAction:
-            a = QAction(text, self)
+        style = self.style()
+
+        def mk(text: str, icon_id: QStyle.StandardPixmap, slot) -> QAction:
+            a = QAction(style.standardIcon(icon_id), text, self)
             a.triggered.connect(slot)
             return a
-        return {
-            "run":     mk("run",     "Run",       self._on_run_clicked),
-            "save":    mk("save",    "Save",      self._on_save_clicked),
-            "save_as": mk("save_as", "Save As…",  self._on_save_as_clicked),
-            "open":    mk("open",    "Open",      self._on_open_clicked),
-            "clear":   mk("clear",   "Clear All", self._on_clear_clicked),
-            "back":    mk("back",    "Back",      self._on_back_clicked),
-        }
 
-    def _build_toolbar(self) -> QToolBar:
-        tb = QToolBar("Editor", self._inner)
-        tb.setObjectName("EditorToolbar")
-        tb.setMovable(False)
-        tb.addAction(self._actions["back"])
-        tb.addSeparator()
-        tb.addAction(self._actions["run"])
-        tb.addSeparator()
-        tb.addAction(self._actions["save"])
-        tb.addAction(self._actions["save_as"])
-        tb.addAction(self._actions["open"])
-        tb.addSeparator()
-        tb.addAction(self._actions["clear"])
-        return tb
+        return {
+            "run":     mk("Run",      QStyle.StandardPixmap.SP_MediaPlay,        self._on_run_clicked),
+            "save":    mk("Save",     QStyle.StandardPixmap.SP_DialogSaveButton, self._on_save_clicked),
+            "save_as": mk("Save As…", QStyle.StandardPixmap.SP_DriveFDIcon,      self._on_save_as_clicked),
+            "open":    mk("Open",     QStyle.StandardPixmap.SP_DirOpenIcon,      self._on_open_clicked),
+            "clear":   mk("Clear",    QStyle.StandardPixmap.SP_TrashIcon,        self._on_clear_clicked),
+        }
 
     # ── Action handlers ────────────────────────────────────────────────────────
 
@@ -291,9 +286,6 @@ class NodeEditorPage(Page):
         # Start from a fresh Flow with the same name so Save still targets
         # the same file. The scene clears via set_flow.
         self.set_flow(Flow(name=self._flow.name))
-
-    def _on_back_clicked(self) -> None:
-        self.back_requested.emit()
 
     # ── Status line ────────────────────────────────────────────────────────────
 
