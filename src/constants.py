@@ -6,6 +6,11 @@ APP_WIDTH:  int = 1024
 APP_HEIGHT: int = 768
 API_URL:    str = "https://beltoforion.de"
 
+# Bundled assets (splash image, icons, …)
+ASSETS_DIR:        Path = Path(__file__).parent.parent / "assets"
+SPLASH_IMAGE_PATH: Path = ASSETS_DIR / "title.png"
+SPLASH_DURATION_MS: int = 1800
+
 # Built-in nodes shipped with the application
 BUILTIN_NODES_DIR: Path = Path(__file__).parent / "nodes"
 

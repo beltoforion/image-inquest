@@ -4,9 +4,19 @@ import argparse
 import logging
 import sys
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication, QSplashScreen
 
-from constants import APP_NAME, APP_VERSION, APP_WIDTH, APP_HEIGHT, USER_CONFIG_DIR
+from constants import (
+    APP_NAME,
+    APP_VERSION,
+    APP_WIDTH,
+    APP_HEIGHT,
+    SPLASH_DURATION_MS,
+    SPLASH_IMAGE_PATH,
+    USER_CONFIG_DIR,
+)
 from log import setup_logging
 from ui.main_window import MainWindow
 from ui.theme import apply_dark_theme
@@ -14,10 +24,30 @@ from ui.theme import apply_dark_theme
 logger = logging.getLogger(__name__)
 
 
+def _make_splash() -> QSplashScreen | None:
+    """Build the startup splash screen, or return ``None`` if the image
+    is missing / unreadable. Never fatal — a missing splash should not
+    prevent the app from launching.
+    """
+    if not SPLASH_IMAGE_PATH.exists():
+        logger.debug("Splash image not found at %s", SPLASH_IMAGE_PATH)
+        return None
+
+    pixmap = QPixmap(str(SPLASH_IMAGE_PATH))
+    if pixmap.isNull():
+        logger.warning("Splash image could not be loaded: %s", SPLASH_IMAGE_PATH)
+        return None
+
+    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    splash.setAttribute(Qt.WA_DeleteOnClose)
+    return splash
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Image Inquest Application")
     parser.add_argument("--width",  type=int, default=APP_WIDTH,  help="Initial window width")
     parser.add_argument("--height", type=int, default=APP_HEIGHT, help="Initial window height")
+    parser.add_argument("--no-splash", action="store_true", help="Skip the startup splash screen")
     args, qt_args = parser.parse_known_args(argv)
 
     setup_logging(USER_CONFIG_DIR / "logs")
@@ -31,9 +61,26 @@ def main(argv: list[str]) -> int:
     app.setApplicationVersion(APP_VERSION)
     apply_dark_theme(app)
 
+    # Show splash as early as possible so it's visible while the registry
+    # scans and the main window is constructed.
+    splash = None if args.no_splash else _make_splash()
+    if splash is not None:
+        splash.show()
+        app.processEvents()
+
     window = MainWindow()
     window.resize(args.width, args.height)
-    window.show()
+
+    if splash is not None:
+        # Ensure the splash stays visible for at least SPLASH_DURATION_MS
+        # even on fast machines, then hand off to the main window.
+        def _reveal_main() -> None:
+            window.show()
+            splash.finish(window)
+
+        QTimer.singleShot(SPLASH_DURATION_MS, _reveal_main)
+    else:
+        window.show()
 
     rc = app.exec()
     logger.info("Shutdown complete (rc=%d)", rc)
