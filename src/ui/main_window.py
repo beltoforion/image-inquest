@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
     clears and re-installs them on every page switch.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, initial_flow_path: Path | None = None) -> None:
         super().__init__()
         self.setWindowTitle(APP_NAME)
 
@@ -69,6 +69,18 @@ class MainWindow(QMainWindow):
 
         self._activate_page(self._start_page)
 
+        # If a flow was supplied on the command line, jump straight into
+        # the editor. Failure falls through to the start page (already
+        # active) so a bad CLI arg never blocks app launch.
+        if initial_flow_path is not None:
+            if self._editor_page.load_flow(initial_flow_path):
+                self._activate_page(self._editor_page)
+            else:
+                logger.warning(
+                    "Could not load initial flow %s; staying on start page",
+                    initial_flow_path,
+                )
+
     # ── Page switching ─────────────────────────────────────────────────────────
 
     def _activate_page(self, page: Page) -> None:
@@ -87,13 +99,15 @@ class MainWindow(QMainWindow):
         # Remove previously-installed page menus. The app menu is persistent.
         for menu in self._installed_page_menus:
             self._menu_bar.removeAction(menu.menuAction())
+            menu.deleteLater()
         self._installed_page_menus = []
 
-        # Install new page's menus before the Help menu (by inserting
-        # actions in order: each page menu goes at the end before Help).
+        # Install the new page's menus. Do NOT call ``menu.setParent(menu_bar)``
+        # — QMenuBar manages menus by their menuAction() and giving the QMenu
+        # the menubar as its Qt parent corrupts popup handling and crashes on
+        # first open. Holding a Python reference in ``_installed_page_menus``
+        # keeps the menu alive for as long as it is attached.
         for menu in page.page_menus():
-            # Re-parent so the menu's signals are owned by this window.
-            menu.setParent(self._menu_bar)
             self._menu_bar.addMenu(menu)
             self._installed_page_menus.append(menu)
 
