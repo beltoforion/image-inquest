@@ -66,6 +66,13 @@ QToolButton:hover, QPushButton:hover {
 QToolButton:pressed, QPushButton:pressed {
     background: #2c2c30;
 }
+QToolButton:checked {
+    background: #3a5b8a;
+    border-color: #5a7bb0;
+}
+QToolButton:checked:hover {
+    background: #456bac;
+}
 QPushButton:disabled {
     background: #2d2d30;
     color: #707070;

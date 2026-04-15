@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QStyle,
     QVBoxLayout,
     QWidget,
 )
@@ -39,6 +41,15 @@ class StartPage(Page):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+
+        # Toolbar action: mirrors the "Open" button in the body so the
+        # start page contributes at least one item to the main toolbar.
+        self._open_action = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon),
+            "Open",
+            self,
+        )
+        self._open_action.triggered.connect(self._on_open_clicked)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(40, 60, 40, 40)
@@ -88,6 +99,15 @@ class StartPage(Page):
 
     def page_title(self) -> str:
         return ""  # MainWindow shows the bare app name on the start page
+
+    def page_selector_label(self) -> str:
+        return "Start"
+
+    def page_selector_icon(self) -> QIcon:
+        return self.style().standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
+
+    def page_toolbar_actions(self) -> list[QAction]:
+        return [self._open_action]
 
     def on_activated(self) -> None:
         self._name_input.setFocus(Qt.FocusReason.OtherFocusReason)

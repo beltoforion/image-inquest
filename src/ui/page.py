@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
@@ -14,9 +15,12 @@ class Page(QWidget):
     """Base class for every top-level page stacked inside MainWindow.
 
     A page owns a QWidget body (populated by the subclass) and optionally
-    a list of QMenus that the host main-window installs on the global
-    menu bar while the page is active, and removes when the page is
-    deactivated.
+    contributes:
+
+    * a list of QMenus installed on the global menu bar while the page
+      is active (see :meth:`page_menus`), and
+    * a list of QActions installed on the application toolbar next to
+      the page-selector radio group (see :meth:`page_toolbar_actions`).
 
     The :attr:`title_changed` signal lets a page request that the main
     window update the window title without knowing about the main window
@@ -26,6 +30,7 @@ class Page(QWidget):
 
     * build their widgets in ``__init__`` via a normal layout call,
     * return their per-page menus from :meth:`page_menus`,
+    * return their per-page toolbar items from :meth:`page_toolbar_actions`,
     * emit :attr:`title_changed` whenever their context (e.g. current
       flow name) changes.
     """
@@ -40,17 +45,31 @@ class Page(QWidget):
         """
         return []
 
-    def page_actions(self) -> list[QAction]:
-        """Optional list of toolbar actions the page contributes.
+    def page_toolbar_actions(self) -> list[QAction]:
+        """Return the actions this page contributes to the main toolbar.
 
-        Default: empty. MainWindow does not yet use this, but it keeps
-        the door open for shared toolbar slots.
+        MainWindow installs these next to the page-selector radio group
+        while the page is active and removes them when the page is
+        deactivated. Default: empty.
         """
         return []
 
     def page_title(self) -> str:
         """Human-readable page title used in the window caption."""
         return ""
+
+    def page_selector_label(self) -> str:
+        """Short label for the page-selector radio group.
+
+        Kept separate from :meth:`page_title` because the window caption
+        may be long and context-dependent (e.g. including a flow name)
+        while the selector button needs a terse fixed label.
+        """
+        return self.page_title() or type(self).__name__
+
+    def page_selector_icon(self) -> QIcon:
+        """Icon for the page-selector radio group. Default: empty."""
+        return QIcon()
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
