@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import cv2
+import numpy as np
+from typing_extensions import override
+
+from core.io_data import IoData, IoDataType
+from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.port import InputPort, OutputPort
+
+
+class AdaptiveGaussianThreshold(NodeBase):
+    """Adaptive Gaussian binary threshold.
+
+    Wraps ``cv2.adaptiveThreshold`` with
+    ``ADAPTIVE_THRESH_GAUSSIAN_C`` and ``THRESH_BINARY``. ``block_size``
+    must be odd and > 1; ``c`` is the constant subtracted from the
+    weighted mean. Ported from the original OCVL
+    ``AdaptiveGuaussianThresholdProcessor`` [sic].
+
+    3-channel inputs are converted to grayscale first and the binary
+    result is re-broadcast to BGR so downstream nodes get the expected
+    3-channel format.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("Adaptive Gaussian Threshold")
+        self._block_size: int = 101
+        self._c: int = -32
+
+        self._add_input(InputPort("image", {IoDataType.IMAGE}))
+        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+
+        self._apply_default_params()
+
+    # ── Parameters ─────────────────────────────────────────────────────────────
+
+    @property
+    @override
+    def params(self) -> list[NodeParam]:
+        return [
+            NodeParam("block_size", NodeParamType.INT, {"default": 101}),
+            NodeParam("c",          NodeParamType.INT, {"default": -32}),
+        ]
+
+    # ── Properties ─────────────────────────────────────────────────────────────
+
+    @property
+    def block_size(self) -> int:
+        return self._block_size
+
+    @block_size.setter
+    def block_size(self, value: int) -> None:
+        v = int(value)
+        if v < 3:
+            raise ValueError(f"block_size must be >= 3 (got {v})")
+        if v % 2 == 0:
+            # cv2.adaptiveThreshold requires odd — coerce like Median does.
+            v += 1
+        self._block_size = v
+
+    @property
+    def c(self) -> int:
+        return self._c
+
+    @c.setter
+    def c(self, value: int) -> None:
+        self._c = int(value)
+
+    # ── NodeBase interface ─────────────────────────────────────────────────────
+
+    @override
+    def process(self) -> None:
+        image: np.ndarray = self.inputs[0].data.image
+
+        if image.ndim == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image
+
+        th = cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            self._block_size,
+            self._c,
+        )
+        out = cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
+        self.outputs[0].send(IoData.from_image(out))
