@@ -4,12 +4,15 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMenuBar,
     QStackedWidget,
+    QToolBar,
+    QToolButton,
 )
 
 from constants import APP_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
@@ -58,7 +61,6 @@ class MainWindow(QMainWindow):
         # Wire page signals.
         self._start_page.create_flow_requested.connect(self._on_create_flow)
         self._start_page.open_flow_requested.connect(self._on_open_flow_from_start)
-        self._editor_page.back_requested.connect(self._go_to_start)
         for page in (self._start_page, self._editor_page):
             page.title_changed.connect(self._update_window_title)
 
@@ -66,6 +68,17 @@ class MainWindow(QMainWindow):
         self._menu_bar: QMenuBar = self.menuBar()
         self._app_menu = self._build_app_menu()
         self._installed_page_menus: list[QMenu] = []
+
+        # ── Toolbar ──
+        # A single global toolbar: page-selector radio group on the left,
+        # then the active page's own actions. Built once; the page-action
+        # tail is rebuilt on every page switch.
+        self._pages_in_order: list[Page] = [self._start_page, self._editor_page]
+        self._page_to_selector: dict[Page, QAction] = {}
+        self._installed_page_actions: list[QAction] = []
+        self._page_action_separator: QAction | None = None
+        self._toolbar = self._build_toolbar()
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self._toolbar)
 
         self._activate_page(self._start_page)
 
@@ -84,14 +97,22 @@ class MainWindow(QMainWindow):
     # ── Page switching ─────────────────────────────────────────────────────────
 
     def _activate_page(self, page: Page) -> None:
-        # Deactivate current.
+        # No-op when already on that page; otherwise we'd churn menus
+        # and re-emit on_activated for nothing.
         current = self._pages.currentWidget()
-        if isinstance(current, Page) and current is not page:
+        if current is page:
+            self._sync_page_selector(page)
+            return
+
+        # Deactivate current.
+        if isinstance(current, Page):
             current.on_deactivated()
 
         # Swap.
         self._pages.setCurrentWidget(page)
         self._install_page_menus(page)
+        self._install_page_actions(page)
+        self._sync_page_selector(page)
         self._update_window_title(page.page_title())
         page.on_activated()
 
@@ -110,6 +131,70 @@ class MainWindow(QMainWindow):
         for menu in page.page_menus():
             self._menu_bar.addMenu(menu)
             self._installed_page_menus.append(menu)
+
+    # ── Toolbar ────────────────────────────────────────────────────────────────
+
+    # Visual size shared by every toolbar button so the radio-style page
+    # selector and the page-specific actions all line up the same height.
+    _TOOLBAR_ICON_SIZE = QSize(20, 20)
+    _TOOLBAR_BUTTON_MIN_WIDTH = 110
+
+    def _build_toolbar(self) -> QToolBar:
+        tb = QToolBar("Main", self)
+        tb.setObjectName("MainToolbar")
+        tb.setMovable(False)
+        tb.setIconSize(self._TOOLBAR_ICON_SIZE)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+
+        # Page-selector group: checkable, exclusive (radio behaviour).
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        for page in self._pages_in_order:
+            action = QAction(page.page_label(), self)
+            action.setCheckable(True)
+            icon = page.page_icon()
+            if icon is not None:
+                action.setIcon(icon)
+            # `triggered` only fires when the user activates the button;
+            # an exclusive group never re-triggers an already-checked
+            # action, so guard against re-activating the same page anyway.
+            action.triggered.connect(lambda _checked, p=page: self._activate_page(p))
+            group.addAction(action)
+            tb.addAction(action)
+            self._page_to_selector[page] = action
+            self._enforce_button_size(tb, action)
+
+        # Separator before page-specific actions; recreated empty on each
+        # page switch through addAction calls below.
+        self._page_action_separator = tb.addSeparator()
+        return tb
+
+    def _install_page_actions(self, page: Page) -> None:
+        # Drop the previous page's actions but leave the page-selector
+        # group and the separator in place.
+        for action in self._installed_page_actions:
+            self._toolbar.removeAction(action)
+        self._installed_page_actions = []
+
+        for action in page.page_actions():
+            self._toolbar.addAction(action)
+            self._installed_page_actions.append(action)
+            self._enforce_button_size(self._toolbar, action)
+
+        # Hide the trailing separator when the active page contributes
+        # no actions, so we don't render a stray divider at the end.
+        if self._page_action_separator is not None:
+            self._page_action_separator.setVisible(bool(self._installed_page_actions))
+
+    def _sync_page_selector(self, page: Page) -> None:
+        action = self._page_to_selector.get(page)
+        if action is not None and not action.isChecked():
+            action.setChecked(True)
+
+    def _enforce_button_size(self, tb: QToolBar, action: QAction) -> None:
+        button = tb.widgetForAction(action)
+        if isinstance(button, QToolButton):
+            button.setMinimumWidth(self._TOOLBAR_BUTTON_MIN_WIDTH)
 
     # ── Menus ──────────────────────────────────────────────────────────────────
 
@@ -137,11 +222,6 @@ class MainWindow(QMainWindow):
             self._activate_page(self._editor_page)
         # On failure stay on the start page (status label won't help there
         # today; a follow-up could surface the error via QMessageBox).
-
-    def _go_to_start(self) -> None:
-        # Reset the editor so returning to it doesn't show stale nodes.
-        self._editor_page.set_flow(Flow())
-        self._activate_page(self._start_page)
 
     def _update_window_title(self, page_title: str) -> None:
         if page_title:

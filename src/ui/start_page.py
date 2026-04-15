@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -12,6 +14,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QStyle,
     QVBoxLayout,
     QWidget,
 )
@@ -88,6 +91,12 @@ class StartPage(Page):
 
     def page_title(self) -> str:
         return ""  # MainWindow shows the bare app name on the start page
+
+    def page_label(self) -> str:
+        return "Start"
+
+    def page_icon(self) -> QIcon | None:
+        return QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
 
     def on_activated(self) -> None:
         self._name_input.setFocus(Qt.FocusReason.OtherFocusReason)

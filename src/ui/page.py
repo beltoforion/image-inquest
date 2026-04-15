@@ -6,7 +6,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QAction
+    from PySide6.QtGui import QAction, QIcon
     from PySide6.QtWidgets import QMenu
 
 
@@ -26,6 +26,7 @@ class Page(QWidget):
 
     * build their widgets in ``__init__`` via a normal layout call,
     * return their per-page menus from :meth:`page_menus`,
+    * return their per-page toolbar actions from :meth:`page_actions`,
     * emit :attr:`title_changed` whenever their context (e.g. current
       flow name) changes.
     """
@@ -41,12 +42,26 @@ class Page(QWidget):
         return []
 
     def page_actions(self) -> list[QAction]:
-        """Optional list of toolbar actions the page contributes.
+        """Toolbar actions the page contributes.
 
-        Default: empty. MainWindow does not yet use this, but it keeps
-        the door open for shared toolbar slots.
+        MainWindow installs these on the global toolbar, immediately
+        after the page-selector buttons, while the page is active.
+        Default: empty.
         """
         return []
+
+    def page_label(self) -> str:
+        """Stable short label used by the page-selector toolbar button.
+
+        Distinct from :meth:`page_title` (which may include dynamic state
+        like the current flow name); this one is used for the toolbar
+        button and never changes.
+        """
+        return type(self).__name__
+
+    def page_icon(self) -> QIcon | None:
+        """Optional icon for the page-selector toolbar button."""
+        return None
 
     def page_title(self) -> str:
         """Human-readable page title used in the window caption."""
