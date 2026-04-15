@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from constants import FLOW_DIR
-from core.flow import Flow
+from core.flow import Flow, is_valid_flow_name
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
@@ -118,6 +118,7 @@ class NodeEditorPage(Page):
         menu = QMenu("Node Editor")
         menu.addAction(self._actions["run"])
         menu.addAction(self._actions["save"])
+        menu.addAction(self._actions["save_as"])
         menu.addAction(self._actions["open"])
         menu.addSeparator()
         menu.addAction(self._actions["clear"])
@@ -174,11 +175,12 @@ class NodeEditorPage(Page):
             a.triggered.connect(slot)
             return a
         return {
-            "run":   mk("run",   "Run",       self._on_run_clicked),
-            "save":  mk("save",  "Save",      self._on_save_clicked),
-            "open":  mk("open",  "Open",      self._on_open_clicked),
-            "clear": mk("clear", "Clear All", self._on_clear_clicked),
-            "back":  mk("back",  "Back",      self._on_back_clicked),
+            "run":     mk("run",     "Run",       self._on_run_clicked),
+            "save":    mk("save",    "Save",      self._on_save_clicked),
+            "save_as": mk("save_as", "Save As…",  self._on_save_as_clicked),
+            "open":    mk("open",    "Open",      self._on_open_clicked),
+            "clear":   mk("clear",   "Clear All", self._on_clear_clicked),
+            "back":    mk("back",    "Back",      self._on_back_clicked),
         }
 
     def _build_toolbar(self) -> QToolBar:
@@ -190,6 +192,7 @@ class NodeEditorPage(Page):
         tb.addAction(self._actions["run"])
         tb.addSeparator()
         tb.addAction(self._actions["save"])
+        tb.addAction(self._actions["save_as"])
         tb.addAction(self._actions["open"])
         tb.addSeparator()
         tb.addAction(self._actions["clear"])
@@ -226,6 +229,42 @@ class NodeEditorPage(Page):
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
+        self._set_status(
+            f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
+            kind="ok",
+        )
+
+    def _on_save_as_clicked(self) -> None:
+        if self._flow is None:
+            self._set_status("No flow to save", kind="fail")
+            return
+        FLOW_DIR.mkdir(parents=True, exist_ok=True)
+        suggested = str(FLOW_DIR / f"{self._flow.name}{_FLOW_FILE_EXTENSION}")
+        path_str, _ = QFileDialog.getSaveFileName(
+            self, "Save Flow As", suggested, _FLOW_FILE_FILTER,
+        )
+        if not path_str:
+            return
+        path = Path(path_str)
+        # Flow names are restricted to a filesystem-safe charset; reject
+        # stems that would otherwise be silently mangled by
+        # sanitize_flow_name, rather than save under a different name.
+        new_name = path.stem
+        if not is_valid_flow_name(new_name):
+            self._set_status(
+                f"Invalid flow name '{new_name}': use letters, digits, _ # + -",
+                kind="fail",
+            )
+            return
+        try:
+            save_flow_to(path, self._scene, self._flow)
+        except OSError as err:
+            logger.exception("Failed to save flow to '%s'", path)
+            detail = err.strerror or str(err) or err.__class__.__name__
+            self._set_status(f"Save failed: {detail}", kind="fail")
+            return
+        self._flow.name = new_name
+        self.title_changed.emit(self.page_title())
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
