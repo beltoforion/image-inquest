@@ -6,6 +6,7 @@ from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QHBoxLayout,
     QLineEdit,
@@ -83,9 +84,18 @@ def _build_int_param(node: NodeBase, param: NodeParam) -> QWidget:
     return spin
 
 
+def _build_bool_param(node: NodeBase, param: NodeParam) -> QWidget:
+    check = QCheckBox()
+    check.toggled.connect(_make_setter(node, param.name))
+    # See _build_file_path_param for the order rationale.
+    check.setChecked(bool(_initial_value(node, param, False)))
+    return check
+
+
 _PARAM_BUILDERS: dict[NodeParamType, Callable[[NodeBase, NodeParam], QWidget]] = {
     NodeParamType.FILE_PATH: _build_file_path_param,
     NodeParamType.INT:       _build_int_param,
+    NodeParamType.BOOL:      _build_bool_param,
 }
 
 
