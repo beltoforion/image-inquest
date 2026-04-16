@@ -80,7 +80,7 @@ class ParamWidgetBase(QWidget, metaclass=_WidgetMeta):
 
 # ── Concrete widgets ───────────────────────────────────────────────────────────
 
-class IntParamWidgetBase(ParamWidgetBase):
+class IntParamWidget(ParamWidgetBase):
     """Spin-box editor for :attr:`NodeParamType.INT` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -105,7 +105,7 @@ class IntParamWidgetBase(ParamWidgetBase):
         return self._spin.value()
 
 
-class BoolParamWidgetBase(ParamWidgetBase):
+class BoolParamWidget(ParamWidgetBase):
     """Check-box editor for :attr:`NodeParamType.BOOL` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -127,7 +127,7 @@ class BoolParamWidgetBase(ParamWidgetBase):
         return self._check.isChecked()
 
 
-class FilePathParamWidgetBase(ParamWidgetBase):
+class FilePathParamWidget(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -182,9 +182,9 @@ class FilePathParamWidgetBase(ParamWidgetBase):
 # ── Registry & factory ─────────────────────────────────────────────────────────
 
 _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
-    NodeParamType.FILE_PATH: FilePathParamWidgetBase,
-    NodeParamType.INT:       IntParamWidgetBase,
-    NodeParamType.BOOL:      BoolParamWidgetBase,
+    NodeParamType.FILE_PATH: FilePathParamWidget,
+    NodeParamType.INT:       IntParamWidget,
+    NodeParamType.BOOL:      BoolParamWidget,
 }
 
 
