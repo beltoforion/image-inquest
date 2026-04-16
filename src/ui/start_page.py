@@ -20,7 +20,9 @@ from PySide6.QtWidgets import (
 from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.icons import material_icon
-from ui.page import Page
+from typing_extensions import override
+
+from ui.page import PageBase
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
 _FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
 
 
-class StartPage(Page):
+class StartPage(PageBase):
     """Landing page. Lets the user create a new flow by name or open an
     existing ``.flowjs`` file.
 
@@ -100,9 +102,11 @@ class StartPage(Page):
     def page_title(self) -> str:
         return ""  # MainWindow shows the bare app name on the start page
 
+    @override
     def page_selector_label(self) -> str:
         return "Start"
 
+    @override
     def page_selector_icon(self) -> QIcon:
         return material_icon("home")
 

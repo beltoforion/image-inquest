@@ -24,7 +24,9 @@ from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
 from ui.icons import material_icon
-from ui.page import Page
+from typing_extensions import override
+
+from ui.page import PageBase
 from ui.palette_widget import PaletteWidget
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
@@ -38,7 +40,7 @@ _FLOW_FILE_EXTENSION = ".flowjs"
 _FLOW_FILE_FILTER    = "Flow (*.flowjs);;All files (*)"
 
 
-class NodeEditorPage(Page):
+class NodeEditorPage(PageBase):
     """The editor. Central canvas + palette dock (left) + viewer dock (bottom).
 
     Dockable panels are hosted on an inner QMainWindow so the palette and
@@ -109,9 +111,11 @@ class NodeEditorPage(Page):
             return self._flow.name
         return ""
 
+    @override
     def page_selector_label(self) -> str:
         return "Editor"
 
+    @override
     def page_selector_icon(self) -> QIcon:
         return material_icon("account_tree")
 

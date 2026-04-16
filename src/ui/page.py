@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
+from ui.meta import _WidgetMeta
+
 if TYPE_CHECKING:
     from PySide6.QtGui import QAction
     from PySide6.QtWidgets import QMenu
 
 
-class Page(QWidget):
-    """Base class for every top-level page stacked inside MainWindow.
+class PageBase(QWidget, metaclass=_WidgetMeta):
+    """Abstract base class for every top-level page stacked inside MainWindow.
 
     A page owns a QWidget body (populated by the subclass) and optionally
     contributes:
@@ -26,7 +29,12 @@ class Page(QWidget):
     window update the window title without knowing about the main window
     directly.
 
-    Subclasses should:
+    Subclasses must implement:
+
+    * :meth:`page_selector_label` — terse label for the selector button,
+    * :meth:`page_selector_icon` — icon for the selector button.
+
+    Subclasses should also:
 
     * build their widgets in ``__init__`` via a normal layout call,
     * return their per-page menus from :meth:`page_menus`,
@@ -36,6 +44,18 @@ class Page(QWidget):
     """
 
     title_changed = Signal(str)
+
+    # ── Abstract interface ─────────────────────────────────────────────────────
+
+    @abstractmethod
+    def page_selector_label(self) -> str:
+        """Short label for the page-selector radio group."""
+
+    @abstractmethod
+    def page_selector_icon(self) -> QIcon:
+        """Icon for the page-selector radio group."""
+
+    # ── Concrete defaults ──────────────────────────────────────────────────────
 
     def page_menus(self) -> list[QMenu]:
         """Return the menus this page contributes to the global menu bar.
@@ -57,19 +77,6 @@ class Page(QWidget):
     def page_title(self) -> str:
         """Human-readable page title used in the window caption."""
         return ""
-
-    def page_selector_label(self) -> str:
-        """Short label for the page-selector radio group.
-
-        Kept separate from :meth:`page_title` because the window caption
-        may be long and context-dependent (e.g. including a flow name)
-        while the selector button needs a terse fixed label.
-        """
-        return self.page_title() or type(self).__name__
-
-    def page_selector_icon(self) -> QIcon:
-        """Icon for the page-selector radio group. Default: empty."""
-        return QIcon()
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
