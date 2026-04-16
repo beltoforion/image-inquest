@@ -19,7 +19,7 @@ from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
 from core.flow import Flow
 from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
-from ui.page import Page
+from ui.page import PageBase
 from ui.start_page import StartPage
 
 if TYPE_CHECKING:
@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
 
         self._page_selector_group = QActionGroup(self)
         self._page_selector_group.setExclusive(True)
-        self._page_selector_actions: dict[Page, QAction] = {}
+        self._page_selector_actions: dict[PageBase, QAction] = {}
         for page in (self._start_page, self._editor_page):
             self._add_page_selector_action(page)
         # Separator between the page-selector radio group and the
@@ -116,10 +116,10 @@ class MainWindow(QMainWindow):
 
     # ── Page switching ─────────────────────────────────────────────────────────
 
-    def _activate_page(self, page: Page) -> None:
+    def _activate_page(self, page: PageBase) -> None:
         # Deactivate current.
         current = self._pages.currentWidget()
-        if isinstance(current, Page) and current is not page:
+        if isinstance(current, PageBase) and current is not page:
             current.on_deactivated()
 
         # Swap.
@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
         self._update_window_title(page.page_title())
         page.on_activated()
 
-    def _install_page_menus(self, page: Page) -> None:
+    def _install_page_menus(self, page: PageBase) -> None:
         # Remove previously-installed page menus. The app menu is persistent.
         for menu in self._installed_page_menus:
             self._menu_bar.removeAction(menu.menuAction())
@@ -160,7 +160,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         return tb
 
-    def _add_page_selector_action(self, page: Page) -> None:
+    def _add_page_selector_action(self, page: PageBase) -> None:
         action = QAction(page.page_selector_icon(), page.page_selector_label(), self)
         action.setCheckable(True)
         action.setToolTip(f"Switch to {page.page_selector_label()}")
@@ -172,14 +172,14 @@ class MainWindow(QMainWindow):
         self._toolbar.addAction(action)
         self._page_selector_actions[page] = action
 
-    def _on_page_selector_toggled(self, page: Page, checked: bool) -> None:
+    def _on_page_selector_toggled(self, page: PageBase, checked: bool) -> None:
         if not checked:
             return
         if self._pages.currentWidget() is page:
             return
         self._activate_page(page)
 
-    def _install_page_toolbar_actions(self, page: Page) -> None:
+    def _install_page_toolbar_actions(self, page: PageBase) -> None:
         # Remove previously-installed page-specific actions. These
         # QActions are owned by the page, so we only detach them from the
         # toolbar — do not deleteLater.
