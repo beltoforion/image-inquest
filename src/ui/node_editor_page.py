@@ -30,6 +30,7 @@ from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
 from ui.node_list import NodeList
+from ui.recent_flows import RecentFlowsManager
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -54,9 +55,14 @@ class NodeEditorPage(PageBase):
     flow name changes.
     """
 
-    def __init__(self, registry: NodeRegistry) -> None:
+    def __init__(
+        self,
+        registry: NodeRegistry,
+        recent_flows: RecentFlowsManager | None = None,
+    ) -> None:
         super().__init__()
         self._registry = registry
+        self._recent_flows = recent_flows
         self._flow: Flow | None = None
 
         outer = QVBoxLayout(self)
@@ -197,6 +203,8 @@ class NodeEditorPage(PageBase):
             f"Loaded {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
+        if self._recent_flows is not None:
+            self._recent_flows.add(path)
         return True
 
     # ── Actions ────────────────────────────────────────────────────────────────
@@ -298,6 +306,8 @@ class NodeEditorPage(PageBase):
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
+        if self._recent_flows is not None:
+            self._recent_flows.add(path)
 
     def _on_save_as_clicked(self) -> None:
         if self._flow is None:
@@ -334,6 +344,8 @@ class NodeEditorPage(PageBase):
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
+        if self._recent_flows is not None:
+            self._recent_flows.add(path)
 
     def _on_open_clicked(self) -> None:
         FLOW_DIR.mkdir(parents=True, exist_ok=True)
