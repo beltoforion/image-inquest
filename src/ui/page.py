@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
-from ui.meta import _WidgetMeta
-
 if TYPE_CHECKING:
     from PySide6.QtGui import QAction
     from PySide6.QtWidgets import QMenu
 
 
-class PageBase(QWidget, metaclass=_WidgetMeta):
+class PageBase(QWidget):
     """Abstract base class for every top-level page stacked inside MainWindow.
 
     A page owns a QWidget body (populated by the subclass) and optionally
@@ -41,19 +38,24 @@ class PageBase(QWidget, metaclass=_WidgetMeta):
     * return their per-page toolbar items from :meth:`page_toolbar_actions`,
     * emit :attr:`title_changed` whenever their context (e.g. current
       flow name) changes.
+
+    Note: this class cannot use ``_WidgetMeta`` (the combined Qt+ABCMeta
+    metaclass) because PySide6's Shiboken metaclass deadlocks when
+    ABCMeta is mixed with ``Signal`` descriptors. The abstract interface
+    is enforced via ``NotImplementedError`` instead.
     """
 
     title_changed = Signal(str)
 
     # ── Abstract interface ─────────────────────────────────────────────────────
 
-    @abstractmethod
     def page_selector_label(self) -> str:
         """Short label for the page-selector radio group."""
+        raise NotImplementedError
 
-    @abstractmethod
     def page_selector_icon(self) -> QIcon:
         """Icon for the page-selector radio group."""
+        raise NotImplementedError
 
     # ── Concrete defaults ──────────────────────────────────────────────────────
 
