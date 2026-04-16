@@ -88,6 +88,11 @@ class ViewerPanel(QWidget):
                 logger.exception("Viewer failed to render port '%s'", port.name)
                 self._placeholder(f"{port.name}: (render error — see log)", error=True)
 
+    @property
+    def current_node(self) -> NodeBase | None:
+        """The node currently displayed in the viewer, or ``None``."""
+        return self._current_node
+
     def refresh(self) -> None:
         """Re-render the currently-shown node (called after Run)."""
         self.show_node(self._current_node)
