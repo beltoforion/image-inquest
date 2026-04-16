@@ -48,8 +48,9 @@ class NodeBase(ABC):
         outputs so the signal propagates to the end of the graph.
     """
 
-    def __init__(self, display_name: str) -> None:
+    def __init__(self, display_name: str, section: str = "") -> None:
         self._display_name = display_name
+        self._section = section
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
 
@@ -106,6 +107,11 @@ class NodeBase(ABC):
     @property
     def display_name(self) -> str:
         return self._display_name
+
+    @property
+    def section(self) -> str:
+        """Palette section this node belongs to (e.g. 'Sources', 'Transform')."""
+        return self._section
 
     @property
     def inputs(self) -> list[InputPort]:

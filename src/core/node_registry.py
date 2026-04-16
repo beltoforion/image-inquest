@@ -21,6 +21,7 @@ class NodeEntry:
     display_name: str   # Human-readable name, e.g. "File Source"
     category:     str   # "Sources" | "Filters" | "Sinks"
     module:       str   # Importable dotted path, e.g. "nodes.sources.file_source"
+    section:      str = ""  # Palette section, e.g. "Sources", "Color Spaces", "Transform"
 
 
 class NodeRegistry:
@@ -72,7 +73,7 @@ class NodeRegistry:
             module = ".".join(path.relative_to(src_root).with_suffix("").parts)
             found, file_errors = _parse_node_file(path)
             errors.extend(file_errors)
-            for class_name, display_name, category in found:
+            for class_name, display_name, category, section in found:
                 if reject_conflicts and class_name in self._nodes:
                     errors.append(ScanError(
                         file=path,
@@ -87,6 +88,7 @@ class NodeRegistry:
                         display_name=display_name,
                         category=category,
                         module=module,
+                        section=section,
                     )
         return errors
 
@@ -97,6 +99,21 @@ class NodeRegistry:
         result: dict[str, list[NodeEntry]] = {"Sources": [], "Filters": [], "Sinks": []}
         for entry in self._nodes.values():
             result.setdefault(entry.category, []).append(entry)
+        for entries in result.values():
+            entries.sort(key=lambda e: e.display_name)
+        return result
+
+    def nodes_by_section(self) -> dict[str, list[NodeEntry]]:
+        """Return entries grouped by section, each list sorted by display name.
+
+        Sections are finer-grained than categories and are set explicitly on
+        each node via the ``section`` keyword argument of
+        :meth:`NodeBase.__init__`.  Nodes that omit a section fall back to
+        their category name (``"Sources"``, ``"Sinks"``, or ``"Processing"``).
+        """
+        result: dict[str, list[NodeEntry]] = {}
+        for entry in self._nodes.values():
+            result.setdefault(entry.section, []).append(entry)
         for entries in result.values():
             entries.sort(key=lambda e: e.display_name)
         return result
@@ -133,8 +150,8 @@ _CATEGORY_MAP: dict[str, str] = {
 
 def _parse_node_file(
     path: Path,
-) -> tuple[list[tuple[str, str, str]], list[ScanError]]:
-    """Return ([(class_name, display_name, category), ...], [errors]) for a file."""
+) -> tuple[list[tuple[str, str, str, str]], list[ScanError]]:
+    """Return ([(class_name, display_name, category, section), ...], [errors]) for a file."""
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -143,7 +160,7 @@ def _parse_node_file(
     except OSError as e:
         return [], [ScanError(file=path, message=f"Could not read file: {e}")]
 
-    results: list[tuple[str, str, str]] = []
+    results: list[tuple[str, str, str, str]] = []
     errors: list[ScanError] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
@@ -161,8 +178,8 @@ def _parse_node_file(
 
 def _extract_node_entry(
     class_node: ast.ClassDef,
-) -> tuple[str, str, str] | None:
-    """Return (class_name, display_name, category) if the class is a node, else None."""
+) -> tuple[str, str, str, str] | None:
+    """Return (class_name, display_name, category, section) if the class is a node, else None."""
     init = _find_init(class_node)
     if init is None or not _has_super_init(init):
         return None
@@ -170,7 +187,8 @@ def _extract_node_entry(
         return None
     display_name = _extract_super_init_name(init) or class_node.name
     category = _detect_category(class_node)
-    return class_node.name, display_name, category
+    section = _extract_super_init_section(init) or _default_section(category)
+    return class_node.name, display_name, category, section
 
 
 def _detect_category(class_node: ast.ClassDef) -> str:
@@ -249,6 +267,31 @@ def _extract_super_init_name(init_node: ast.FunctionDef) -> str | None:
         if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
             return node.args[0].value
     return None
+
+
+def _extract_super_init_section(init_node: ast.FunctionDef) -> str | None:
+    """Return the ``section`` keyword value passed to ``super().__init__()``, or None."""
+    for node in ast.walk(init_node):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "__init__"):
+            continue
+        if not (isinstance(func.value, ast.Call) and isinstance(func.value.func, ast.Name) and func.value.func.id == "super"):
+            continue
+        for kw in node.keywords:
+            if kw.arg == "section" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                return kw.value.value
+    return None
+
+
+def _default_section(category: str) -> str:
+    """Return the palette section to use when a node declares none."""
+    if category == "Sources":
+        return "Sources"
+    if category == "Sinks":
+        return "Sinks"
+    return "Processing"
 
 
 def _count_self_calls(init_node: ast.FunctionDef, method_name: str) -> int:

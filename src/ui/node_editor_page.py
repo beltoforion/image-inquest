@@ -29,7 +29,7 @@ from ui.icons import material_icon
 from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
-from ui.palette_widget import PaletteWidget
+from ui.palette_widget import NodeList
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -75,8 +75,8 @@ class NodeEditorPage(PageBase):
         self._view  = FlowView(self._scene)
         self._inner.setCentralWidget(self._view)
 
-        # Palette dock (left).
-        self._palette = PaletteWidget(registry)
+        # Node list dock (left).
+        self._palette = NodeList(registry)
         self._palette_dock = QDockWidget("Palette", self._inner)
         self._palette_dock.setObjectName("PaletteDock")
         self._palette_dock.setWidget(self._palette)

@@ -111,7 +111,7 @@ class Dither(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Dither")
+        super().__init__("Dither", section="Processing")
         self._method: int = int(DitherMethod.STUCKI)
 
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

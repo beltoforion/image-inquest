@@ -153,6 +153,7 @@ class FlowView(QGraphicsView):
             category=data.get("category", ""),
             module=data["module"],
             class_name=data["class_name"],
+            section=data.get("section", ""),
         )
 
         scene_pos = self.mapToScene(event.position().toPoint())

@@ -21,19 +21,31 @@ if TYPE_CHECKING:
 NODE_LIST_MIME_TYPE: str = "application/x-image-inquest-node"
 
 
-class PaletteWidget(QWidget):
-    """Palette listing every registered node by category.
+class NodeList(QWidget):
+    """Node list panel grouping every registered node by section.
 
     Each entry is a :class:`QListWidgetItem` that emits a drag with the
     :data:`NODE_LIST_MIME_TYPE` MIME type carrying a JSON descriptor of
-    the node (module, class_name, display_name, category). The flow
-    canvas reads that payload on drop and instantiates the node.
+    the node (module, class_name, display_name, category, section). The
+    flow canvas reads that payload on drop and instantiates the node.
+
+    Sections are finer-grained than the three base-class categories; nodes
+    declare their section via the ``section`` keyword in
+    :meth:`NodeBase.__init__`.  Nodes that omit a section fall back to a
+    category-derived default (``"Sources"``, ``"Sinks"``, or ``"Processing"``).
 
     A search box filters the list live; matching falls back to case-
     insensitive ``in`` on display names.
     """
 
-    _CATEGORIES: tuple[str, ...] = ("Sources", "Filters", "Sinks")
+    #: Preferred display order for built-in sections.
+    _SECTION_ORDER: tuple[str, ...] = (
+        "Sources",
+        "Sinks",
+        "Color Spaces",
+        "Transform",
+        "Processing",
+    )
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -55,11 +67,17 @@ class PaletteWidget(QWidget):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _populate(self, registry: NodeRegistry) -> None:
-        categorized = registry.nodes_by_category()
-        for category in self._CATEGORIES:
-            entries = categorized.get(category, [])
-            # Category header is a non-selectable, non-draggable item.
-            header = QListWidgetItem(f"{category}  ({len(entries)})")
+        by_section = registry.nodes_by_section()
+        # Show known sections first in the preferred order, then any extra
+        # sections contributed by user nodes in alphabetical order.
+        known = [s for s in self._SECTION_ORDER if s in by_section]
+        extras = sorted(s for s in by_section if s not in self._SECTION_ORDER)
+        ordered_sections = known + extras
+
+        for section in ordered_sections:
+            entries = by_section.get(section, [])
+            # Section header is a non-selectable, non-draggable item.
+            header = QListWidgetItem(f"{section}  ({len(entries)})")
             font = header.font()
             font.setBold(True)
             header.setFont(font)
@@ -81,6 +99,7 @@ class PaletteWidget(QWidget):
                     "class_name":   entry.class_name,
                     "display_name": entry.display_name,
                     "category":     entry.category,
+                    "section":      entry.section,
                 })
                 item.setData(Qt.ItemDataRole.UserRole, payload)
                 item.setToolTip(f"{entry.module}.{entry.class_name}")
