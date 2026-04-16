@@ -20,6 +20,7 @@ from core.flow import Flow
 from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
 from ui.page import PageBase
+from ui.recent_flows import RecentFlowsManager
 from ui.start_page import StartPage
 
 if TYPE_CHECKING:
@@ -61,12 +62,16 @@ class MainWindow(QMainWindow):
             logger.warning("User node scan: %s", err)
         logger.info("Registry: %d node(s) loaded", len(self._registry))
 
+        # ── Recent flows MRU (persistent across sessions) ──
+        self._recent_flows = RecentFlowsManager(self)
+        self._recent_flows.changed.connect(self._rebuild_recent_menu)
+
         # ── Page stack ──
         self._pages = QStackedWidget()
         self.setCentralWidget(self._pages)
 
         self._start_page  = StartPage()
-        self._editor_page = NodeEditorPage(self._registry)
+        self._editor_page = NodeEditorPage(self._registry, self._recent_flows)
         # Seed the editor with an empty flow so the user can switch to it
         # via the page-selector radio group at any time without first
         # visiting the start page to create one.
@@ -212,8 +217,14 @@ class MainWindow(QMainWindow):
     # ── Menus ──────────────────────────────────────────────────────────────────
 
     def _build_app_menu(self) -> QMenu:
-        """Always-visible application menu (Quit, About)."""
+        """Always-visible application menu (Recently Used Files, Quit)."""
         menu = self._menu_bar.addMenu("&File")
+
+        # MRU submenu: rebuilt on every RecentFlowsManager.changed emission
+        # so the labels reflect the latest state without any per-open hook.
+        self._recent_menu = menu.addMenu("Recently Used Files")
+        self._rebuild_recent_menu()
+        menu.addSeparator()
 
         quit_action = QAction("&Quit", self)
         quit_action.setShortcut(QKeySequence.StandardKey.Quit)
@@ -221,6 +232,45 @@ class MainWindow(QMainWindow):
         menu.addAction(quit_action)
 
         return menu
+
+    def _rebuild_recent_menu(self) -> None:
+        """Repopulate the Recently Used Files submenu from the MRU list.
+
+        Called once at startup and on every :attr:`RecentFlowsManager.changed`
+        emission. Disabled placeholder ("(none)") shown when the list is
+        empty; a trailing "Clear Recent Files" action lets the user wipe
+        the MRU from the UI without editing the JSON file by hand.
+        """
+        self._recent_menu.clear()
+        paths = self._recent_flows.paths
+        if not paths:
+            empty = QAction("(none)", self)
+            empty.setEnabled(False)
+            self._recent_menu.addAction(empty)
+            return
+        for index, path in enumerate(paths, start=1):
+            # Leading "&N " gives Alt-N mnemonics for the first 9 entries.
+            label = f"&{index} {path.name}" if index < 10 else path.name
+            action = QAction(label, self)
+            action.setToolTip(str(path))
+            action.triggered.connect(lambda _checked=False, p=path: self._on_open_recent(p))
+            self._recent_menu.addAction(action)
+        self._recent_menu.addSeparator()
+        clear = QAction("Clear Recent Files", self)
+        clear.triggered.connect(self._recent_flows.clear)
+        self._recent_menu.addAction(clear)
+
+    def _on_open_recent(self, path: Path) -> None:
+        """Load ``path`` in the editor and switch to the editor page.
+
+        On failure the editor page already shows a status message and the
+        path is dropped from the MRU so the user doesn't keep seeing a
+        stale entry.
+        """
+        if self._editor_page.load_flow(path):
+            self._activate_page(self._editor_page)
+        else:
+            self._recent_flows.remove(path)
 
     # ── Navigation callbacks ───────────────────────────────────────────────────
 
