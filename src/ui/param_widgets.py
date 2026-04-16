@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -19,6 +20,11 @@ from core.node_base import NodeBase, NodeParam, NodeParamType
 
 logger = logging.getLogger(__name__)
 
+
+class _ParamWidgetMeta(type(QWidget), ABCMeta):
+    """Combined metaclass resolving the conflict between Qt and ABCMeta."""
+
+
 _SAVE_FILTER = "Images (*.png *.jpg *.jpeg)"
 _OPEN_FILTER = (
     "Images / video (*.png *.jpg *.jpeg *.mp4 *.cr2);;"
@@ -26,7 +32,7 @@ _OPEN_FILTER = (
 )
 
 
-class ParamWidget(QWidget):
+class ParamWidget(QWidget, metaclass=_ParamWidgetMeta):
     """Base class for all parameter editor widgets embedded in a NodeItem.
 
     Each subclass binds to a single :class:`NodeParam` on a
@@ -40,13 +46,13 @@ class ParamWidget(QWidget):
         self._node = node
         self._param = param
 
+    @abstractmethod
     def set_value(self, value: object) -> None:
         """Update the widget to display *value*."""
-        raise NotImplementedError
 
+    @abstractmethod
     def get_value(self) -> object:
         """Return the widget's current value."""
-        raise NotImplementedError
 
     # ── Helpers shared by all subclasses ───────────────────────────────────────
 
