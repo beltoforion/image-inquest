@@ -27,8 +27,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Size of icons rendered inside every toolbar button.
-_TOOLBAR_ICON_SIZE = QSize(20, 20)
+# Size of icons rendered inside every toolbar button. Buttons render the
+# label beneath the icon, so this size also drives the button height.
+_TOOLBAR_ICON_SIZE = QSize(32, 32)
 
 
 class MainWindow(QMainWindow):
@@ -155,7 +156,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         tb.setFloatable(False)
         tb.setIconSize(_TOOLBAR_ICON_SIZE)
-        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         return tb
 
