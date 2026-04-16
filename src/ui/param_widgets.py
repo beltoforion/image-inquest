@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -17,12 +17,9 @@ from PySide6.QtWidgets import (
 
 from constants import INPUT_DIR, OUTPUT_DIR
 from core.node_base import NodeBase, NodeParam, NodeParamType
+from ui.meta import _WidgetMeta
 
 logger = logging.getLogger(__name__)
-
-
-class _ParamWidgetMeta(type(QWidget), ABCMeta):
-    """Combined metaclass resolving the conflict between Qt and ABCMeta."""
 
 
 _SAVE_FILTER = "Images (*.png *.jpg *.jpeg)"
@@ -32,7 +29,7 @@ _OPEN_FILTER = (
 )
 
 
-class ParamWidget(QWidget, metaclass=_ParamWidgetMeta):
+class ParamWidget(QWidget, metaclass=_WidgetMeta):
     """Base class for all parameter editor widgets embedded in a NodeItem.
 
     Each subclass binds to a single :class:`NodeParam` on a
