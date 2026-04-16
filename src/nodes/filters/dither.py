@@ -124,9 +124,10 @@ class Dither(NodeBase):
     @property
     @override
     def params(self) -> list[NodeParam]:
-        # 1=Bayer2  2=Bayer4  3=Bayer8  4=Noise  5=Floyd-Steinberg
-        # 6=Stucki  7=Atkinson  8=Burkes  9=Sierra  10=DiffusionX  11=DiffusionXY
-        return [NodeParam("method", NodeParamType.INT, {"default": int(DitherMethod.STUCKI)})]
+        return [NodeParam("method", NodeParamType.ENUM, {
+            "enum":    DitherMethod,
+            "default": int(DitherMethod.STUCKI),
+        })]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

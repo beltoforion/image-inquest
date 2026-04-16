@@ -8,6 +8,7 @@ from typing_extensions import override
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLineEdit,
@@ -138,6 +139,63 @@ class BoolParamWidget(ParamWidgetBase):
         return self._check.isChecked()
 
 
+class EnumParamWidget(ParamWidgetBase):
+    """Combo-box editor for :attr:`NodeParamType.ENUM` parameters.
+
+    Expects ``param.metadata["enum"]`` to be an :class:`~enum.IntEnum`
+    subclass.  The combo box shows each member's name and reads/writes
+    the corresponding integer value to/from the node attribute.
+    """
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        enum_cls = param.metadata.get("enum")
+        if enum_cls is None:
+            raise ValueError(
+                f"EnumParamWidget requires metadata['enum'] on param '{param.name}'"
+            )
+        self._enum_cls = enum_cls
+        # Keep a parallel list of (name, int_value) so index ↔ value is O(1).
+        self._members: list[tuple[str, int]] = [
+            (m.name, int(m)) for m in enum_cls
+        ]
+
+        self._combo = QComboBox()
+        for name, _ in self._members:
+            self._combo.addItem(name)
+        self._combo.currentIndexChanged.connect(self._on_index_changed)
+
+        initial = int(self._initial_value(self._members[0][1]))
+        self._set_combo_by_value(initial)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._combo)
+
+    def _set_combo_by_value(self, value: int) -> None:
+        for i, (_, v) in enumerate(self._members):
+            if v == value:
+                self._combo.setCurrentIndex(i)
+                return
+
+    def _on_index_changed(self, index: int) -> None:
+        if 0 <= index < len(self._members):
+            value = self._members[index][1]
+            self._write_to_node(value)
+            self.value_changed.emit(value)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._set_combo_by_value(int(value))
+
+    @override
+    def get_value(self) -> object:
+        idx = self._combo.currentIndex()
+        if 0 <= idx < len(self._members):
+            return self._members[idx][1]
+        return 0
+
+
 class FilePathParamWidget(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
@@ -200,6 +258,7 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
     NodeParamType.FILE_PATH: FilePathParamWidget,
     NodeParamType.INT:       IntParamWidget,
     NodeParamType.BOOL:      BoolParamWidget,
+    NodeParamType.ENUM:      EnumParamWidget,
 }
 
 
