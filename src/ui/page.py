@@ -39,10 +39,6 @@ class PageBase(QWidget):
     * emit :attr:`title_changed` whenever their context (e.g. current
       flow name) changes.
 
-    Note: this class cannot use ``_WidgetMeta`` (the combined Qt+ABCMeta
-    metaclass) because PySide6's Shiboken metaclass deadlocks when
-    ABCMeta is mixed with ``Signal`` descriptors. The abstract interface
-    is enforced via ``NotImplementedError`` instead.
     """
 
     title_changed = Signal(str)
