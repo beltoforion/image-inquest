@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QPainter,
@@ -12,7 +12,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QGraphicsItem,
-    QGraphicsObject,
     QGraphicsProxyWidget,
     QLabel,
     QVBoxLayout,
@@ -39,7 +38,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class NodeItem(QGraphicsObject):
+class _NodeSignals(QObject):
+    """QObject signal carrier for :class:`NodeItem`.
+
+    ``NodeItem`` inherits from ``QGraphicsItem`` (not ``QGraphicsObject``)
+    to avoid a shiboken multiple-inheritance pointer-aliasing issue where
+    ``QGraphicsScene.selectedItems()`` cannot resolve the Python wrapper of a
+    ``QGraphicsObject`` subclass and returns a bare ``QGraphicsObject``
+    instead, breaking ``isinstance`` checks.  This helper carries the signals
+    that ``NodeItem`` needs.
+    """
+
+    #: Emitted when any parameter widget on the owning node changes value.
+    param_changed = Signal()
+
+
+class NodeItem(QGraphicsItem):
     """A single node drawn on the flow canvas.
 
     Visual layout (top to bottom):
@@ -67,12 +81,10 @@ class NodeItem(QGraphicsObject):
 
     Z_VALUE = 1
 
-    #: Emitted when any parameter widget on this node changes value.
-    param_changed = Signal()
-
     def __init__(self, node: NodeBase) -> None:
         super().__init__()
         self._node = node
+        self._signals = _NodeSignals()
         self._input_ports: list[PortItem] = []
         self._output_ports: list[PortItem] = []
         self._params_widget: QWidget | None = None  # container; holds ParamWidgetBases
@@ -94,6 +106,11 @@ class NodeItem(QGraphicsObject):
     @property
     def node(self) -> NodeBase:
         return self._node
+
+    @property
+    def signals(self) -> _NodeSignals:
+        """Signal carrier; use ``node_item.signals.param_changed`` to connect."""
+        return self._signals
 
     @property
     def input_ports(self) -> list[PortItem]:
@@ -220,7 +237,7 @@ class NodeItem(QGraphicsObject):
             layout.addWidget(name_label)
             editor: ParamWidgetBase | None = build_param_widget(self._node, param)
             if editor is not None:
-                editor.value_changed.connect(lambda _v: self.param_changed.emit())
+                editor.value_changed.connect(lambda _v: self._signals.param_changed.emit())
                 layout.addWidget(editor)
             else:
                 layout.addWidget(QLabel(f"(unsupported: {param.param_type.name})"))

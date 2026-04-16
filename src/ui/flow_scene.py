@@ -85,7 +85,7 @@ class FlowScene(QGraphicsScene):
 
     def add_node(self, node: NodeBase, scene_pos: QPointF | None = None) -> NodeItem:
         item = NodeItem(node)
-        item.param_changed.connect(self.param_changed)
+        item.signals.param_changed.connect(self.param_changed)
         self.addItem(item)
         if scene_pos is not None:
             item.setPos(scene_pos)
