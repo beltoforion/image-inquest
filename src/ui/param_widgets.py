@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
+
+from typing_extensions import override
 from pathlib import Path
-from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -17,8 +19,10 @@ from PySide6.QtWidgets import (
 
 from constants import INPUT_DIR, OUTPUT_DIR
 from core.node_base import NodeBase, NodeParam, NodeParamType
+from ui.meta import _WidgetMeta
 
 logger = logging.getLogger(__name__)
+
 
 _SAVE_FILTER = "Images (*.png *.jpg *.jpeg)"
 _OPEN_FILTER = (
@@ -27,129 +31,171 @@ _OPEN_FILTER = (
 )
 
 
-def build_param_widget(node: NodeBase, param: NodeParam) -> QWidget | None:
-    """Return a widget that edits ``param`` on ``node``.
+class ParamWidgetBase(QWidget, metaclass=_WidgetMeta):
+    """Base class for all parameter editor widgets embedded in a NodeItem.
 
-    The widget hooks onto the relevant value-changed signal and writes back
-    to the node via ``setattr`` (matching the declarative ``NodeParam`` →
-    attribute convention used by every concrete node).
+    Each subclass binds to a single :class:`NodeParam` on a
+    :class:`NodeBase` instance and exposes a uniform
+    :meth:`set_value` / :meth:`get_value` interface so callers can
+    refresh or read widget state without knowing the concrete type.
+    """
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__()
+        self._node = node
+        self._param = param
+
+    @abstractmethod
+    def set_value(self, value: object) -> None:
+        """Update the widget to display *value*."""
+
+    @abstractmethod
+    def get_value(self) -> object:
+        """Return the widget's current value."""
+
+    # ── Helpers shared by all subclasses ───────────────────────────────────────
+
+    def _initial_value(self, fallback: object) -> object:
+        """Return the value the widget should display on first creation.
+
+        Prefers the node's current attribute (so loaded flows show their
+        saved values) and falls back to the metadata default (so
+        freshly-instantiated nodes still get the right starting text even if
+        the subclass forgot :meth:`NodeBase._apply_default_params`).
+        """
+        if hasattr(self._node, self._param.name):
+            return getattr(self._node, self._param.name)
+        return self._param.metadata.get("default", fallback)
+
+    def _write_to_node(self, value: object) -> None:
+        """Write *value* to the node attribute, logging any error."""
+        try:
+            setattr(self._node, self._param.name, value)
+        except Exception:
+            logger.exception(
+                "Failed to set %s.%s = %r",
+                type(self._node).__name__, self._param.name, value,
+            )
+
+
+# ── Concrete widgets ───────────────────────────────────────────────────────────
+
+class IntParamWidget(ParamWidgetBase):
+    """Spin-box editor for :attr:`NodeParamType.INT` parameters."""
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        self._spin = QSpinBox()
+        self._spin.setRange(-10_000_000, 10_000_000)
+        self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._spin.setMinimumWidth(96)
+        self._spin.valueChanged.connect(self._write_to_node)
+        self._spin.setValue(int(self._initial_value(0)))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._spin)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._spin.setValue(int(value))
+
+    @override
+    def get_value(self) -> object:
+        return self._spin.value()
+
+
+class BoolParamWidget(ParamWidgetBase):
+    """Check-box editor for :attr:`NodeParamType.BOOL` parameters."""
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        self._check = QCheckBox()
+        self._check.toggled.connect(self._write_to_node)
+        self._check.setChecked(bool(self._initial_value(False)))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._check)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._check.setChecked(bool(value))
+
+    @override
+    def get_value(self) -> object:
+        return self._check.isChecked()
+
+
+class FilePathParamWidget(ParamWidgetBase):
+    """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        self._is_save = param.metadata.get("mode") == "save"
+
+        self._line = QLineEdit()
+        self._line.setPlaceholderText("Select a file…")
+        # Min width must leave room for the 28 px browse button + spacing
+        # inside the fixed-width node body, otherwise the line edit overflows
+        # and visually overlaps the button.
+        self._line.setMinimumWidth(80)
+        self._line.textChanged.connect(self._write_to_node)
+        self._line.setText(str(self._initial_value("")))
+
+        browse = QPushButton("…")
+        browse.setFixedWidth(28)
+        browse.clicked.connect(self._browse)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(self._line, 1)
+        layout.addWidget(browse, 0)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._line.setText(str(value))
+
+    @override
+    def get_value(self) -> object:
+        return self._line.text()
+
+    def _browse(self) -> None:
+        current = self._line.text() or ""
+        folder = Path(current).parent.resolve()
+        fallback = OUTPUT_DIR if self._is_save else INPUT_DIR
+        initial = str(folder) if folder.is_dir() else str(fallback)
+
+        if self._is_save:
+            path, _ = QFileDialog.getSaveFileName(
+                self._line, "Save File As", initial, _SAVE_FILTER,
+            )
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self._line, "Select File", initial, _OPEN_FILTER,
+            )
+        if path:
+            self._line.setText(path)
+
+
+# ── Registry & factory ─────────────────────────────────────────────────────────
+
+_PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
+    NodeParamType.FILE_PATH: FilePathParamWidget,
+    NodeParamType.INT:       IntParamWidget,
+    NodeParamType.BOOL:      BoolParamWidget,
+}
+
+
+def build_param_widget(node: NodeBase, param: NodeParam) -> ParamWidgetBase | None:
+    """Return a :class:`ParamWidgetBase` that edits *param* on *node*.
 
     Returns ``None`` for unsupported param types, so callers can render a
     placeholder label instead of crashing.
     """
-    builder = _PARAM_BUILDERS.get(param.param_type)
-    if builder is None:
-        logger.warning("No Qt builder registered for param type %s", param.param_type)
+    cls = _PARAM_WIDGET_CLASSES.get(param.param_type)
+    if cls is None:
+        logger.warning("No widget class registered for param type %s", param.param_type)
         return None
-    return builder(node, param)
-
-
-# ── Builders ───────────────────────────────────────────────────────────────────
-
-def _build_file_path_param(node: NodeBase, param: NodeParam) -> QWidget:
-    container = QWidget()
-    layout = QHBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(4)
-
-    line = QLineEdit()
-    line.setPlaceholderText("Select a file…")
-    # Min width must leave room for the 28 px browse button + spacing
-    # inside the fixed-width node body, otherwise the line edit overflows
-    # and visually overlaps the button. The stretch factor below already
-    # makes the field fill any extra horizontal space.
-    line.setMinimumWidth(80)
-    line.textChanged.connect(_make_setter(node, param.name))
-    # Set the initial text *after* connecting so loaded flows / declared
-    # defaults visibly populate the widget. Reading from the node first
-    # means the widget always mirrors the node's current attribute.
-    line.setText(str(_initial_value(node, param, "")))
-    layout.addWidget(line, 1)
-
-    browse = QPushButton("…")
-    browse.setFixedWidth(28)
-    browse.clicked.connect(_make_browse_handler(
-        line_edit=line,
-        is_save=param.metadata.get("mode") == "save",
-    ))
-    layout.addWidget(browse, 0)
-
-    return container
-
-
-def _build_int_param(node: NodeBase, param: NodeParam) -> QWidget:
-    spin = QSpinBox()
-    spin.setRange(-10_000_000, 10_000_000)
-    spin.valueChanged.connect(_make_setter(node, param.name))
-    # See _build_file_path_param for the order rationale.
-    spin.setValue(int(_initial_value(node, param, 0)))
-    spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-    spin.setMinimumWidth(96)
-    return spin
-
-
-def _build_bool_param(node: NodeBase, param: NodeParam) -> QWidget:
-    check = QCheckBox()
-    check.toggled.connect(_make_setter(node, param.name))
-    # See _build_file_path_param for the order rationale.
-    check.setChecked(bool(_initial_value(node, param, False)))
-    return check
-
-
-_PARAM_BUILDERS: dict[NodeParamType, Callable[[NodeBase, NodeParam], QWidget]] = {
-    NodeParamType.FILE_PATH: _build_file_path_param,
-    NodeParamType.INT:       _build_int_param,
-    NodeParamType.BOOL:      _build_bool_param,
-}
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _initial_value(node: NodeBase, param: NodeParam, fallback: object) -> object:
-    """Return the value the widget should display on first creation.
-
-    Prefers the node's current attribute (so loaded flows show their
-    saved values) and falls back to the metadata default (so
-    freshly-instantiated nodes still get the right starting text even if
-    the subclass forgot :meth:`NodeBase._apply_default_params`).
-    """
-    if hasattr(node, param.name):
-        return getattr(node, param.name)
-    return param.metadata.get("default", fallback)
-
-
-def _make_setter(node: NodeBase, name: str) -> Callable[[object], None]:
-    """Return a slot that writes the received value into ``node.<name>``."""
-    def _set(value: object) -> None:
-        try:
-            setattr(node, name, value)
-        except Exception:
-            logger.exception("Failed to set %s.%s = %r", type(node).__name__, name, value)
-    return _set
-
-
-def _make_browse_handler(*, line_edit: QLineEdit, is_save: bool) -> Callable[[], None]:
-    """Return a slot that pops up a QFileDialog and writes the result back.
-
-    The starting directory is the directory of the current input-text value
-    when it exists; otherwise :data:`OUTPUT_DIR` for save mode and
-    :data:`INPUT_DIR` for load mode.
-    """
-    def _browse() -> None:
-        current = line_edit.text() or ""
-        folder = Path(current).parent.resolve()
-        fallback = OUTPUT_DIR if is_save else INPUT_DIR
-        initial = str(folder) if folder.is_dir() else str(fallback)
-
-        if is_save:
-            path, _ = QFileDialog.getSaveFileName(
-                line_edit, "Save File As", initial, _SAVE_FILTER,
-            )
-        else:
-            path, _ = QFileDialog.getOpenFileName(
-                line_edit, "Select File", initial, _OPEN_FILTER,
-            )
-        if path:
-            line_edit.setText(path)
-
-    return _browse
+    return cls(node, param)
