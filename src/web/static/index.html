@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Sparklehoof — Web Editor</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <header>
+    <h1>Sparklehoof</h1>
+    <div id="flow-controls">
+      <label>Flow:
+        <select id="flow-select"></select>
+      </label>
+      <button id="btn-load">Load</button>
+      <input id="flow-name" placeholder="name"/>
+      <button id="btn-save">Save</button>
+      <button id="btn-run">Run</button>
+      <button id="btn-clear">Clear</button>
+      <span id="status"></span>
+    </div>
+  </header>
+  <main>
+    <aside id="palette">
+      <h2>Nodes</h2>
+      <div id="palette-list"></div>
+    </aside>
+    <section id="canvas-wrap">
+      <svg id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="canvas"></div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

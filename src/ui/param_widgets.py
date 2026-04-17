@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 _SAVE_FILTER = "Images (*.png *.jpg *.jpeg)"
 _OPEN_FILTER = (
-    "Images / video (*.png *.jpg *.jpeg *.mp4 *.cr2);;"
+    "Images / video (*.png *.jpg *.jpeg *.mp4);;"
     "All files (*)"
 )
 

@@ -4,7 +4,6 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import rawpy
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
@@ -13,7 +12,6 @@ from core.port import OutputPort
 
 _SUPPORTED_IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 _SUPPORTED_VIDEO_EXTS = {".mp4"}
-_SUPPORTED_RAW_EXTS   = {".cr2"}
 
 
 class FileSource(SourceNodeBase):
@@ -22,7 +20,6 @@ class FileSource(SourceNodeBase):
     Supported formats:
       - Images: JPEG, PNG
       - Video:  MP4 (sends one frame per IoData, then EndOfStream)
-      - RAW:    CR2 (requires rawpy)
 
     Parameters:
       file_path      -- path to the input file
@@ -78,12 +75,10 @@ class FileSource(SourceNodeBase):
             self._read_video()
         elif ext in _SUPPORTED_IMAGE_EXTS:
             self._read_image()
-        elif ext in _SUPPORTED_RAW_EXTS:
-            self._read_raw()
         else:
             raise ValueError(
                 f"Unsupported file type '{ext}'. "
-                f"Supported: {_SUPPORTED_IMAGE_EXTS | _SUPPORTED_VIDEO_EXTS | _SUPPORTED_RAW_EXTS}"
+                f"Supported: {_SUPPORTED_IMAGE_EXTS | _SUPPORTED_VIDEO_EXTS}"
             )
 
     # ── Private helpers ────────────────────────────────────────────────────────
@@ -109,9 +104,4 @@ class FileSource(SourceNodeBase):
                     break
         finally:
             cap.release()
-        self.outputs[0].send(IoData.end_of_stream())
-
-    def _read_raw(self) -> None:
-        image: np.ndarray = rawpy.imread(str(self._file_path)).postprocess()
-        self.outputs[0].send(IoData.from_image(image))
         self.outputs[0].send(IoData.end_of_stream())

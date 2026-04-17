@@ -4,20 +4,19 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import rawpy
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
 
-_SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".cr2"}
+_SUPPORTED_EXTS = {".jpg", ".jpeg", ".png"}
 
 
 class ImageSource(SourceNodeBase):
     """Source node that reads a single still image from disk.
 
-    Supported formats: JPEG, PNG, CR2 (RAW).
+    Supported formats: JPEG, PNG.
 
     This source is *reactive*: the node editor automatically re-runs the
     flow whenever any parameter on any node is edited, so changes take
@@ -69,12 +68,9 @@ class ImageSource(SourceNodeBase):
                 f"Supported: {_SUPPORTED_EXTS}"
             )
 
-        if ext == ".cr2":
-            image: np.ndarray = rawpy.imread(str(self._file_path)).postprocess()
-        else:
-            image = cv2.imread(str(self._file_path))
-            if image is None:
-                raise OSError(f"cv2 could not read: {self._file_path}")
+        image = cv2.imread(str(self._file_path))
+        if image is None:
+            raise OSError(f"cv2 could not read: {self._file_path}")
 
         self.outputs[0].send(IoData.from_image(image))
         self.outputs[0].send(IoData.end_of_stream())
