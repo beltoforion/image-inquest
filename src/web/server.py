@@ -211,6 +211,72 @@ def list_nodes() -> dict[str, Any]:
     return {"sections": out}
 
 
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
+_VIDEO_EXTS = {".mp4"}
+_MEDIA_EXTS = _IMAGE_EXTS | _VIDEO_EXTS
+
+
+@app.get("/api/browse")
+def browse(path: str | None = None, filter: str = "media") -> dict[str, Any]:
+    """List directory entries so the frontend can implement a file dialog.
+
+    ``path`` is an absolute filesystem path. When omitted, defaults to
+    the project's ``input/`` directory so the user starts somewhere
+    useful. ``filter`` is one of ``"media"`` (images + video),
+    ``"image"``, or ``"all"`` — it hides non-matching *files* but never
+    hides directories so the user can always navigate in.
+
+    This is safe because the server is bound to 127.0.0.1; the only
+    actor reaching it is the local user, who already has full
+    filesystem access. We still resolve the path (no ``..`` tricks
+    leaking through symlinks) and fall back to the user's home
+    directory on permission errors.
+    """
+    if path:
+        target = Path(path).expanduser()
+    else:
+        target = INPUT_DIR if INPUT_DIR.is_dir() else Path.home()
+    try:
+        target = target.resolve(strict=False)
+    except OSError:
+        target = Path.home()
+    if not target.is_dir():
+        target = target.parent if target.parent.is_dir() else Path.home()
+
+    allow: set[str] | None
+    if filter == "image":
+        allow = _IMAGE_EXTS
+    elif filter == "media":
+        allow = _MEDIA_EXTS
+    else:
+        allow = None  # show everything
+
+    try:
+        raw_entries = list(target.iterdir())
+    except PermissionError as err:
+        raise HTTPException(status_code=403, detail=str(err)) from err
+
+    entries: list[dict[str, Any]] = []
+    for entry in raw_entries:
+        try:
+            is_dir = entry.is_dir()
+        except OSError:
+            continue
+        if entry.name.startswith("."):
+            continue
+        if not is_dir and allow is not None and entry.suffix.lower() not in allow:
+            continue
+        entries.append({"name": entry.name, "is_dir": is_dir})
+    entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
+
+    parent = str(target.parent) if target.parent != target else None
+    return {
+        "path": str(target),
+        "parent": parent,
+        "entries": entries,
+    }
+
+
 @app.get("/api/flows")
 def list_flows() -> dict[str, list[str]]:
     FLOW_DIR.mkdir(parents=True, exist_ok=True)

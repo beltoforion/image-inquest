@@ -320,6 +320,28 @@ function makeParam(node, def) {
       const v = input.value === "" ? null : Number(input.value);
       node.params[def.name] = v;
     });
+  } else if (def.type === "FILE_PATH") {
+    input = document.createElement("input");
+    input.type = "text";
+    input.value = node.params[def.name] ?? "";
+    input.addEventListener("change", () => { node.params[def.name] = input.value; });
+    row.appendChild(input);
+    const btn = document.createElement("button");
+    btn.className = "browse";
+    btn.textContent = "…";
+    btn.title = "Browse";
+    btn.addEventListener("click", async () => {
+      const picked = await openFileDialog({
+        mode: def.mode === "save" ? "save" : "open",
+        initial: node.params[def.name] || "",
+      });
+      if (picked != null) {
+        input.value = picked;
+        node.params[def.name] = picked;
+      }
+    });
+    row.appendChild(btn);
+    return row;
   } else {
     input = document.createElement("input");
     input.type = "text";
@@ -329,6 +351,128 @@ function makeParam(node, def) {
   row.appendChild(input);
   return row;
 }
+
+// ── File dialog ───────────────────────────────────────────────────────────
+//
+// Server-backed file browser. The backend is bound to 127.0.0.1 and has
+// full filesystem access, so the dialog can list any directory the
+// Python process can read — mirroring the Qt native file dialog's
+// behaviour for the web mode.
+
+const fileModal = {
+  el: document.getElementById("file-modal"),
+  titleEl: document.getElementById("file-modal-title"),
+  closeEl: document.getElementById("file-modal-close"),
+  upEl: document.getElementById("file-modal-up"),
+  goEl: document.getElementById("file-modal-go"),
+  pathEl: document.getElementById("file-modal-path"),
+  listEl: document.getElementById("file-modal-list"),
+  filenameEl: document.getElementById("file-modal-filename"),
+  okEl: document.getElementById("file-modal-ok"),
+  cancelEl: document.getElementById("file-modal-cancel"),
+  resolve: null,
+  mode: "open",
+  currentPath: null,
+  selectedFile: null,
+};
+
+async function openFileDialog({ mode, initial }) {
+  fileModal.mode = mode;
+  fileModal.titleEl.textContent = mode === "save" ? "Save file" : "Open file";
+  fileModal.filenameEl.style.display = mode === "save" ? "" : "none";
+  fileModal.selectedFile = null;
+
+  // Seed from the current param value: if it's a file, navigate to its
+  // directory; if it's a directory, navigate there; otherwise fall
+  // back to the server-chosen default (input/).
+  let seedPath = null;
+  let seedName = "";
+  if (initial) {
+    const slash = Math.max(initial.lastIndexOf("/"), initial.lastIndexOf("\\"));
+    if (slash >= 0) {
+      seedPath = initial.slice(0, slash) || "/";
+      seedName = initial.slice(slash + 1);
+    } else {
+      seedName = initial;
+    }
+  }
+  fileModal.filenameEl.value = seedName;
+  await loadDir(seedPath);
+
+  fileModal.el.hidden = false;
+  return new Promise(resolve => { fileModal.resolve = resolve; });
+}
+
+async function loadDir(path) {
+  const qs = new URLSearchParams();
+  if (path) qs.set("path", path);
+  qs.set("filter", "media");
+  let data;
+  try {
+    data = await api("/api/browse?" + qs.toString());
+  } catch (err) {
+    setStatus("Browse failed: " + err.message, "err");
+    return;
+  }
+  fileModal.currentPath = data.path;
+  fileModal.pathEl.value = data.path;
+  fileModal.listEl.innerHTML = "";
+  fileModal.selectedFile = null;
+
+  for (const entry of data.entries) {
+    const li = document.createElement("li");
+    li.textContent = entry.name;
+    li.className = entry.is_dir ? "dir" : "file";
+    li.addEventListener("click", () => {
+      if (entry.is_dir) return;
+      for (const other of fileModal.listEl.children) other.classList.remove("selected");
+      li.classList.add("selected");
+      fileModal.selectedFile = entry.name;
+      if (fileModal.mode === "save") fileModal.filenameEl.value = entry.name;
+    });
+    li.addEventListener("dblclick", () => {
+      if (entry.is_dir) {
+        loadDir(joinPath(fileModal.currentPath, entry.name));
+      } else if (fileModal.mode === "open") {
+        commitFileDialog(joinPath(fileModal.currentPath, entry.name));
+      }
+    });
+    fileModal.listEl.appendChild(li);
+  }
+}
+
+function joinPath(dir, name) {
+  if (!dir) return name;
+  const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+  return dir.endsWith(sep) ? dir + name : dir + sep + name;
+}
+
+function commitFileDialog(value) {
+  fileModal.el.hidden = true;
+  const r = fileModal.resolve;
+  fileModal.resolve = null;
+  if (r) r(value);
+}
+
+fileModal.closeEl.addEventListener("click", () => commitFileDialog(null));
+fileModal.cancelEl.addEventListener("click", () => commitFileDialog(null));
+fileModal.upEl.addEventListener("click", () => {
+  // Server returns parent=null at the filesystem root; guard against it.
+  if (fileModal.currentPath) loadDir(joinPath(fileModal.currentPath, ".."));
+});
+fileModal.goEl.addEventListener("click", () => loadDir(fileModal.pathEl.value));
+fileModal.pathEl.addEventListener("keydown", e => {
+  if (e.key === "Enter") loadDir(fileModal.pathEl.value);
+});
+fileModal.okEl.addEventListener("click", () => {
+  if (fileModal.mode === "save") {
+    const name = (fileModal.filenameEl.value || "").trim();
+    if (!name) return;
+    commitFileDialog(joinPath(fileModal.currentPath, name));
+  } else if (fileModal.selectedFile) {
+    commitFileDialog(joinPath(fileModal.currentPath, fileModal.selectedFile));
+  }
+});
 
 // ── Interaction glue ──────────────────────────────────────────────────────
 

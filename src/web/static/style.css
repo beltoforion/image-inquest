@@ -155,3 +155,106 @@ main { flex: 1; display: flex; min-height: 0; }
   background: #000;
   image-rendering: pixelated;
 }
+
+.param .browse {
+  padding: 2px 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.param .browse:hover { border-color: var(--accent); }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal[hidden] { display: none; }
+.modal-box {
+  width: 560px;
+  max-height: 70vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  padding: 6px 10px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+.modal-close { cursor: pointer; color: #888; font-size: 16px; }
+.modal-close:hover { color: var(--err); }
+.modal-path {
+  padding: 6px 10px;
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-path input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.modal-path button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+#file-modal-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#file-modal-list li {
+  padding: 4px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+#file-modal-list li:hover { background: var(--panel-2); }
+#file-modal-list li.selected { background: #3a506b; }
+#file-modal-list li.dir::before { content: "📁 "; }
+#file-modal-list li.file::before { content: "🖼 "; }
+.modal-footer {
+  padding: 6px 10px;
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+}
+.modal-footer input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 6px;
+  border-radius: 2px;
+}
+.modal-footer button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.modal-footer button:hover { border-color: var(--accent); }
