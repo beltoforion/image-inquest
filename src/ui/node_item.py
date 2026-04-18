@@ -226,8 +226,14 @@ class NodeItem(QGraphicsItem):
             2 if self.isSelected() else 1,
         )
 
-        # ── body ──
-        painter.setPen(border_pen)
+        # Draw fill, header, and border in three passes so that the
+        # selection border is always rendered LAST — otherwise the header
+        # path (which covers the full node width) overpaints the inside
+        # half of the border along the top edges and the yellow selection
+        # marker appears chewed at the top-left / top-right.
+
+        # ── body fill ──
+        painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
@@ -235,6 +241,11 @@ class NodeItem(QGraphicsItem):
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(self._header_color()))
         painter.drawPath(self._header_path())
+
+        # ── border (stroked on top so nothing covers it) ──
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
         # ── title text ──
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
