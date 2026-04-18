@@ -135,8 +135,8 @@ class NodeItem(QGraphicsItem):
         ├──────────────────────────┤
         │  param rows (QWidget)    │   one label + editor per NodeParam
         ├──────────────────────────┤
-        │◉ in_name    out_name   ◉│   port rows; inputs left, outputs right
-        │◉ in_name    out_name   ◉│
+        │◉ in_name    out_name    ◉│   port rows; inputs left, outputs right
+        │◉ in_name    out_name    ◉│
         └──────────────────────────┘
 
     Parameter widgets are embedded via a :class:`QGraphicsProxyWidget`
@@ -277,6 +277,7 @@ class NodeItem(QGraphicsItem):
         # glued to the port dots.
         if change == QGraphicsItem.GraphicsItemChange.ItemScenePositionHasChanged:
             self.refresh_all_links()
+            
         return super().itemChange(change, value)
 
     # ── Internals ──────────────────────────────────────────────────────────────
@@ -286,6 +287,7 @@ class NodeItem(QGraphicsItem):
             return SOURCE_HEADER_COLOR
         if isinstance(self._node, SinkNodeBase):
             return SINK_HEADER_COLOR
+        
         return FILTER_HEADER_COLOR
 
     def _header_path(self) -> QPainterPath:
