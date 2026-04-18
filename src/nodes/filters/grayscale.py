@@ -10,17 +10,18 @@ from core.port import InputPort, OutputPort
 
 
 class Grayscale(NodeBase):
-    """Converts a colour image to grayscale.
+    """Converts a colour image to greyscale.
 
-    The output is a 3-channel BGR image (all three channels identical) so that
-    downstream nodes receive a consistent format regardless of whether the
-    input was colour or already grayscale.
+    Emits a single-channel (H×W) :data:`IoDataType.IMAGE_GREY` payload.
+    Downstream nodes that accept ``IMAGE_GREY`` (including the viewer and
+    file sink) can consume the output directly; use an :class:`RgbJoin`
+    upstream of colour-only consumers.
     """
 
     def __init__(self) -> None:
         super().__init__("Grayscale", section="Color Spaces")
-        self._add_input(InputPort("image",  {IoDataType.IMAGE}))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort("image", {IoDataType.IMAGE}))
+        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
     @property
     @override
@@ -31,6 +32,4 @@ class Grayscale(NodeBase):
     def process(self) -> None:
         image: np.ndarray = self.inputs[0].data.image
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # Convert back to 3-channel BGR so downstream nodes get a consistent format
-        gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-        self.outputs[0].send(IoData.from_image(gray_bgr))
+        self.outputs[0].send(IoData.from_greyscale(gray))

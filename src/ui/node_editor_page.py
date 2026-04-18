@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
-from core.io_data import IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase, SourceNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
@@ -121,6 +121,9 @@ class NodeEditorPage(PageBase):
 
         # Wire scene → viewer.
         self._scene.selected_node_changed.connect(self._viewer.show_node)
+        # Surface interactive-connection errors (type mismatches) in the
+        # error banner instead of swallowing them inside FlowScene.
+        self._scene.connection_error.connect(self._on_connection_error)
 
         # Debounce timer for reactive (auto-run) flows.  A 300 ms single-shot
         # timer is restarted on every param change; it fires _on_run_clicked
@@ -230,6 +233,10 @@ class NodeEditorPage(PageBase):
         self._flow = flow
         self._viewer.show_node(None)
         self.title_changed.emit(self.page_title())
+        # Fit the freshly-loaded graph into the view. Deferred so it runs
+        # after pending layout events settle — viewport geometry isn't
+        # final yet when load_flow runs during the first paint.
+        QTimer.singleShot(0, self._view.fit_to_contents)
         self._set_status(
             f"Loaded {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
@@ -296,7 +303,7 @@ class NodeEditorPage(PageBase):
             if isinstance(node, SinkNodeBase):
                 continue
             for port in node.outputs:
-                if IoDataType.IMAGE in port.emits and port.last_emitted is not None:
+                if (port.emits & IMAGE_TYPES) and port.last_emitted is not None:
                     return node
         return None
 
@@ -400,6 +407,12 @@ class NodeEditorPage(PageBase):
         # the same file. The scene clears via set_flow.
         self.set_flow(Flow(name=self._flow.name))
 
+    # ── Scene error handlers ───────────────────────────────────────────────────
+
+    def _on_connection_error(self, message: str) -> None:
+        """Surface a FlowScene connection rejection in the error banner."""
+        self._set_status(message, kind="fail")
+
     # ── Status line ────────────────────────────────────────────────────────────
 
     def _set_status(self, message: str, *, kind: str) -> None:
@@ -426,8 +439,13 @@ class NodeEditorPage(PageBase):
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _display_path(path: Path) -> str:
-    """Return ``path`` relative to cwd when possible, otherwise absolute."""
+    """Return ``path`` relative to cwd when possible, otherwise absolute.
+
+    Resolves symlinks on both sides so a path that differs from cwd only
+    via a symlink (e.g. ``~/Desktop/repo`` → ``~/Code/repo``) is still
+    shown in the shorter relative form.
+    """
     try:
-        return str(path.relative_to(Path.cwd()))
-    except ValueError:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except (OSError, ValueError):
         return str(path)
