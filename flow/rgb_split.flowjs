@@ -7,23 +7,13 @@
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
-        -1444.0,
-        -616.0
+        -1454.5147850178485,
+        -613.3713037455377
       ],
       "params": {}
     },
     {
       "id": 1,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -1176.0,
-        -739.0
-      ],
-      "params": {}
-    },
-    {
-      "id": 2,
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
@@ -35,7 +25,7 @@
       }
     },
     {
-      "id": 3,
+      "id": 2,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
@@ -47,25 +37,55 @@
       }
     },
     {
-      "id": 4,
+      "id": 3,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1749.5255474452551,
-        -646.2773722627737
+        -1788.9559912621874,
+        -669.0594064681123
       ],
       "params": {
-        "file_path": "example.jpg"
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1196.0567957802757,
+        -781.5990196600775
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1181.1608503383236,
+        -615.114923544142
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1174.150993659758,
+        -449.50705951302666
+      ],
+      "params": {
+        "method": 6
       }
     }
   ],
   "connections": [
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 1,
-      "dst_input": 0
-    },
     {
       "src_node": 1,
       "src_output": 0,
@@ -73,28 +93,46 @@
       "dst_input": 0
     },
     {
-      "src_node": 0,
-      "src_output": 1,
-      "dst_node": 2,
-      "dst_input": 1
-    },
-    {
-      "src_node": 0,
-      "src_output": 2,
-      "dst_node": 2,
-      "dst_input": 2
-    },
-    {
-      "src_node": 2,
+      "src_node": 3,
       "src_output": 0,
-      "dst_node": 3,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
       "dst_input": 0
     },
     {
       "src_node": 4,
       "src_output": 0,
-      "dst_node": 0,
+      "dst_node": 1,
       "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 2,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 1
     }
   ]
 }
