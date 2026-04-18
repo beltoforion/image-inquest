@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
+    QColor,
     QPainter,
     QPainterPath,
     QPen,
@@ -53,6 +54,77 @@ class _NodeSignals(QObject):
     param_changed = Signal()
 
 
+class _CloseButtonItem(QGraphicsItem):
+    """Small ``X`` button rendered on the right of a node header.
+
+    Clicking it asks the owning scene to delete the node. Kept as a child
+    ``QGraphicsItem`` of the node so it moves and z-orders with the header.
+    """
+
+    SIZE: float = 14.0
+    Z_VALUE = 2
+
+    def __init__(self, node_item: "NodeItem") -> None:
+        super().__init__(parent=node_item)
+        self._node_item = node_item
+        self._hovered = False
+        self._pressed = False
+        self.setZValue(self.Z_VALUE)
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def boundingRect(self) -> QRectF:  # type: ignore[override]
+        return QRectF(0, 0, self.SIZE, self.SIZE)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        if self._hovered or self._pressed:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor(255, 255, 255, 70)))
+            painter.drawRoundedRect(self.boundingRect(), 2, 2)
+        pen = QPen(NODE_TITLE_TEXT_COLOR, 1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        m = 4.0
+        s = self.SIZE
+        painter.drawLine(QPointF(m, m), QPointF(s - m, s - m))
+        painter.drawLine(QPointF(s - m, m), QPointF(m, s - m))
+
+    def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = True
+        self.update()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = False
+        self.update()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton and self._pressed:
+            self._pressed = False
+            self.update()
+            if self.boundingRect().contains(event.pos()):
+                scene = self.scene()
+                node_item = self._node_item
+                if scene is not None and hasattr(scene, "remove_node_item"):
+                    # Defer so we don't delete ourselves while still inside
+                    # our own event handler.
+                    QTimer.singleShot(0, lambda: scene.remove_node_item(node_item))
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
 class NodeItem(QGraphicsItem):
     """A single node drawn on the flow canvas.
 
@@ -78,6 +150,7 @@ class NodeItem(QGraphicsItem):
     CORNER_RADIUS: float = 5.0
     PADDING: float = 8.0
     PARAM_GAP: float = 4.0
+    CLOSE_BUTTON_SIZE: float = 14.0
 
     Z_VALUE = 1
 
@@ -96,6 +169,12 @@ class NodeItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True)
+
+        self._close_button = _CloseButtonItem(self)
+        self._close_button.setPos(
+            self.WIDTH - self.PADDING - self.CLOSE_BUTTON_SIZE,
+            (self.HEADER_HEIGHT - self.CLOSE_BUTTON_SIZE) / 2,
+        )
 
         self._build_params_widget()
         self._build_ports()
@@ -159,8 +238,14 @@ class NodeItem(QGraphicsItem):
 
         # ── title text ──
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
+        title_right_reserve = self.CLOSE_BUTTON_SIZE + self.PADDING
         painter.drawText(
-            QRectF(self.PADDING, 0, self.WIDTH - 2 * self.PADDING, self.HEADER_HEIGHT),
+            QRectF(
+                self.PADDING,
+                0,
+                self.WIDTH - 2 * self.PADDING - title_right_reserve,
+                self.HEADER_HEIGHT,
+            ),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             self._node.display_name,
         )

@@ -35,7 +35,8 @@ class FlowScene(QGraphicsScene):
         registering it with the active Flow.
       - drag-between-ports → creating both the visual LinkItem and the
         underlying ``Flow.connect`` edge.
-      - right-click context menus on nodes (Delete) and links (Delete).
+      - right-click context menu on links (Delete). Nodes are deleted
+        via the ``X`` button in their header or the Delete key.
 
     Emits :attr:`selected_node_changed` whenever the user's selection
     settles on a different single node (None when nothing or multiple
@@ -222,24 +223,14 @@ class FlowScene(QGraphicsScene):
         views = self.views()
         xform = views[0].transform() if views else QTransform()
         item = self.itemAt(event.scenePos(), xform)
-        # Walk up to a NodeItem / LinkItem if a port or label was clicked.
-        while item is not None and not isinstance(item, (NodeItem, LinkItem)):
+        # Walk up to a LinkItem if a label was clicked.
+        while item is not None and not isinstance(item, LinkItem):
             item = item.parentItem()
 
-        if isinstance(item, NodeItem):
-            self._node_context_menu(item, event)
-            return
         if isinstance(item, LinkItem):
             self._link_context_menu(item, event)
             return
         super().contextMenuEvent(event)
-
-    def _node_context_menu(self, item: NodeItem, event: QGraphicsSceneContextMenuEvent) -> None:
-        menu = QMenu()
-        delete = QAction("Delete Node", menu)
-        delete.triggered.connect(lambda: self.remove_node_item(item))
-        menu.addAction(delete)
-        menu.exec(event.screenPos())
 
     def _link_context_menu(self, link: LinkItem, event: QGraphicsSceneContextMenuEvent) -> None:
         menu = QMenu()
