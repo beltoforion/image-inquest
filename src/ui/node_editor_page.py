@@ -138,6 +138,8 @@ class NodeEditorPage(PageBase):
         self._live_timer.timeout.connect(self._on_run_clicked)
         self._scene.param_changed.connect(self._on_param_changed)
 
+        self.set_flow(Flow())  # start with an empty flow so the user can jump right in
+
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
     def page_title(self) -> str:
