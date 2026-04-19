@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "name": "mosaic",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1658.0800698393791,
+        -830.925073653022
+      ],
+      "params": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.subpixel_mosaic",
+      "class": "SubpixelMosaic",
+      "position": [
+        -1396.4366936528104,
+        -838.4652285863526
+      ],
+      "params": {
+        "keep_aspect": true,
+        "output_grayscale": false
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -1169.478030159562,
+        -830.9250736530222
+      ],
+      "params": {
+        "output_path": "output/out.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
