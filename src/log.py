@@ -14,16 +14,6 @@ import logging.handlers
 from pathlib import Path
 
 
-_STARTUP_BANNER = r"""
-  _________                   __   .__         .__                   _____
- /   _____/__________ _______|  | _|  |   ____ |  |__   ____   _____/ ____\
- \_____  \\____ \__  \\_  __ \  |/ /  | _/ __ \|  |  \ /  _ \ /  _ \   __\
- /        \  |_> > __ \|  | \/    <|  |_\  ___/|   Y  (  <_> |  <_> )  |
-/_______  /   __(____  /__|  |__|_ \____/\___  >___|  /\____/ \____/|__|
-        \/|__|       \/           \/         \/     \/
-"""
-
-
 def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     """Configure the root logger.
 
@@ -56,13 +46,19 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     root.addHandler(file_handler)
     root.addHandler(console_handler)
 
-    # Emit the session banner through the standard formatter so every
-    # line carries a timestamp and keeps the log format consistent.
-    # INFO is below the console handler's threshold, so the banner
-    # only lands in the file.
-    banner = logging.getLogger("banner")
-    for line in _STARTUP_BANNER.splitlines():
+    logger = logging.getLogger(__name__)
+    # Each banner line goes through the standard formatter so the log
+    # format stays consistent. INFO is below the console handler's
+    # threshold, so the banner lands in the file only.
+    for line in r"""
+  _________                   __   .__         .__                   _____
+ /   _____/__________ _______|  | _|  |   ____ |  |__   ____   _____/ ____\
+ \_____  \\____ \__  \\_  __ \  |/ /  | _/ __ \|  |  \ /  _ \ /  _ \   __\
+ /        \  |_> > __ \|  | \/    <|  |_\  ___/|   Y  (  <_> |  <_> )  |
+/_______  /   __(____  /__|  |__|_ \____/\___  >___|  /\____/ \____/|__|
+        \/|__|       \/           \/         \/     \/
+""".splitlines():
         if line:
-            banner.info(line)
+            logger.info(line)
 
-    logging.getLogger(__name__).info("Logging initialised → %s", log_file)
+    logger.info("Logging initialised → %s", log_file)
