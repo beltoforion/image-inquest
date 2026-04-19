@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QVBoxLayout,
     QWidget,
 )
 
@@ -24,10 +23,6 @@ class LogPage(PageBase):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(40, 60, 40, 40)
-        root.setSpacing(12)
-
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
@@ -40,7 +35,7 @@ class LogPage(PageBase):
 
     @override
     def page_selector_icon(self) -> QIcon:
-        return material_icon("home")
+        return material_icon("description")
 
     def page_toolbar_sections(self) -> list[ToolbarSection]:
         return []
