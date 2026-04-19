@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QGraphicsItem,
     QHBoxLayout,
     QLineEdit,
     QPushButton,
@@ -140,6 +141,50 @@ class BoolParamWidget(ParamWidgetBase):
         return self._check.isChecked()
 
 
+class _SceneAwareComboBox(QComboBox):
+    """QComboBox that keeps its popup above sibling graphics items.
+
+    When a QComboBox is embedded via QGraphicsProxyWidget, Qt renders its
+    popup as a child proxy of the same host item (the NodeItem). Sibling
+    NodeItems painted at the same Z-value that visually overlap the popup
+    region will occlude it. Temporarily raising the host item's Z-value
+    while the popup is open keeps the dropdown on top.
+    """
+
+    _POPUP_Z_BOOST: float = 10_000.0
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._raised_item: QGraphicsItem | None = None
+        self._saved_z: float | None = None
+
+    def _host_item(self) -> QGraphicsItem | None:
+        proxy = self.window().graphicsProxyWidget()
+        if proxy is None:
+            return None
+        item: QGraphicsItem = proxy
+        while item.parentItem() is not None:
+            item = item.parentItem()
+        return item
+
+    @override
+    def showPopup(self) -> None:
+        item = self._host_item()
+        if item is not None and self._raised_item is None:
+            self._raised_item = item
+            self._saved_z = item.zValue()
+            item.setZValue(self._saved_z + self._POPUP_Z_BOOST)
+        super().showPopup()
+
+    @override
+    def hidePopup(self) -> None:
+        super().hidePopup()
+        if self._raised_item is not None and self._saved_z is not None:
+            self._raised_item.setZValue(self._saved_z)
+        self._raised_item = None
+        self._saved_z = None
+
+
 class EnumParamWidget(ParamWidgetBase):
     """Combo-box editor for :attr:`NodeParamType.ENUM` parameters.
 
@@ -163,7 +208,7 @@ class EnumParamWidget(ParamWidgetBase):
             )
         self._enum_cls: type[Enum] = enum_cls
 
-        self._combo = QComboBox()
+        self._combo = _SceneAwareComboBox()
         self._combo.setMinimumWidth(96)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
