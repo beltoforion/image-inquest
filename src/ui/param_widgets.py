@@ -9,7 +9,6 @@ from typing_extensions import override
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLineEdit,
@@ -20,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from constants import INPUT_DIR, OUTPUT_DIR
 from core.node_base import NodeBase, NodeParam, NodeParamType
+from ui.controls.scene_aware_combobox import SceneAwareComboBox
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class EnumParamWidget(ParamWidgetBase):
             )
         self._enum_cls: type[Enum] = enum_cls
 
-        self._combo = QComboBox()
+        self._combo = SceneAwareComboBox()
         self._combo.setMinimumWidth(96)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
