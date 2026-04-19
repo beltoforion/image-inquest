@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -905.6030315557606,
-        -645.6073623497045
+        -1101.8775023953017,
+        -640.1604426735653
       ],
       "params": {}
     },
@@ -27,8 +27,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -613.0,
-        -600.0
+        -755.4865660542653,
+        -647.7905252604365
       ],
       "params": {
         "output_path": "output/out.png"
@@ -39,8 +39,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1788.9559912621874,
-        -669.0594064681123
+        -1746.4755243640213,
+        -654.0142411083452
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -51,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -781.5990196600775
+        -1317.303128385458,
+        -782.4840293871227
       ],
       "params": {
         "method": 6
@@ -63,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1194.256362700881,
-        -648.6988031203803
+        -1315.5026953060633,
+        -649.5838128474254
       ],
       "params": {
         "method": 6
@@ -75,8 +75,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -517.5990196600775
+        -1317.303128385458,
+        -518.4840293871226
       ],
       "params": {
         "method": 6
@@ -87,12 +87,12 @@
       "module": "nodes.filters.subpixel_mosaic",
       "class": "SubpixelMosaic",
       "position": [
-        -608.5463808353032,
-        -852.5050630932429
+        -932.8002523055628,
+        -654.9071980133932
       ],
       "params": {
-        "keep_aspect": true,
-        "output_grayscale": true
+        "keep_aspect": false,
+        "output_grayscale": false
       }
     }
   ],
