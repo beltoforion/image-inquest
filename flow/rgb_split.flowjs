@@ -91,7 +91,7 @@
         -661.9872758297544
       ],
       "params": {
-        "keep_aspect": false,
+        "keep_aspect": true,
         "output_grayscale": false
       }
     }
