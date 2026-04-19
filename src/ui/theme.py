@@ -117,6 +117,29 @@ QMenu::item:selected {
 QLabel[muted="true"] {
     color: #909090;
 }
+QCheckBox {
+    color: #e0e0e0;
+    spacing: 6px;
+    background: transparent;
+}
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    background: #1f1f22;
+    border: 1px solid #5a5a60;
+    border-radius: 2px;
+}
+QCheckBox::indicator:hover {
+    border-color: #7a7a85;
+}
+QCheckBox::indicator:checked {
+    background: #3a5b8a;
+    border-color: #e0c040;
+}
+QCheckBox::indicator:disabled {
+    background: #2d2d30;
+    border-color: #1a1a1d;
+}
 """
 
 
