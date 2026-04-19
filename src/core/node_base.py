@@ -156,14 +156,13 @@ class NodeBase(ABC):
         that every node automatically benefits from the per-call tracing log
         and the common exception-logging path.
         """
-        logger.debug("Processing node %s (%s)", self._display_name, type(self).__name__)
+        
+        logger.debug(f"  - Executing {self._display_name} ({type(self).__name__})")
+        
         try:
             self.process_impl()
         except Exception:
-            logger.exception(
-                "Exception in %s.process_impl (%s)",
-                type(self).__name__, self._display_name,
-            )
+            logger.exception(f"Exception in {type(self).__name__}.process_impl ({self._display_name})")
             raise
 
     @abstractmethod
