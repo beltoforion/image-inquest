@@ -149,8 +149,25 @@ class NodeBase(ABC):
 
     # ── Overridable behaviour ──────────────────────────────────────────────────
 
-    @abstractmethod
     def process(self) -> None:
+        """Dispatch to :meth:`process_impl` with logging and error handling.
+
+        Subclasses should override :meth:`process_impl`, not this method, so
+        that every node automatically benefits from the per-call tracing log
+        and the common exception-logging path.
+        """
+        logger.debug("Processing node %s (%s)", self._display_name, type(self).__name__)
+        try:
+            self.process_impl()
+        except Exception:
+            logger.exception(
+                "Exception in %s.process_impl (%s)",
+                type(self).__name__, self._display_name,
+            )
+            raise
+
+    @abstractmethod
+    def process_impl(self) -> None:
         """Read from self._inputs, compute, and write results to self._outputs."""
         ...
 
@@ -201,7 +218,7 @@ class SourceNodeBase(NodeBase, ABC):
         ...
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         raise RuntimeError("SourceNodeBase has no inputs; call start() instead")
 
     @override
@@ -220,7 +237,7 @@ class SinkNodeBase(NodeBase, ABC):
 
     @abstractmethod
     @override
-    def process(self) -> None: ...
+    def process_impl(self) -> None: ...
 
     @override
     def _on_end_of_stream(self) -> None:
