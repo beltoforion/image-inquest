@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import NamedTuple, TYPE_CHECKING
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+
+from constants import APP_DISPLAY_NAME, APP_VERSION
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMenu
@@ -16,6 +18,25 @@ class ToolbarSection(NamedTuple):
     actions: list[QAction]
 
 
+class AppVersionStatusWidget(QWidget):
+    """Default page status widget: ``AppName vX.Y.Z`` label.
+
+    Kept as a small standalone class so every page can instantiate its
+    own — two pages must not share the same QWidget instance, because
+    QToolBar reparents widgets it hosts via ``QWidgetAction``.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 0, 8, 0)
+        layout.setSpacing(0)
+        label = QLabel(f"{APP_DISPLAY_NAME} v{APP_VERSION}")
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        label.setProperty("muted", True)
+        layout.addWidget(label)
+
+
 class PageBase(QWidget):
     """Abstract base class for every top-level page stacked inside MainWindow.
 
@@ -25,11 +46,17 @@ class PageBase(QWidget):
     * a list of QMenus installed on the global menu bar while the page
       is active (see :meth:`page_menus`), and
     * a list of QActions installed on the application toolbar next to
-      the page-selector radio group (see :meth:`page_toolbar_actions`).
+      the page-selector radio group (see :meth:`page_toolbar_actions`), and
+    * a status widget anchored to the right of the main toolbar (see
+      :meth:`page_status_widget`), used to surface page-specific state
+      such as a running-flow indicator.
 
     The :attr:`title_changed` signal lets a page request that the main
     window update the window title without knowing about the main window
-    directly.
+    directly. :attr:`status_widget_changed` asks MainWindow to re-install
+    the page's status widget on the toolbar — use it when the page wants
+    to swap widgets (e.g. from an idle label to a busy spinner) without
+    waiting for the next page switch.
 
     Subclasses must implement:
 
@@ -47,11 +74,13 @@ class PageBase(QWidget):
     """
 
     title_changed = Signal(str)
+    status_widget_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         if type(self) is PageBase:
             raise TypeError("PageBase cannot be instantiated directly")
         super().__init__(parent)
+        self._default_status_widget: AppVersionStatusWidget | None = None
 
     # ── Abstract interface ─────────────────────────────────────────────────────
 
@@ -82,6 +111,20 @@ class PageBase(QWidget):
         Default: empty.
         """
         return []
+
+    def page_status_widget(self) -> QWidget | None:
+        """Return the widget MainWindow should pin to the far right of the toolbar.
+
+        Default: an :class:`AppVersionStatusWidget` showing the app name and
+        version, so every page has a sensible right-edge affordance without
+        boilerplate. Pages that want dynamic state (a progress spinner, a
+        connection light, …) override this and emit
+        :attr:`status_widget_changed` whenever the returned widget needs to
+        be swapped for a different one.
+        """
+        if self._default_status_widget is None:
+            self._default_status_widget = AppVersionStatusWidget()
+        return self._default_status_widget
 
     def page_title(self) -> str:
         """Human-readable page title used in the window caption."""

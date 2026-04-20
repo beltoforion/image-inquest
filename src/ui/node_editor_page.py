@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, QTimer
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QStatusBar,
     QVBoxLayout,
+    QWidget,
 )
 
 from constants import FLOW_DIR
@@ -33,7 +34,7 @@ from ui.page import PageBase, ToolbarSection
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.error_banner import ErrorBanner
-from ui.spinner import SpinnerWidget
+from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -57,13 +58,11 @@ class NodeEditorPage(PageBase):
     global toolbar next to the page-selector radio group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
-    flow name changes. :attr:`run_started` and :attr:`run_finished` bracket
-    every worker-thread flow execution so MainWindow can reflect the busy
-    state in global chrome (e.g. a spinner on the main toolbar).
+    flow name changes. The toolbar's right-aligned status slot is owned by
+    this page via :class:`FlowStatusWidget` — it shows the app/version by
+    default and flips to a spinner + flow/node labels while a run is in
+    flight.
     """
-
-    run_started = Signal()
-    run_finished = Signal()
 
     def __init__(
         self,
@@ -81,6 +80,10 @@ class NodeEditorPage(PageBase):
         # that suppresses re-entrant Run clicks and reactive auto-runs.
         self._run_thread: QThread | None = None
         self._run_runner: FlowRunner | None = None
+
+        # Right-aligned toolbar status widget. Shows the app name + version
+        # while idle; swaps to a flow-running view during executions.
+        self._flow_status_widget = FlowStatusWidget()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -140,13 +143,11 @@ class NodeEditorPage(PageBase):
         self._actions["stack_horizontal"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
-        # Status bar at the bottom of the inner window. The spinner
-        # sits on the left, flush with the status label, and is shown
-        # only while a flow run is in flight.
+        # Status bar at the bottom of the inner window. The running-flow
+        # indicator lives on the main toolbar via FlowStatusWidget; the
+        # status bar is kept purely for timestamp/ok messages.
         self._status_bar = QStatusBar(self._inner)
-        self._run_spinner = SpinnerWidget(self._status_bar)
         self._status_label = QLabel("")
-        self._status_bar.addWidget(self._run_spinner, 0)
         self._status_bar.addWidget(self._status_label, 1)
         self._inner.setStatusBar(self._status_bar)
 
@@ -206,6 +207,13 @@ class NodeEditorPage(PageBase):
                 self._actions["stack_horizontal"],
             ]),
         ]
+
+    @override
+    def page_status_widget(self) -> QWidget | None:
+        # The FlowStatusWidget manages its own idle/running transitions
+        # internally, so MainWindow never needs to swap widgets on this
+        # page — we hand back the same instance every call.
+        return self._flow_status_widget
 
     def page_menus(self) -> list[QMenu]:
         # Single "Node Editor" menu mirroring the toolbar actions plus
@@ -379,9 +387,8 @@ class NodeEditorPage(PageBase):
         self._live_timer.stop()
         self._set_toolbar_enabled(False)
         self._set_param_widgets_enabled(False)
-        self._run_spinner.start()
+        self._flow_status_widget.show_running(self._flow.name)
         self._set_status("Running…", kind="muted")
-        self.run_started.emit()
 
         thread = QThread(self)
         runner = FlowRunner(self._flow)
@@ -390,6 +397,9 @@ class NodeEditorPage(PageBase):
         thread.started.connect(runner.run)
         runner.finished.connect(self._on_run_finished)
         runner.failed.connect(self._on_run_failed)
+        # Queued cross-thread signal — the worker fires node_started on
+        # its own thread, Qt marshals it onto the UI thread slot.
+        runner.node_started.connect(self._flow_status_widget.set_current_node)
         # Connection order matters: Qt invokes slots in the order they were
         # connected. We want deleteLater to post on the worker's event loop
         # *before* quit stops that same loop, so the runner is actually
@@ -444,8 +454,7 @@ class NodeEditorPage(PageBase):
         self._run_runner = None
         self._set_toolbar_enabled(True)
         self._set_param_widgets_enabled(True)
-        self._run_spinner.stop()
-        self.run_finished.emit()
+        self._flow_status_widget.show_idle()
 
     def _set_param_widgets_enabled(self, enabled: bool) -> None:
         """Freeze or thaw every node's param editors for the duration of a run."""

@@ -24,7 +24,6 @@ from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
 from ui.page import PageBase
 from ui.recent_flows import RecentFlowsManager
-from ui.spinner import SpinnerWidget
 from ui.start_page import StartPage
 from ui.log_page import LogPage
 
@@ -36,10 +35,6 @@ logger = logging.getLogger(__name__)
 # Icon size and fixed button dimensions for the main toolbar.
 _TOOLBAR_ICON_SIZE   = QSize(40, 40)
 _TOOLBAR_BUTTON_SIZE = QSize(72, 72)
-# Big right-aligned busy spinner. Sized to visually match the toolbar
-# icons (a touch smaller than the button, with room on every side) so it
-# reads as a peer of the surrounding actions, not a stray decoration.
-_TOOLBAR_SPINNER_SIZE = 36
 
 
 class MainWindow(QMainWindow):
@@ -96,6 +91,14 @@ class MainWindow(QMainWindow):
         for page in self._pages_list:
             self._pages.addWidget(page)
             page.title_changed.connect(self._update_window_title)
+            # Pages that want to swap their status widget mid-lifetime
+            # (e.g. the editor flipping from "idle" to a running-flow
+            # indicator) emit status_widget_changed; MainWindow re-pulls
+            # the current widget from page_status_widget() when the
+            # affected page is active.
+            page.status_widget_changed.connect(
+                lambda p=page: self._on_page_status_widget_changed(p)
+            )
 
         # Per-page signals that only make sense on one page live outside
         # the iteration above.
@@ -122,31 +125,26 @@ class MainWindow(QMainWindow):
         # page-specific toolbar actions.
         self._page_separator = self._toolbar.addSeparator()
 
-        # Right-aligned busy spinner. The spacer consumes all slack so
-        # the spinner sits flush against the far edge of the toolbar,
-        # regardless of how many actions the active page contributes.
-        # Both actions are persistent members (not recreated per page)
-        # so we don't churn QWidget parentage on page switches. The
-        # spacer uses Expanding in both axes so QToolBarLayout allocates
-        # remaining horizontal space to it.
+        # Right-aligned status slot. The spacer is persistent (an
+        # expanding QWidget that consumes all slack so whatever sits
+        # after it ends up flush against the far edge of the toolbar);
+        # the status widget itself is pulled from the active page via
+        # page_status_widget() on every page switch and whenever a page
+        # emits status_widget_changed, so pages own the lifecycle of
+        # their own indicators.
         self._right_spacer = QWidget()
         self._right_spacer.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         self._right_spacer_action = QWidgetAction(self)
         self._right_spacer_action.setDefaultWidget(self._right_spacer)
-
-        self._big_spinner = SpinnerWidget(
-            size=_TOOLBAR_SPINNER_SIZE, interval_ms=60,
-        )
-        self._big_spinner_action = QWidgetAction(self)
-        self._big_spinner_action.setDefaultWidget(self._big_spinner)
-
-        # Reflect the editor's run state on the global toolbar spinner.
-        # Wired once, here, so the spinner responds whether or not the
-        # editor page is currently active.
-        self._editor_page.run_started.connect(self._big_spinner.start)
-        self._editor_page.run_finished.connect(self._big_spinner.stop)
+        # Per-page QWidgetActions keep their wrapped widgets alive across
+        # page switches. QWidgetAction's destructor deletes the default
+        # widget, so we must NOT create-and-delete a fresh action on
+        # every install — doing so would also free the page-owned widget
+        # behind its back.
+        self._page_status_actions: dict[PageBase, QWidgetAction] = {}
+        self._installed_status_action: QWidgetAction | None = None
 
         self._activate_page(self._start_page)
 
@@ -232,10 +230,10 @@ class MainWindow(QMainWindow):
         # separators). QActions are owned by the page, so we only detach
         # them from the toolbar — do not deleteLater. Separators are
         # owned by us, so we delete them. The right-aligned spacer and
-        # spinner actions are persistent (owned by MainWindow), so we
-        # detach them here and re-add them at the very end below.
+        # page status actions are persistent; we only detach them from
+        # the toolbar here and re-add them at the end.
         self._toolbar.removeAction(self._right_spacer_action)
-        self._toolbar.removeAction(self._big_spinner_action)
+        self._detach_page_status_action()
         for item in self._installed_page_actions:
             self._toolbar.removeAction(item)
             if item.isSeparator():
@@ -250,13 +248,58 @@ class MainWindow(QMainWindow):
                 self._toolbar.addAction(action)
                 self._installed_page_actions.append(action)
 
-        # Anchor spacer + spinner at the right edge. The expanding
-        # spacer pushes the spinner flush against the far end of the
-        # toolbar regardless of how many page-specific actions came
-        # before it.
+        # Anchor the spacer + page status widget at the right edge. The
+        # expanding spacer consumes all slack so the status widget ends
+        # up flush against the far end of the toolbar regardless of how
+        # many page-specific actions came before it.
         self._toolbar.addAction(self._right_spacer_action)
-        self._toolbar.addAction(self._big_spinner_action)
+        self._install_page_status_widget(page)
 
+        self._apply_consistent_button_sizes()
+
+    def _install_page_status_widget(self, page: PageBase) -> None:
+        """Attach the page's status widget to the toolbar.
+
+        The wrapping :class:`QWidgetAction` is cached per page and
+        reused on subsequent activations so its destructor can't delete
+        the page-owned default widget. A fresh action is minted only
+        when the page hands back a different widget than last time
+        (typically in response to ``status_widget_changed``).
+        """
+        status = page.page_status_widget()
+        if status is None:
+            return
+        action = self._page_status_actions.get(page)
+        if action is None or action.defaultWidget() is not status:
+            action = QWidgetAction(self)
+            action.setDefaultWidget(status)
+            self._page_status_actions[page] = action
+        self._toolbar.addAction(action)
+        self._installed_status_action = action
+
+    def _detach_page_status_action(self) -> None:
+        """Remove the currently-installed status action from the toolbar.
+
+        The action is kept alive in ``_page_status_actions`` so its
+        default widget (owned by the page) survives the detach.
+        """
+        if self._installed_status_action is None:
+            return
+        self._toolbar.removeAction(self._installed_status_action)
+        self._installed_status_action = None
+
+    def _on_page_status_widget_changed(self, page: PageBase) -> None:
+        """Swap the toolbar's status widget when the active page asks.
+
+        Only acts when *page* is the currently-active one; an inactive
+        page emitting ``status_widget_changed`` is a no-op because its
+        widget will be pulled fresh the next time the page is
+        activated.
+        """
+        if self._pages.currentWidget() is not page:
+            return
+        self._detach_page_status_action()
+        self._install_page_status_widget(page)
         self._apply_consistent_button_sizes()
 
     def _apply_consistent_button_sizes(self) -> None:
