@@ -126,16 +126,18 @@ class MainWindow(QMainWindow):
         # the spinner sits flush against the far edge of the toolbar,
         # regardless of how many actions the active page contributes.
         # Both actions are persistent members (not recreated per page)
-        # so we don't churn QWidget parentage on page switches.
-        self._right_spacer = QWidget(self)
+        # so we don't churn QWidget parentage on page switches. The
+        # spacer uses Expanding in both axes so QToolBarLayout allocates
+        # remaining horizontal space to it.
+        self._right_spacer = QWidget()
         self._right_spacer.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         self._right_spacer_action = QWidgetAction(self)
         self._right_spacer_action.setDefaultWidget(self._right_spacer)
 
         self._big_spinner = SpinnerWidget(
-            self, size=_TOOLBAR_SPINNER_SIZE, interval_ms=60,
+            size=_TOOLBAR_SPINNER_SIZE, interval_ms=60,
         )
         self._big_spinner_action = QWidgetAction(self)
         self._big_spinner_action.setDefaultWidget(self._big_spinner)

@@ -8,15 +8,14 @@ from ui.theme import STATUS_MUTED_COLOR
 
 
 class SpinnerWidget(QWidget):
-    """Small indeterminate spinner intended for status-bar use.
+    """Small indeterminate spinner suitable for status bars and toolbars.
 
-    Renders a rotating conical-gradient arc at a fixed size so it fits
-    cleanly next to status-bar labels. The internal :class:`QTimer`
-    only ticks while the widget is visible, so placing several
-    spinners on the UI costs nothing while they are idle.
-
-    Use :meth:`start` to show the spinner and begin animating, and
-    :meth:`stop` to freeze + hide it.
+    Renders a rotating conical-gradient arc at a fixed size. The widget
+    is always visible (so containers like :class:`QToolBar` reserve
+    space for it from first layout), but draws nothing while idle — so
+    a stopped spinner is indistinguishable from empty space. Calling
+    :meth:`start` begins animating; :meth:`stop` freezes and blanks the
+    widget again.
     """
 
     def __init__(
@@ -30,6 +29,7 @@ class SpinnerWidget(QWidget):
         super().__init__(parent)
         self._size = size
         self._angle = 0
+        self._spinning = False
         # Status-bar spinner defaults to the muted status colour so it
         # sits quietly alongside the "Running…" label without shouting.
         self._color = QColor(color if color is not None else STATUS_MUTED_COLOR)
@@ -41,25 +41,32 @@ class SpinnerWidget(QWidget):
         self._timer.setInterval(interval_ms)
         self._timer.timeout.connect(self._advance)
 
-        self.hide()
-
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def start(self) -> None:
-        self.show()
+        self._spinning = True
         self._timer.start()
+        self.update()
 
     def stop(self) -> None:
         self._timer.stop()
-        self.hide()
+        self._spinning = False
+        self.update()
 
     # ── Qt overrides ───────────────────────────────────────────────────────────
 
     def paintEvent(self, _event) -> None:  # type: ignore[override]
-        # A 2 px pen reads clearly at 14 px without dominating the box.
-        # The -1 inset keeps the stroke fully inside the widget rect so
-        # anti-aliasing doesn't clip against the status bar background.
-        pen_width = 2
+        if not self._spinning:
+            # Idle: paint nothing so the widget reads as empty space
+            # even though its fixed size still reserves a layout slot.
+            return
+
+        # Scale the pen with the overall size so the arc stays visually
+        # balanced at both the 14 px status-bar size and the 36 px
+        # toolbar size. The inset keeps the stroke fully inside the
+        # widget rect so anti-aliasing doesn't clip against the
+        # background.
+        pen_width = max(2, self._size // 7)
         inset = pen_width / 2 + 0.5
         rect = QRectF(inset, inset, self._size - 2 * inset, self._size - 2 * inset)
 
