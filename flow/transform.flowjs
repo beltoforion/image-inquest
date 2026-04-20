@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "name": "transform",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1757.343077934644,
+        -932.4210777935224
+      ],
+      "params": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -1044.494584282196,
+        -839.4076914559838
+      ],
+      "params": {
+        "output_path": "out.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.scale",
+      "class": "Scale",
+      "position": [
+        -1429.5090113351225,
+        -918.6977912847053
+      ],
+      "params": {
+        "scale_percent": 50,
+        "interpolation": 1
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    }
+  ]
+}
