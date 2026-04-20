@@ -102,21 +102,30 @@
     }
     ol.steps li strong { color: var(--text); font-weight: 600; }
 
-    .categories {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
     }
-    .tag {
-      padding: 2px 10px;
-      font-size: 12px;
-      border-radius: 3px;
-      border: 1px solid var(--border);
+    .card {
       background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
     }
-    .tag.source { color: #7fb6ee; }
-    .tag.filter { color: #7dd896; }
-    .tag.sink   { color: #e8a86b; }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .card p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .card.source h3 { color: #7fb6ee; }
+    .card.filter h3 { color: #7dd896; }
+    .card.sink   h3 { color: #e8a86b; }
 
     kbd {
       background: var(--bg-panel-alt);
@@ -163,10 +172,19 @@
 
     <section>
       <h2>Node categories</h2>
-      <div class="categories">
-        <span class="tag source">Sources — load images &amp; video</span>
-        <span class="tag filter">Filters — dither, threshold, scale…</span>
-        <span class="tag sink">Sinks — write frames out</span>
+      <div class="cards">
+        <div class="card source">
+          <h3>Sources</h3>
+          <p>Load images and video from disk, patterns, or generators.</p>
+        </div>
+        <div class="card filter">
+          <h3>Filters</h3>
+          <p>Dither, threshold, scale, split and recombine channels.</p>
+        </div>
+        <div class="card sink">
+          <h3>Sinks</h3>
+          <p>Write the final frames out to files or the viewer.</p>
+        </div>
       </div>
     </section>
 
