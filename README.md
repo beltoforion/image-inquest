@@ -2,10 +2,13 @@
   <img src="assets/title.png" alt="Sparklehoof" width="640"/>
 </p>
 
-# Sparklehoof
-
 This is a vibe coding experiment. It is based on an image processing pipeline that
-was have written for illustrating articles on my web page beltoforion.de
+was have written traditionally for illustrating articles on my web page beltoforion.de. 
+The entire UI of this application is ai generated but I determined the internal 
+structure, the class layout design and the UI of the application. The application if 
+functional and meant to be extensible with custom python nodes.
+
+# Sparklehoof
 
 A Python desktop application for building image- and video-processing
 workflows using a node-based visual editor. Drop image sources,
