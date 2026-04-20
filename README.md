@@ -148,14 +148,72 @@ full decode on every keystroke.
 
 ## Built-in nodes
 
-| Section | Nodes |
-|---|---|
-| Sources | Image Source, Video Source |
-| Sinks | File Sink |
-| Color Spaces | Grayscale, RGB Split, RGB Join |
-| Transform | Scale, Shift |
-| Processing | Adaptive Gaussian Threshold, Dither, Median, Normalize |
-| Composit | Merge |
+Nodes are grouped into palette sections. Each name below matches the
+label the node carries in the **Node List**.
+
+### Sources
+
+- **Image Source** — reads a single still image (JPEG, PNG, CR2 RAW)
+  from disk and pushes it into the flow. Reactive: editing any
+  parameter re-runs the flow automatically.
+- **Video Source** — decodes frames from a video file (MP4, AVI, MOV,
+  MKV) and pushes them through the graph. Not reactive — triggered
+  only by **Run** — and a `max_num_frames` parameter caps how many
+  frames are decoded.
+
+### Sinks
+
+- **File Sink** — writes the incoming frame to disk at a configurable
+  path. Paths under the app's output folder are stored relative to it
+  so saved flows stay portable. An eye button next to the path opens
+  the written file in the OS default image viewer.
+
+### Color Spaces
+
+- **Grayscale** — converts a BGR colour image to a single-channel
+  greyscale image (`cv2.cvtColor(..., COLOR_BGR2GRAY)`).
+- **RGB Split** — splits a BGR image into three single-channel
+  outputs named **B**, **G**, and **R**.
+- **RGB Join** — merges three single-channel inputs (**B**, **G**,
+  **R**) back into one BGR image.
+
+### Transform
+
+- **Scale** — resizes an image by a percentage factor
+  (`scale_percent`, 100 = no change). Interpolation is selectable
+  (Nearest, Linear, Cubic, Area, Lanczos4).
+- **Shift** — translates an image by integer pixel offsets
+  (`offset_x`, `offset_y`). Output keeps the original canvas size;
+  pixels that move off-frame are dropped and newly exposed areas are
+  black.
+
+### Processing
+
+- **Adaptive Gaussian Threshold** — adaptive binary thresholding
+  using a Gaussian-weighted local mean (`cv2.adaptiveThreshold`).
+  `block_size` sets the neighbourhood (odd, > 1); `c` is a constant
+  subtracted from the weighted mean. Always emits a greyscale binary
+  image.
+- **Dither** — reduces the image to two levels (black and white)
+  using a selectable dithering algorithm: Bayer (2 / 4 / 8), random
+  noise, Floyd–Steinberg, Stucki, Atkinson, Burkes, Sierra,
+  Diffusion-X, or Diffusion-XY. The error-diffusion kernels are
+  JIT-compiled via numba for interactive speed. Colour inputs are
+  auto-converted to grey; output is always greyscale.
+- **Median** — square-kernel median blur
+  (`cv2.medianBlur`). `size` must be odd and ≥ 1. Works on colour or
+  greyscale input and keeps the input type.
+- **Normalize** — histogram equalisation
+  (`cv2.equalizeHist`). Colour inputs are equalised per channel;
+  greyscale inputs are equalised directly. Output type matches input.
+
+### Composit
+
+- **Merge** — pastes up to four images into a 2×2 grid with inputs
+  `top_left`, `top_right`, `bottom_left`, `bottom_right`. Unconnected
+  quadrants are black; cell sizes are taken per row / per column so
+  mismatched inputs don't distort; mixed colour / greyscale inputs
+  are promoted to colour so nothing is lost.
 
 ## License
 
