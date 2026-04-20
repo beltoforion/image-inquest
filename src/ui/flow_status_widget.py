@@ -45,12 +45,28 @@ class FlowStatusWidget(QWidget):
         idle_layout = QHBoxLayout(self._idle_page)
         idle_layout.setContentsMargins(8, 0, 8, 0)
         idle_layout.setSpacing(0)
-        self._idle_label = QLabel(f"{APP_DISPLAY_NAME} v{APP_VERSION}")
-        self._idle_label.setAlignment(
+
+        idle_column = QVBoxLayout()
+        idle_column.setContentsMargins(0, 0, 0, 0)
+        idle_column.setSpacing(0)
+        idle_column.addStretch(1)
+
+        self._idle_name_label = QLabel(APP_DISPLAY_NAME)
+        self._idle_name_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        self._idle_label.setProperty("muted", True)
-        idle_layout.addWidget(self._idle_label)
+        self._idle_name_label.setStyleSheet("font-size: 14pt;")
+
+        self._idle_version_label = QLabel(f"v{APP_VERSION}")
+        self._idle_version_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._idle_version_label.setProperty("muted", True)
+
+        idle_column.addWidget(self._idle_name_label)
+        idle_column.addWidget(self._idle_version_label)
+        idle_column.addStretch(1)
+        idle_layout.addLayout(idle_column)
         self._stack.addWidget(self._idle_page)
 
         # ── Running page ───────────────────────────────────────────────
@@ -62,15 +78,20 @@ class FlowStatusWidget(QWidget):
         labels_col = QVBoxLayout()
         labels_col.setContentsMargins(0, 0, 0, 0)
         labels_col.setSpacing(0)
+        # Stretches above and below centre the pair within the widget's
+        # full height so the labels line up with the toolbar action row
+        # rather than hugging the top edge.
+        labels_col.addStretch(1)
 
         self._flow_label = QLabel("")
         self._flow_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        # Bold is set via the stylesheet so the theme's text colour
-        # still applies; setProperty-based selectors would need a QSS
-        # rule we don't otherwise need.
-        self._flow_label.setStyleSheet("font-weight: bold;")
+        # Bold + larger size for the flow name so it reads as the
+        # primary label. Inline stylesheet keeps the theme's palette
+        # colour; setProperty-based selectors would need a QSS rule we
+        # don't otherwise need.
+        self._flow_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
 
         self._node_label = QLabel("")
         self._node_label.setAlignment(
@@ -80,6 +101,7 @@ class FlowStatusWidget(QWidget):
 
         labels_col.addWidget(self._flow_label)
         labels_col.addWidget(self._node_label)
+        labels_col.addStretch(1)
 
         self._spinner = SpinnerWidget(size=_RUNNING_SPINNER_SIZE, interval_ms=60)
 
