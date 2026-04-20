@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
+    QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
     QLineEdit,
@@ -119,6 +120,46 @@ class IntParamWidget(ParamWidgetBase):
     @override
     def set_value(self, value: object) -> None:
         self._spin.setValue(int(value))
+
+    @override
+    def get_value(self) -> object:
+        return self._spin.value()
+
+
+class FloatParamWidget(ParamWidgetBase):
+    """Double-spin-box editor for :attr:`NodeParamType.FLOAT` parameters.
+
+    Supports optional ``metadata`` keys ``min``, ``max``, ``step`` and
+    ``decimals`` to tune the spin box; unspecified keys fall back to a
+    wide default range so arbitrary floats round-trip without clipping.
+    """
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        self._spin = QDoubleSpinBox()
+        meta = param.metadata
+        self._spin.setRange(
+            float(meta.get("min", -1e12)),
+            float(meta.get("max",  1e12)),
+        )
+        self._spin.setDecimals(int(meta.get("decimals", 3)))
+        self._spin.setSingleStep(float(meta.get("step", 0.1)))
+        self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._spin.setMinimumWidth(96)
+        self._spin.valueChanged.connect(self._on_value_changed)
+        self._spin.setValue(float(self._initial_value(0.0)))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._spin)
+
+    def _on_value_changed(self, value: float) -> None:
+        self._write_to_node(value)
+        self.value_changed.emit(value)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._spin.setValue(float(value))
 
     @override
     def get_value(self) -> object:
@@ -359,6 +400,7 @@ class FilePathParamWidget(ParamWidgetBase):
 _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
     NodeParamType.FILE_PATH: FilePathParamWidget,
     NodeParamType.INT:       IntParamWidget,
+    NodeParamType.FLOAT:     FloatParamWidget,
     NodeParamType.BOOL:      BoolParamWidget,
     NodeParamType.ENUM:      EnumParamWidget,
 }

@@ -4,12 +4,34 @@ import logging
 from abc import ABC, abstractmethod
 
 from enum import Enum
+from typing import Callable
 from typing_extensions import override
 
 from core.io_data import IoData
 from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
+
+
+# Optional observer invoked at the start of every NodeBase.process() call.
+# A FlowRunner installs one of these to surface the currently-executing
+# node on the UI (via a queued Qt signal). Module-level rather than
+# per-instance because the push-based dispatcher doesn't otherwise carry
+# a reference to the Flow / runner across node boundaries.
+_process_observer: Callable[["NodeBase"], None] | None = None
+
+
+def set_process_observer(callback: Callable[["NodeBase"], None] | None) -> None:
+    """Install (or clear) the function invoked on every ``process()`` call.
+
+    Pass ``None`` to clear. Thread-safety relies on the GIL making the
+    module-attribute read/write atomic — good enough for the
+    install-before-run / clear-after-run pattern used by
+    :class:`core.flow_runner.FlowRunner`, not for rapid concurrent
+    reconfiguration.
+    """
+    global _process_observer
+    _process_observer = callback
 
 
 class NodeParamType(Enum):
@@ -156,9 +178,18 @@ class NodeBase(ABC):
         that every node automatically benefits from the per-call tracing log
         and the common exception-logging path.
         """
-        
+
         logger.debug(f"  - Executing {self._display_name} ({type(self).__name__})")
-        
+
+        observer = _process_observer
+        if observer is not None:
+            try:
+                observer(self)
+            except Exception:
+                # An observer must never block node execution; log and
+                # carry on so a buggy UI hook can't kill a flow.
+                logger.exception("Process observer raised; ignoring")
+
         try:
             self.process_impl()
         except Exception:

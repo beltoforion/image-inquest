@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QThread, QTimer
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -16,10 +16,12 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QStatusBar,
     QVBoxLayout,
+    QWidget,
 )
 
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
+from core.flow_runner import FlowRunner
 from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase, SourceNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
@@ -32,6 +34,7 @@ from ui.page import PageBase, ToolbarSection
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.error_banner import ErrorBanner
+from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -55,7 +58,10 @@ class NodeEditorPage(PageBase):
     global toolbar next to the page-selector radio group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
-    flow name changes.
+    flow name changes. The toolbar's right-aligned status slot is owned by
+    this page via :class:`FlowStatusWidget` — it shows the app/version by
+    default and flips to a spinner + flow/node labels while a run is in
+    flight.
     """
 
     def __init__(
@@ -67,6 +73,17 @@ class NodeEditorPage(PageBase):
         self._registry = registry
         self._recent_flows = recent_flows
         self._flow: Flow | None = None
+
+        # Worker thread used by _on_run_clicked. Lazily created on the first
+        # run and reused; cleaned up when the run finishes. While a run is in
+        # flight, _run_thread is not None — this doubles as the "busy" flag
+        # that suppresses re-entrant Run clicks and reactive auto-runs.
+        self._run_thread: QThread | None = None
+        self._run_runner: FlowRunner | None = None
+
+        # Right-aligned toolbar status widget. Shows the app name + version
+        # while idle; swaps to a flow-running view during executions.
+        self._flow_status_widget = FlowStatusWidget()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -126,7 +143,9 @@ class NodeEditorPage(PageBase):
         self._actions["stack_horizontal"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
-        # Status bar at the bottom of the inner window.
+        # Status bar at the bottom of the inner window. The running-flow
+        # indicator lives on the main toolbar via FlowStatusWidget; the
+        # status bar is kept purely for timestamp/ok messages.
         self._status_bar = QStatusBar(self._inner)
         self._status_label = QLabel("")
         self._status_bar.addWidget(self._status_label, 1)
@@ -188,6 +207,13 @@ class NodeEditorPage(PageBase):
                 self._actions["stack_horizontal"],
             ]),
         ]
+
+    @override
+    def page_status_widget(self) -> QWidget | None:
+        # The FlowStatusWidget manages its own idle/running transitions
+        # internally, so MainWindow never needs to swap widgets on this
+        # page — we hand back the same instance every call.
+        return self._flow_status_widget
 
     def page_menus(self) -> list[QMenu]:
         # Single "Node Editor" menu mirroring the toolbar actions plus
@@ -349,15 +375,47 @@ class NodeEditorPage(PageBase):
         if self._flow is None:
             self._set_status("No flow to run", kind="fail")
             return
-        
-        try:
-            self._flow.run()
-        except Exception as err:
-            logger.exception("Flow run failed")
-            detail = str(err).strip() or "(no message)"
-            self._set_status(f"Run failed ({type(err).__name__}): {detail}", kind="fail")
+        if self._run_thread is not None:
+            # A run is already in flight — ignore the click rather than
+            # stacking runs on top of each other. The reactive debounce
+            # timer can also land here if the user tweaks a param mid-run.
             return
 
+        # Stop the reactive debounce timer while we run: if a param
+        # change fires the timer during the run, _on_run_clicked will
+        # early-return anyway, but stopping it keeps the intent obvious.
+        self._live_timer.stop()
+        self._set_toolbar_enabled(False)
+        self._set_param_widgets_enabled(False)
+        self._flow_status_widget.show_running(self._flow.name)
+        self._set_status("Running…", kind="muted")
+
+        thread = QThread(self)
+        runner = FlowRunner(self._flow)
+        runner.moveToThread(thread)
+
+        thread.started.connect(runner.run)
+        runner.finished.connect(self._on_run_finished)
+        runner.failed.connect(self._on_run_failed)
+        # Queued cross-thread signal — the worker fires node_started on
+        # its own thread, Qt marshals it onto the UI thread slot.
+        runner.node_started.connect(self._flow_status_widget.set_current_node)
+        # Connection order matters: Qt invokes slots in the order they were
+        # connected. We want deleteLater to post on the worker's event loop
+        # *before* quit stops that same loop, so the runner is actually
+        # destroyed. thread.deleteLater can then run on the UI thread after
+        # the worker has terminated.
+        runner.finished.connect(runner.deleteLater)
+        runner.failed.connect(runner.deleteLater)
+        runner.finished.connect(thread.quit)
+        runner.failed.connect(lambda _msg: thread.quit())
+        thread.finished.connect(thread.deleteLater)
+
+        self._run_thread = thread
+        self._run_runner = runner
+        thread.start()
+
+    def _on_run_finished(self) -> None:
         # Sinks may have just written output files; let every node's
         # param widgets re-evaluate filesystem-dependent state (e.g.
         # the FilePathParamWidget "view" button).
@@ -377,6 +435,46 @@ class NodeEditorPage(PageBase):
                 self._viewer.show_node(best)
         else:
             self._viewer.refresh()
+
+        self._finalize_run()
+
+    def _on_run_failed(self, detail: str) -> None:
+        self._set_status(f"Run failed ({detail})", kind="fail")
+        self._finalize_run()
+
+    def _finalize_run(self) -> None:
+        """Drop references to the worker thread and re-enable the Run action.
+
+        Called from both terminal slots. The QThread itself is torn down
+        via the ``thread.finished`` → ``deleteLater`` connections set up
+        in :meth:`_on_run_clicked`; this just clears our handles so the
+        next click starts a fresh thread.
+        """
+        self._run_thread = None
+        self._run_runner = None
+        self._set_toolbar_enabled(True)
+        self._set_param_widgets_enabled(True)
+        self._flow_status_widget.show_idle()
+
+    def _set_param_widgets_enabled(self, enabled: bool) -> None:
+        """Freeze or thaw every node's param editors for the duration of a run."""
+        for item in self._scene.iter_node_items():
+            item.set_params_enabled(enabled)
+
+    def _set_toolbar_enabled(self, enabled: bool) -> None:
+        """Disable every toolbar action for the duration of a run.
+
+        Covers everything exposed via :meth:`page_toolbar_sections` — Run,
+        the file actions and the view actions — so the user can't save,
+        open or clear a flow that is still executing on the worker thread.
+        When re-enabling, ``_update_selection_actions`` re-applies the
+        selection-dependent gating for the stack actions instead of
+        leaving them unconditionally enabled.
+        """
+        for action in self._actions.values():
+            action.setEnabled(enabled)
+        if enabled:
+            self._update_selection_actions()
 
     def _best_viewer_node(self):
         """Return the most downstream non-sink node with IMAGE output data.
