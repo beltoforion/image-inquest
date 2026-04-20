@@ -10,9 +10,12 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMenuBar,
+    QSizePolicy,
     QStackedWidget,
     QToolBar,
     QToolButton,
+    QWidget,
+    QWidgetAction,
 )
 
 from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
@@ -21,6 +24,7 @@ from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
 from ui.page import PageBase
 from ui.recent_flows import RecentFlowsManager
+from ui.spinner import SpinnerWidget
 from ui.start_page import StartPage
 from ui.log_page import LogPage
 
@@ -32,6 +36,10 @@ logger = logging.getLogger(__name__)
 # Icon size and fixed button dimensions for the main toolbar.
 _TOOLBAR_ICON_SIZE   = QSize(40, 40)
 _TOOLBAR_BUTTON_SIZE = QSize(72, 72)
+# Big right-aligned busy spinner. Sized to visually match the toolbar
+# icons (a touch smaller than the button, with room on every side) so it
+# reads as a peer of the surrounding actions, not a stray decoration.
+_TOOLBAR_SPINNER_SIZE = 36
 
 
 class MainWindow(QMainWindow):
@@ -113,6 +121,30 @@ class MainWindow(QMainWindow):
         # Separator between the page-selector radio group and the
         # page-specific toolbar actions.
         self._page_separator = self._toolbar.addSeparator()
+
+        # Right-aligned busy spinner. The spacer consumes all slack so
+        # the spinner sits flush against the far edge of the toolbar,
+        # regardless of how many actions the active page contributes.
+        # Both actions are persistent members (not recreated per page)
+        # so we don't churn QWidget parentage on page switches.
+        self._right_spacer = QWidget(self)
+        self._right_spacer.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred,
+        )
+        self._right_spacer_action = QWidgetAction(self)
+        self._right_spacer_action.setDefaultWidget(self._right_spacer)
+
+        self._big_spinner = SpinnerWidget(
+            self, size=_TOOLBAR_SPINNER_SIZE, interval_ms=60,
+        )
+        self._big_spinner_action = QWidgetAction(self)
+        self._big_spinner_action.setDefaultWidget(self._big_spinner)
+
+        # Reflect the editor's run state on the global toolbar spinner.
+        # Wired once, here, so the spinner responds whether or not the
+        # editor page is currently active.
+        self._editor_page.run_started.connect(self._big_spinner.start)
+        self._editor_page.run_finished.connect(self._big_spinner.stop)
 
         self._activate_page(self._start_page)
 
@@ -197,7 +229,11 @@ class MainWindow(QMainWindow):
         # Remove previously-installed page-specific items (actions and
         # separators). QActions are owned by the page, so we only detach
         # them from the toolbar — do not deleteLater. Separators are
-        # owned by us, so we delete them.
+        # owned by us, so we delete them. The right-aligned spacer and
+        # spinner actions are persistent (owned by MainWindow), so we
+        # detach them here and re-add them at the very end below.
+        self._toolbar.removeAction(self._right_spacer_action)
+        self._toolbar.removeAction(self._big_spinner_action)
         for item in self._installed_page_actions:
             self._toolbar.removeAction(item)
             if item.isSeparator():
@@ -211,6 +247,13 @@ class MainWindow(QMainWindow):
             for action in section.actions:
                 self._toolbar.addAction(action)
                 self._installed_page_actions.append(action)
+
+        # Anchor spacer + spinner at the right edge. The expanding
+        # spacer pushes the spinner flush against the far end of the
+        # toolbar regardless of how many page-specific actions came
+        # before it.
+        self._toolbar.addAction(self._right_spacer_action)
+        self._toolbar.addAction(self._big_spinner_action)
 
         self._apply_consistent_button_sizes()
 

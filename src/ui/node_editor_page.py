@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QThread, QTimer
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -57,8 +57,13 @@ class NodeEditorPage(PageBase):
     global toolbar next to the page-selector radio group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
-    flow name changes.
+    flow name changes. :attr:`run_started` and :attr:`run_finished` bracket
+    every worker-thread flow execution so MainWindow can reflect the busy
+    state in global chrome (e.g. a spinner on the main toolbar).
     """
+
+    run_started = Signal()
+    run_finished = Signal()
 
     def __init__(
         self,
@@ -376,6 +381,7 @@ class NodeEditorPage(PageBase):
         self._set_param_widgets_enabled(False)
         self._run_spinner.start()
         self._set_status("Running…", kind="muted")
+        self.run_started.emit()
 
         thread = QThread(self)
         runner = FlowRunner(self._flow)
@@ -439,6 +445,7 @@ class NodeEditorPage(PageBase):
         self._set_toolbar_enabled(True)
         self._set_param_widgets_enabled(True)
         self._run_spinner.stop()
+        self.run_finished.emit()
 
     def _set_param_widgets_enabled(self, enabled: bool) -> None:
         """Freeze or thaw every node's param editors for the duration of a run."""
