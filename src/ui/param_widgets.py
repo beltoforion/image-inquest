@@ -242,9 +242,6 @@ class FilePathParamWidget(ParamWidgetBase):
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
         self._line.setMinimumWidth(80)
-        self._line.textChanged.connect(self._on_value_changed)
-        self._line.textChanged.connect(self._update_view_enabled)
-        self._line.setText(str(self._initial_value("")))
 
         browse = QPushButton("...")
         browse.setFixedWidth(36)
@@ -255,6 +252,12 @@ class FilePathParamWidget(ParamWidgetBase):
         self._view.setFixedWidth(36)
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
+
+        # Connect textChanged and seed the initial value only once
+        # self._view exists, since _update_view_enabled touches it.
+        self._line.textChanged.connect(self._on_value_changed)
+        self._line.textChanged.connect(self._update_view_enabled)
+        self._line.setText(str(self._initial_value("")))
         self._update_view_enabled()
 
         layout = QHBoxLayout(self)
