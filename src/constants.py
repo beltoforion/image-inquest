@@ -2,8 +2,12 @@ from pathlib import Path
 
 APP_NAME:         str = "Image-Inquest"
 APP_DISPLAY_NAME: str = "Sparklehoof"
-APP_VERSION:      str = "0.1.1"
+APP_VERSION:      str = "0.1.2"
 API_URL:    str = "https://beltoforion.de"
+
+# Bundled documentation (offline welcome page, screenshots, …)
+DOC_DIR:           Path = Path(__file__).parent.parent / "doc"
+WELCOME_HTML_PATH: Path = DOC_DIR / "welcome.html"
 
 # Bundled assets (splash image, icons, …)
 ASSETS_DIR:        Path = Path(__file__).parent.parent / "assets"
