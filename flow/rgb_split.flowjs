@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -1120.4627066632493,
-        -639.27543294652
+        -1092.097518471767,
+        -589.8389620985074
       ],
       "params": {}
     },
@@ -27,8 +27,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -752.8516949078014,
-        -725.8090396476915
+        -688.8274129898834,
+        -639.9030411249155
       ],
       "params": {
         "output_path": "out.png"
@@ -87,8 +87,8 @@
       "module": "nodes.filters.subpixel_mosaic",
       "class": "SubpixelMosaic",
       "position": [
-        -957.5805246628266,
-        -661.9872758297544
+        -907.333619866486,
+        -627.9490499999753
       ],
       "params": {
         "keep_aspect": true,
@@ -100,8 +100,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1110.8238024081456,
-        -960.6300556172022
+        -1019.2447662470734,
+        -934.6961692707038
       ],
       "params": {}
     },
@@ -110,8 +110,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -754.6286480236411,
-        -865.3313098610553
+        -693.8461018990353,
+        -779.4253113382792
       ],
       "params": {
         "output_path": "out_merge.png"
