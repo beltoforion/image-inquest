@@ -5,51 +5,22 @@
 # Sparklehoof
 
 A Python desktop application for building image- and video-processing
-workflows using a node-based visual editor.
+workflows using a node-based visual editor. Drop image sources,
+filters, and sinks onto a canvas, wire them up, hit **Run**, then tweak
+parameters and watch the output update live in the built-in viewer.
 
-> The repo is still named `image-inquest` while the rebrand to
-> **Sparklehoof** lands piece by piece. `APP_NAME` in
-> `src/constants.py` remains `Image-Inquest` for now so log paths and
-> the user config dir (`~/.image-inquest/`) stay stable.
+Typical uses:
 
-## Status
+- Experiment with image processing operations (dithering, thresholding,
+  normalisation, scaling, channel splitting/joining, …) without writing
+  code.
+- Compose filters into reusable flows and save them to disk.
+- Batch-convert and composite images by wiring up file sources and
+  sinks.
 
-Early-stage development.  The application ships:
+## Installation
 
-- A **page-based UI**: a start page, a node editor, and (coming soon,
-  see [CHANGELOG](CHANGELOG.md)) a read-only Log page.
-- A **node-based flow editor** with a dockable node palette, a canvas
-  with a zoom-and-pan graphics view, a selectable viewer dock, and a
-  status bar.
-- **Dynamic node discovery** — built-in nodes under `src/nodes/` and
-  user nodes under `~/.image-inquest/user_nodes/` are scanned at
-  startup via the Python AST (no import needed to appear in the
-  palette).
-- **Flow persistence** — `*.flowjs` JSON files under `flow/`.
-- **Live coding** — image-backed source nodes auto-re-run the flow
-  300 ms after any parameter change so changes are reflected in the
-  viewer in near real time.
-- **Numba-JIT dither kernels** for interactive-speed error diffusion.
-
-### Built-in nodes
-
-Organised by palette section:
-
-| Section | Nodes |
-|---|---|
-| Sources | File Source, Image Source, Video Source |
-| Sinks | File Sink |
-| Color Spaces | Grayscale, RGB Split, RGB Join |
-| Transform | Scale, Shift |
-| Processing | Adaptive Gaussian Threshold, Dither, Median, Normalize |
-
-See [`CHANGELOG.md`](CHANGELOG.md) for a running list of notable changes.
-
-## Requirements
-
-- Python 3.10+
-- [PySide6](https://doc.qt.io/qtforpython-6/)
-- NumPy, OpenCV, numba, rawpy
+Prerequisites: **Python 3.10** or newer.
 
 ```bash
 pip install -r requirements.txt
@@ -61,50 +32,67 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
-Optional arguments:
+Optional command-line arguments:
 
-| Argument | Default | Description |
-|---|---|---|
-| `--no-splash` | — | Skip the startup splash screen |
-| `--flow FILE` | — | Load a flow at startup and open it directly in the editor. Accepts a path to a `.flowjs` file or a bare flow name (looked up in `flow/`). |
+| Argument | Description |
+|---|---|
+| `--no-splash` | Skip the startup splash screen |
+| `--flow FILE` | Open the named flow directly in the editor. Accepts a full path to a `.flowjs` file or a bare flow name (looked up in `flow/`). |
 
 ## Usage
 
-1. The app opens on the **start page**.
-2. Enter a name and click **Create** to open the node editor with a
-   new empty flow, or click **Open** to load an existing `*.flowjs`
-   file.
-3. In the editor, drag nodes from the **palette** onto the canvas.
-4. Drag between node ports to create links; drag an existing link to
-   remove it.
-5. Click **Run** to execute the flow, or **Save** to persist it to
-   `flow/`.  Reactive sources (still-image inputs) re-run the flow
-   automatically as you edit parameters.
+### Start page
 
-## Project layout
+<p align="center">
+  <img src="doc/images/start_page.png" alt="Start page" width="720"/>
+</p>
 
-```
-src/
-  main.py               Entry point + CLI parsing + splash screen
-  constants.py          Paths (FLOW_DIR, USER_CONFIG_DIR, …) and app metadata
-  log.py                Rotating-file logging setup
-  core/                 Non-UI: node base classes, ports, data, registry
-  nodes/                Built-in nodes (sources, sinks, filters)
-  ui/                   PySide6 views, pages, widgets
-tests/                  Pytest suite
-flow/                   Sample + saved flows (*.flowjs)
-assets/                 Splash image and bundled fonts
-```
+The app opens on the start page. From here you can:
 
-User-specific state (logs, recent flows, user-defined nodes) lives
-under `~/.image-inquest/`.
+- Type a name and click **Create** to open the node editor with a
+  fresh, empty flow. Flow names use ASCII letters, digits, and
+  `_ # + -`.
+- Click **Open** to load an existing `*.flowjs` file from anywhere on
+  disk.
+- Click any tile in the **Recent flows** grid to jump back into a
+  flow you had open recently.
 
-## Development
+### Node editor
 
-```bash
-pip install -r requirements-dev.txt
-pytest
-```
+<p align="center">
+  <img src="doc/images/node_editor.png" alt="Node editor" width="720"/>
+</p>
+
+The editor is where flows are built. Key elements:
+
+- **Node List** (dockable, left) — the palette of every available
+  node, grouped by section. Drag a node onto the canvas to add it.
+- **Canvas** (centre) — the flow graph. Drag from an output port to
+  another node's input port to create a link; drag an existing link
+  off a port to remove it. Scroll to zoom, middle-drag to pan.
+- **Output Inspector** (dockable, below the node list) — shows the
+  current output of whichever node you've selected. Float the dock
+  and press <kbd>F11</kbd> for full-screen preview.
+- **Toolbar** — **Run** executes the flow, **Save** / **Save As**
+  persist it as `.flowjs`, **Open** loads one, **Clear** empties the
+  canvas, **Fit** / **1:1** reset the zoom, and **V-Stack** /
+  **H-Stack** align two or more selected nodes on a shared axis.
+
+Flows containing still-image sources are **reactive**: the flow
+re-runs automatically about 300 ms after any parameter change, so
+adjustments appear in the viewer in near real time. Video and other
+non-reactive sources are run only when you press **Run**.
+
+## Built-in nodes
+
+| Section | Nodes |
+|---|---|
+| Sources | Image Source, Video Source |
+| Sinks | File Sink |
+| Color Spaces | Grayscale, RGB Split, RGB Join |
+| Transform | Scale, Shift |
+| Processing | Adaptive Gaussian Threshold, Dither, Median, Normalize |
+| Composit | Merge |
 
 ## License
 
