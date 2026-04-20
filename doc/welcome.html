@@ -45,9 +45,23 @@
     }
 
     header.hero {
+      display: flex;
+      align-items: center;
+      gap: 24px;
       padding: 24px 0 16px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 24px;
+    }
+    .hero .mascot {
+      flex: 0 0 auto;
+      width: 140px;
+      height: 140px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 18px rgba(240, 200, 60, 0.18));
+    }
+    .hero .hero-text {
+      flex: 1 1 auto;
+      min-width: 0;
     }
     .hero h1 {
       margin: 0;
@@ -145,11 +159,14 @@
   <div class="wrap">
 
     <header class="hero">
-      <h1>Welcome to Sparklehoof</h1>
-      <div class="tagline">
-        A node-based image- and video-processing playground.
+      <img class="mascot" src="images/sparkle_hoof.png" alt="Sparklehoof mascot">
+      <div class="hero-text">
+        <h1>Welcome to Sparklehoof</h1>
+        <div class="tagline">
+          A node-based image- and video-processing playground.
+        </div>
+        <span class="offline-badge">Offline welcome page</span>
       </div>
-      <span class="offline-badge">Offline welcome page</span>
     </header>
 
     <section>
