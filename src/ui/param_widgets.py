@@ -267,8 +267,15 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def _browse(self) -> None:
         current = self._line.text() or ""
-        folder = Path(current).parent.resolve()
         fallback = OUTPUT_DIR if self._is_save else INPUT_DIR
+        # Relative values (e.g. "out.png" or "example.jpg") are stored
+        # relative to OUTPUT_DIR / INPUT_DIR, so resolve against that base
+        # before taking the parent — otherwise the dialog would open in
+        # the process CWD instead of the folder the file actually lives in.
+        path_obj = Path(current)
+        if not path_obj.is_absolute():
+            path_obj = fallback / path_obj
+        folder = path_obj.parent.resolve()
         initial = str(folder) if folder.is_dir() else str(fallback)
 
         if self._is_save:
