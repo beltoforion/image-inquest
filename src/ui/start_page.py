@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -12,14 +14,12 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QSizePolicy,
-    QSpacerItem,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
+from constants import FLOW_DIR, WELCOME_HTML_PATH
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.flow_layout import FlowLayout
 from ui.icons import material_icon
@@ -71,20 +71,15 @@ class StartPage(PageBase):
         root.setContentsMargins(40, 60, 40, 40)
         root.setSpacing(12)
 
-        title = QLabel(APP_DISPLAY_NAME)
-        title_font = title.font()
-        title_font.setPointSize(24)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        root.addWidget(title)
+        # Row 1: welcome web view — soaks up all remaining vertical space.
+        self._welcome_view = QWebEngineView()
+        self._welcome_view.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.ShowScrollBars, False,
+        )
+        self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
+        root.addWidget(self._welcome_view, 1)
 
-        version = QLabel(f"v{APP_VERSION}")
-        version.setProperty("muted", True)
-        root.addWidget(version)
-
-        root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
-
-        # Name input + Create button.
+        # Row 2: create + recent flows, sized to content.
         row = QHBoxLayout()
         row.setSpacing(6)
         self._name_input = QLineEdit()
@@ -100,14 +95,6 @@ class StartPage(PageBase):
         row.addWidget(self._create_button)
         row.addStretch(1)
         root.addLayout(row)
-
-        # Open button.
-        open_row = QHBoxLayout()
-        open_row.addStretch(1)
-        root.addLayout(open_row)
-
-        # Recent flows wrap panel.
-        root.addSpacerItem(QSpacerItem(0, 24, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         self._recent_heading = QLabel("Recent Flows")
         heading_font = self._recent_heading.font()
@@ -128,8 +115,6 @@ class StartPage(PageBase):
         self._rebuild_recent_tiles()
         if self._recent_flows is not None:
             self._recent_flows.changed.connect(self._rebuild_recent_tiles)
-
-        root.addStretch(1)
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
