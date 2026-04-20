@@ -372,7 +372,7 @@ class NodeEditorPage(PageBase):
         # change fires the timer during the run, _on_run_clicked will
         # early-return anyway, but stopping it keeps the intent obvious.
         self._live_timer.stop()
-        self._actions["run"].setEnabled(False)
+        self._set_toolbar_enabled(False)
         self._set_param_widgets_enabled(False)
         self._run_spinner.start()
         self._set_status("Running…", kind="muted")
@@ -436,7 +436,7 @@ class NodeEditorPage(PageBase):
         """
         self._run_thread = None
         self._run_runner = None
-        self._actions["run"].setEnabled(True)
+        self._set_toolbar_enabled(True)
         self._set_param_widgets_enabled(True)
         self._run_spinner.stop()
 
@@ -444,6 +444,21 @@ class NodeEditorPage(PageBase):
         """Freeze or thaw every node's param editors for the duration of a run."""
         for item in self._scene.iter_node_items():
             item.set_params_enabled(enabled)
+
+    def _set_toolbar_enabled(self, enabled: bool) -> None:
+        """Disable every toolbar action for the duration of a run.
+
+        Covers everything exposed via :meth:`page_toolbar_sections` — Run,
+        the file actions and the view actions — so the user can't save,
+        open or clear a flow that is still executing on the worker thread.
+        When re-enabling, ``_update_selection_actions`` re-applies the
+        selection-dependent gating for the stack actions instead of
+        leaving them unconditionally enabled.
+        """
+        for action in self._actions.values():
+            action.setEnabled(enabled)
+        if enabled:
+            self._update_selection_actions()
 
     def _best_viewer_node(self):
         """Return the most downstream non-sink node with IMAGE output data.
