@@ -44,6 +44,7 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "fullscreen_exit": "e5d1",
     "view_stream": "e8f2",
     "description":  "e873",
+    "visibility":   "e8f4",
 }
 
 
