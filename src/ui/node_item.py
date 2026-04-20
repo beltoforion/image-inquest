@@ -374,6 +374,17 @@ class NodeItem(QGraphicsItem):
         for editor in self._param_widgets:
             editor.refresh()
 
+    def set_params_enabled(self, enabled: bool) -> None:
+        """Enable or disable every param editor on this node.
+
+        Used by the editor to freeze inputs while the flow is running on a
+        worker thread: a setter firing mid-``process_impl`` would race with
+        the node reading its own state. Disabling the widgets sidesteps that
+        cleanly — the user simply cannot edit until the run completes.
+        """
+        for editor in self._param_widgets:
+            editor.setEnabled(enabled)
+
     def _build_params_widget(self) -> None:
         if not self._node.params:
             return

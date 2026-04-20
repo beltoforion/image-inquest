@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QThread, QTimer
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
+from core.flow_runner import FlowRunner
 from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase, SourceNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
@@ -67,6 +68,13 @@ class NodeEditorPage(PageBase):
         self._registry = registry
         self._recent_flows = recent_flows
         self._flow: Flow | None = None
+
+        # Worker thread used by _on_run_clicked. Lazily created on the first
+        # run and reused; cleaned up when the run finishes. While a run is in
+        # flight, _run_thread is not None — this doubles as the "busy" flag
+        # that suppresses re-entrant Run clicks and reactive auto-runs.
+        self._run_thread: QThread | None = None
+        self._run_runner: FlowRunner | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -349,15 +357,42 @@ class NodeEditorPage(PageBase):
         if self._flow is None:
             self._set_status("No flow to run", kind="fail")
             return
-        
-        try:
-            self._flow.run()
-        except Exception as err:
-            logger.exception("Flow run failed")
-            detail = str(err).strip() or "(no message)"
-            self._set_status(f"Run failed ({type(err).__name__}): {detail}", kind="fail")
+        if self._run_thread is not None:
+            # A run is already in flight — ignore the click rather than
+            # stacking runs on top of each other. The reactive debounce
+            # timer can also land here if the user tweaks a param mid-run.
             return
 
+        # Stop the reactive debounce timer while we run: if a param
+        # change fires the timer during the run, _on_run_clicked will
+        # early-return anyway, but stopping it keeps the intent obvious.
+        self._live_timer.stop()
+        self._actions["run"].setEnabled(False)
+        self._set_param_widgets_enabled(False)
+
+        thread = QThread(self)
+        runner = FlowRunner(self._flow)
+        runner.moveToThread(thread)
+
+        thread.started.connect(runner.run)
+        runner.finished.connect(self._on_run_finished)
+        runner.failed.connect(self._on_run_failed)
+        # Connection order matters: Qt invokes slots in the order they were
+        # connected. We want deleteLater to post on the worker's event loop
+        # *before* quit stops that same loop, so the runner is actually
+        # destroyed. thread.deleteLater can then run on the UI thread after
+        # the worker has terminated.
+        runner.finished.connect(runner.deleteLater)
+        runner.failed.connect(runner.deleteLater)
+        runner.finished.connect(thread.quit)
+        runner.failed.connect(lambda _msg: thread.quit())
+        thread.finished.connect(thread.deleteLater)
+
+        self._run_thread = thread
+        self._run_runner = runner
+        thread.start()
+
+    def _on_run_finished(self) -> None:
         # Sinks may have just written output files; let every node's
         # param widgets re-evaluate filesystem-dependent state (e.g.
         # the FilePathParamWidget "view" button).
@@ -377,6 +412,30 @@ class NodeEditorPage(PageBase):
                 self._viewer.show_node(best)
         else:
             self._viewer.refresh()
+
+        self._finalize_run()
+
+    def _on_run_failed(self, detail: str) -> None:
+        self._set_status(f"Run failed ({detail})", kind="fail")
+        self._finalize_run()
+
+    def _finalize_run(self) -> None:
+        """Drop references to the worker thread and re-enable the Run action.
+
+        Called from both terminal slots. The QThread itself is torn down
+        via the ``thread.finished`` → ``deleteLater`` connections set up
+        in :meth:`_on_run_clicked`; this just clears our handles so the
+        next click starts a fresh thread.
+        """
+        self._run_thread = None
+        self._run_runner = None
+        self._actions["run"].setEnabled(True)
+        self._set_param_widgets_enabled(True)
+
+    def _set_param_widgets_enabled(self, enabled: bool) -> None:
+        """Freeze or thaw every node's param editors for the duration of a run."""
+        for item in self._scene.iter_node_items():
+            item.set_params_enabled(enabled)
 
     def _best_viewer_node(self):
         """Return the most downstream non-sink node with IMAGE output data.
