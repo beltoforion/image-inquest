@@ -4,7 +4,8 @@ import logging
 from abc import ABC, abstractmethod
 
 from enum import Enum
-from typing import Callable
+from typing import Callable, final
+
 from typing_extensions import override
 
 from core.io_data import IoData
@@ -171,6 +172,7 @@ class NodeBase(ABC):
 
     # ── Overridable behaviour ──────────────────────────────────────────────────
 
+    @final
     def process(self) -> None:
         """Dispatch to :meth:`process_impl` with logging and error handling.
 
@@ -200,6 +202,42 @@ class NodeBase(ABC):
     def process_impl(self) -> None:
         """Read from self._inputs, compute, and write results to self._outputs."""
         ...
+
+    @final
+    def before_run(self) -> None:
+        """Hook invoked before a flow run starts, after all nodes are constructed.
+
+        Default is no-op. Override this in nodes that need to do setup before
+        processing starts (e.g. open a file, start a thread, etc.) and tear
+        down in after_run().
+        """
+        try:
+            self._before_run_impl()
+        except Exception:
+            logger.exception(f"Exception in {type(self).__name__}.before_run_impl ({self._display_name})")
+            raise
+
+    def _before_run_impl(self) -> None:
+        """Read from self._inputs, compute, and write results to self._outputs."""
+        logger.debug(f"_before_run_impl: {self._display_name} ({type(self).__name__})")
+
+    @final
+    def after_run(self) -> None:
+        """Hook invoked after a flow run ends, after all processing is done.
+
+        Default is no-op. Override this in nodes that need to do teardown after
+        processing ends (e.g. close a file, stop a thread, etc.) and set up in
+        before_run().
+        """
+        try:
+            self._after_run_impl()
+        except Exception:
+            logger.exception(f"Exception in {type(self).__name__}.before_run_impl ({self._display_name})")
+            raise
+
+    def _after_run_impl(self) -> None:
+        """Read from self._inputs, compute, and write results to self._outputs."""
+        logger.debug(f"_after_run_impl: {self._display_name} ({type(self).__name__})")
 
     def _on_end_of_stream(self) -> None:
         """Called when any input receives EndOfStream.

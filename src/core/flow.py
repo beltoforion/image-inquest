@@ -141,10 +141,21 @@ class Flow:
         Raises:
             RuntimeError: if the flow has no source node or no sink node.
         """
-        logger.info("Flow run started: %s", self._name)
+
+        logger.info(f"Flow run requested: {self._name}")
+
+        logger.info(f"initializing nodes")
+        for node in self._nodes:
+            node.before_run()
+
         if not self.sources:
             raise RuntimeError("Flow has no source node; at least one is required")
         if not self.sinks:
             raise RuntimeError("Flow has no sink node; at least one is required")
         for source in self.sources:
             source.start()
+
+        logger.info(f"Cleaning up nodes")
+        for node in self._nodes:
+            node.after_run()
+
