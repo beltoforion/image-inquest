@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "name": "video",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -1650.0,
+        -620.0
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -1319.0,
+        -543.0
+      ],
+      "params": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -1012.0,
+        -487.0
+      ],
+      "params": {
+        "output_path": "xxx.mp4"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
