@@ -430,30 +430,25 @@ class FilePathParamWidget(ParamWidgetBase):
         dialog = QFileDialog(None, caption)
         dialog.setNameFilter(self._filter)
         dialog.setDirectory(initial)
+
         if self._is_save:
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         else:
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        # self._line.window() doesn't reach MainWindow because the param
-        # widget is embedded in a QGraphicsProxyWidget, which severs the
-        # widget-parent chain. activeWindow() returns the top-level
-        # window with focus, which is MainWindow when a node's browse
-        # button is clicked.
+        
         top = QApplication.activeWindow()
-        if top is not None:
-            geo = dialog.frameGeometry()
-            geo.moveCenter(top.frameGeometry().center())
-            dialog.move(geo.topLeft())
+        geo = dialog.frameGeometry()
+        geo.moveCenter(top.frameGeometry().center())
+        dialog.move(geo.topLeft())
+
         if dialog.exec() != QFileDialog.DialogCode.Accepted:
             return
+
         files = dialog.selectedFiles()
         path = files[0] if files else ""
 
         if path:
-
-#            self._write_to_node(path)
-#            canonical = str(getattr(self._node, self._param.name, path))
             self._line.blockSignals(True)
             try:
                 self.set_value(path) 
