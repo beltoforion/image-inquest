@@ -4,9 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 
 from enum import Enum
-from typing import Callable, final
-
-from typing_extensions import override
+from typing import Callable, final, override
 
 from core.io_data import IoData
 from core.port import InputPort, OutputPort
@@ -218,7 +216,7 @@ class NodeBase(ABC):
             raise
 
     def _before_run_impl(self) -> None:
-        """Read from self._inputs, compute, and write results to self._outputs."""
+        """Prepare node data before a run."""
         logger.debug(f"_before_run_impl: {self._display_name} ({type(self).__name__})")
 
     @final
@@ -230,13 +228,14 @@ class NodeBase(ABC):
         before_run().
         """
         try:
-            self._after_run_impl()
+            self._after_run_impl(False)
         except Exception:
-            logger.exception(f"Exception in {type(self).__name__}.before_run_impl ({self._display_name})")
+            self._after_run_impl(True)
+            logger.exception(f"Exception in {type(self).__name__}.after_run_impl ({self._display_name})")
             raise
 
-    def _after_run_impl(self) -> None:
-        """Read from self._inputs, compute, and write results to self._outputs."""
+    def _after_run_impl(self, has_error: bool) -> None:
+        """Cleanup node data after a run"""
         logger.debug(f"_after_run_impl: {self._display_name} ({type(self).__name__})")
 
     def _on_end_of_stream(self) -> None:

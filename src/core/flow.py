@@ -144,17 +144,22 @@ class Flow:
 
         logger.info(f"Flow run requested: {self._name}")
 
-        logger.info(f"initializing nodes")
-        for node in self._nodes:
-            node.before_run()
-
         if not self.sources:
             raise RuntimeError("Flow has no source node; at least one is required")
         if not self.sinks:
             raise RuntimeError("Flow has no sink node; at least one is required")
+
+        logger.info(f"initializing nodes")
+        
+        # initialize all nodes before starting any source, so that setup errors are
+        for node in self._nodes:
+            node.before_run()
+
+        # Starting a source node triggers the flow's execution. Each source's
         for source in self.sources:
             source.start()
 
+        # cleanup happens after all sources have started, so that any exceptions raised
         logger.info(f"Cleaning up nodes")
         for node in self._nodes:
             node.after_run()
