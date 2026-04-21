@@ -7,7 +7,7 @@ import pytest
 
 from core.io_data import IoData
 from core.io_data import IoDataType
-from core.port import OutputPort
+from core.port import InputPort, OutputPort
 from nodes.filters.adaptive_gaussian_threshold import AdaptiveGaussianThreshold
 from nodes.filters.dither import Dither, DitherMethod
 from nodes.filters.median import Median
@@ -249,17 +249,10 @@ def test_ncc_rejects_colour_image_input() -> None:
         node.inputs[0].receive(IoData.from_image(colour))
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Flow.run() starts sources sequentially, so ImageSource 1 emits "
-        "IMAGE_GREY + EOS on NCC.image before ImageSource 2 has delivered "
-        "anything to NCC.template. When template's first real frame then "
-        "arrives, the default dispatcher sees EOS already on image and "
-        "takes the _on_end_of_stream() branch — process_impl is skipped."
-    ),
-    strict=True,
-)
 def test_ncc_fires_when_first_chain_emits_eos_before_second_chain_emits_data() -> None:
+    """Regression: NCC must latch per-input data and defer EOS so
+    sequential sources (first chain emits image + EOS before second chain
+    emits anything) still produce a match."""
     node = Ncc()
 
     image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
@@ -281,3 +274,39 @@ def test_ncc_fires_when_first_chain_emits_eos_before_second_chain_emits_data() -
     assert out is not None, "process_impl was never called"
     assert out.type == IoDataType.IMAGE_GREY
     assert out.image.shape == image.shape
+
+
+def test_ncc_reuses_latched_template_across_streamed_image_frames() -> None:
+    """Template arrives once; each new image frame should match against
+    the same latched template and emit its own output."""
+    node = Ncc()
+
+    image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
+    template_up = OutputPort("template", {IoDataType.IMAGE_GREY})
+    image_up.connect(node.inputs[0])
+    template_up.connect(node.inputs[1])
+
+    template = np.full((4, 4), 255, dtype=np.uint8)
+    template_up.send(IoData.from_greyscale(template))
+    template_up.send(IoData.end_of_stream())
+
+    emitted: list[np.ndarray] = []
+    sink = InputPort("sink", {IoDataType.IMAGE_GREY})
+    sink.set_on_data_received(
+        lambda: emitted.append(sink.data.image) if sink.data.is_image() else None
+    )
+    node.outputs[0].connect(sink)
+
+    for y in (6, 12, 20):
+        frame = np.zeros((32, 32), dtype=np.uint8)
+        frame[y:y + 4, y:y + 4] = 255
+        image_up.send(IoData.from_greyscale(frame))
+
+    image_up.send(IoData.end_of_stream())
+
+    assert len(emitted) == 3
+    # Each frame's match peak should sit at the template centre of the
+    # bright square in that frame (offset by template//2 = 2).
+    for y, out in zip((6, 12, 20), emitted):
+        peak = np.unravel_index(int(np.argmax(out)), out.shape)
+        assert peak == (y + 2, y + 2)
