@@ -9,6 +9,7 @@ from core.io_data import IoData
 from nodes.filters.adaptive_gaussian_threshold import AdaptiveGaussianThreshold
 from nodes.filters.dither import Dither, DitherMethod
 from nodes.filters.median import Median
+from nodes.filters.ncc import Ncc
 from nodes.filters.normalize import Normalize
 from nodes.filters.scale import Scale
 from nodes.filters.shift import Shift
@@ -190,3 +191,57 @@ def test_dither_rejects_unknown_method() -> None:
     node = Dither()
     with pytest.raises(ValueError):
         node.method = 99
+
+
+# ── NCC ───────────────────────────────────────────────────────────────────────
+
+def _feed_ncc(node: Ncc, image: np.ndarray, template: np.ndarray) -> np.ndarray:
+    node.inputs[0].receive(IoData.from_greyscale(image))
+    node.inputs[1].receive(IoData.from_greyscale(template))
+    out = node.outputs[0].last_emitted
+    assert out is not None, "NCC did not emit on output 0"
+    return out.image
+
+
+def test_ncc_retain_size_matches_input_shape() -> None:
+    image = _gradient(h=32, w=32)
+    template = image[10:16, 10:16].copy()
+
+    out = _feed_ncc(Ncc(), image, template)
+
+    assert out.shape == image.shape
+    assert out.dtype == np.uint8
+
+
+def test_ncc_peaks_at_template_centre_when_retain_size() -> None:
+    image = np.zeros((32, 32), dtype=np.uint8)
+    image[12:20, 12:20] = 255
+    template = np.full((8, 8), 255, dtype=np.uint8)
+
+    out = _feed_ncc(Ncc(), image, template)
+
+    # The perfect match sits at the top-left of the matchTemplate result
+    # (row=12, col=12); with retain_size it's offset by template/2 (=4),
+    # so the peak lands at the template centre (16, 16).
+    peak = np.unravel_index(int(np.argmax(out)), out.shape)
+    assert peak == (16, 16)
+    assert out[peak] == 255
+
+
+def test_ncc_without_retain_size_returns_raw_match_shape() -> None:
+    image = _gradient(h=32, w=32)
+    template = image[0:8, 0:8].copy()
+
+    node = Ncc()
+    node.retain_size = False
+    out = _feed_ncc(node, image, template)
+
+    # cv2.matchTemplate output: (H - h + 1, W - w + 1)
+    assert out.shape == (32 - 8 + 1, 32 - 8 + 1)
+
+
+def test_ncc_rejects_colour_image_input() -> None:
+    node = Ncc()
+    colour = np.zeros((8, 8, 3), dtype=np.uint8)
+    with pytest.raises(TypeError):
+        node.inputs[0].receive(IoData.from_image(colour))
