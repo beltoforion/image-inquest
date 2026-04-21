@@ -220,7 +220,7 @@ class NodeBase(ABC):
         logger.debug(f"_before_run_impl: {self._display_name} ({type(self).__name__})")
 
     @final
-    def after_run(self) -> None:
+    def after_run(self, run_success: bool) -> None:
         """Hook invoked after a flow run ends, after all processing is done.
 
         Default is no-op. Override this in nodes that need to do teardown after
@@ -228,15 +228,14 @@ class NodeBase(ABC):
         before_run().
         """
         try:
-            self._after_run_impl(False)
+            self._after_run_impl(run_success)
         except Exception:
-            self._after_run_impl(True)
             logger.exception(f"Exception in {type(self).__name__}.after_run_impl ({self._display_name})")
             raise
 
-    def _after_run_impl(self, has_error: bool) -> None:
+    def _after_run_impl(self, run_success: bool) -> None:
         """Cleanup node data after a run"""
-        logger.debug(f"_after_run_impl: {self._display_name} ({type(self).__name__})")
+        logger.debug(f"_after_run_impl({run_success}): {self._display_name} ({type(self).__name__})")
 
     def _on_end_of_stream(self) -> None:
         """Called when any input receives EndOfStream.

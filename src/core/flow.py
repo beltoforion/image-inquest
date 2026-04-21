@@ -156,11 +156,16 @@ class Flow:
             node.before_run()
 
         # Starting a source node triggers the flow's execution. Each source's
-        for source in self.sources:
-            source.start()
+        try:
+            for source in self.sources:
+                source.start()
 
-        # cleanup happens after all sources have started, so that any exceptions raised
-        logger.info(f"Cleaning up nodes")
-        for node in self._nodes:
-            node.after_run()
+            logger.info(f"Cleaning up nodes")
+            for node in self._nodes:
+                node.after_run(True)
+        except Exception:
+            logger.info(f"Cleaning up nodes")
+            for node in self._nodes:
+                node.after_run(False)
+            raise
 
