@@ -457,7 +457,6 @@ class FilePathParamWidget(ParamWidgetBase):
 
             self._write_to_node(path)
             self._update_view_enabled()
-#            self.value_changed.emit(canonical)
 
     def _update_view_enabled(self) -> None:
         self._view.setEnabled(self._path.is_file())
