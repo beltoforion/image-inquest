@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 
 from core.io_data import IoData
+from core.io_data import IoDataType
+from core.port import OutputPort
 from nodes.filters.adaptive_gaussian_threshold import AdaptiveGaussianThreshold
 from nodes.filters.dither import Dither, DitherMethod
 from nodes.filters.median import Median
@@ -245,3 +247,37 @@ def test_ncc_rejects_colour_image_input() -> None:
     colour = np.zeros((8, 8, 3), dtype=np.uint8)
     with pytest.raises(TypeError):
         node.inputs[0].receive(IoData.from_image(colour))
+
+
+@pytest.mark.xfail(
+    reason=(
+        "Flow.run() starts sources sequentially, so ImageSource 1 emits "
+        "IMAGE_GREY + EOS on NCC.image before ImageSource 2 has delivered "
+        "anything to NCC.template. When template's first real frame then "
+        "arrives, the default dispatcher sees EOS already on image and "
+        "takes the _on_end_of_stream() branch — process_impl is skipped."
+    ),
+    strict=True,
+)
+def test_ncc_fires_when_first_chain_emits_eos_before_second_chain_emits_data() -> None:
+    node = Ncc()
+
+    image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
+    template_up = OutputPort("template", {IoDataType.IMAGE_GREY})
+    image_up.connect(node.inputs[0])
+    template_up.connect(node.inputs[1])
+
+    image = np.zeros((32, 32), dtype=np.uint8)
+    image[12:20, 12:20] = 255
+    template = np.full((8, 8), 255, dtype=np.uint8)
+
+    image_up.send(IoData.from_greyscale(image))
+    image_up.send(IoData.end_of_stream())
+
+    template_up.send(IoData.from_greyscale(template))
+    template_up.send(IoData.end_of_stream())
+
+    out = node.outputs[0].last_emitted
+    assert out is not None, "process_impl was never called"
+    assert out.type == IoDataType.IMAGE_GREY
+    assert out.image.shape == image.shape
