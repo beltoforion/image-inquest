@@ -7,8 +7,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2624.699195656186,
-        -1166.8876524729317
+        -2424.310319205983,
+        -1286.873584668424
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
@@ -24,8 +24,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -1112.6566853206475,
-        -665.035776003917
+        -912.4407474226541,
+        -1066.5738172026554
       ],
       "params": {
         "output_path": "out.mp4",
@@ -74,8 +74,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -2605.1557958682165,
-        -941.9195659748689
+        -2547.0182823301943,
+        -880.0711473173984
       ],
       "params": {
         "file_path": "pad.jpg"
