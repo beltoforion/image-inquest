@@ -380,8 +380,8 @@ class FilePathParamWidget(ParamWidgetBase):
     def set_value(self, value: object) -> None:
         text = str(value)
         if not text:
-            self._line.setText("")
             self._path = Path()
+            self._line.setText("")
             return
 
         # Relative inputs are resolved against base_dir (matching the
@@ -393,10 +393,14 @@ class FilePathParamWidget(ParamWidgetBase):
         # saved flows stay portable across machines with different
         # absolute layouts.
         if new_path.is_relative_to(self._base_dir):
-            self._line.setText(new_path.relative_to(self._base_dir).as_posix())
+            display = new_path.relative_to(self._base_dir).as_posix()
         else:
-            self._line.setText(new_path.as_posix())
+            display = new_path.as_posix()
+
+        # Assign _path before setText so the textChanged slots
+        # (_update_view_enabled in particular) see a valid path.
         self._path = new_path
+        self._line.setText(display)
 
     @override
     def get_value(self) -> object:
