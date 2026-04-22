@@ -7,8 +7,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2305.028595467704,
-        -816.7123159642672
+        -2561.334973768244,
+        -1158.518792978298
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
@@ -24,8 +24,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -947.2956204379564,
-        -972.5255474452556
+        -899.8485438856733,
+        -920.8837662684367
       ],
       "params": {
         "output_path": "out.mp4",
@@ -38,26 +38,68 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1696.8849077379364,
-        -1122.303865416378
+        -1800.056502843196,
+        -1519.759063524578
       ],
       "params": {},
       "size": [
-        729.0,
-        587.1490067842365
+        800.0,
+        421.4215549517937
       ]
     },
     {
       "id": 3,
-      "module": "nodes.filters.dither",
-      "class": "Dither",
+      "module": "nodes.filters.ncc",
+      "class": "Ncc",
       "position": [
-        -1942.0,
-        -771.0
+        -1954.1857200003665,
+        -1098.1569464234233
       ],
       "params": {
-        "method": 2
+        "retain_size": true
       }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -2184.071457141125,
+        -1059.9647324696782
+      ],
+      "params": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -2537.0093685547704,
+        -939.5284632621165
+      ],
+      "params": {
+        "file_path": "pad.jpg"
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -2169.5270249779187,
+        -886.5825447399395
+      ],
+      "params": {}
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -2095.8015277275827,
+        -1466.9415142736702
+      ],
+      "params": {}
     }
   ],
   "connections": [
@@ -68,15 +110,45 @@
       "dst_input": 0
     },
     {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
       "src_node": 3,
       "src_output": 0,
-      "dst_node": 2,
+      "dst_node": 7,
       "dst_input": 0
     },
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 3,
+      "dst_node": 7,
+      "dst_input": 1
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 2,
       "dst_input": 0
     }
   ]

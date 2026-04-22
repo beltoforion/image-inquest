@@ -373,7 +373,7 @@ class FilePathParamWidget(ParamWidgetBase):
         layout.addWidget(self._view, 0)
 
     def _on_value_changed(self, value: str) -> None:
-        self._write_to_node(value)
+        self._write_to_node(self._path)
         self.value_changed.emit(value)
 
     @override
