@@ -19,14 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import (
-    FILE_OPEN_FILTER,
-    FILE_SAVE_FILTER,
-    INPUT_DIR,
-    OUTPUT_DIR,
-    VIDEO_OPEN_FILTER,
-    VIDEO_SAVE_FILTER,
-)
+from constants import INPUT_DIR, OUTPUT_DIR
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
 from ui.icons import material_icon
@@ -341,7 +334,10 @@ class FilePathParamWidget(ParamWidgetBase):
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
         super().__init__(node, param)
         self._is_save = param.metadata.get("mode") == "save"
-        self._is_video = param.metadata.get("filetype") == "video"
+        self._filter = str(param.metadata.get("filter", ""))
+        self._base_dir = Path(
+            param.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
+        )
 
         self._line = QLineEdit()
         self._line.setPlaceholderText("Select a file…")
@@ -352,7 +348,7 @@ class FilePathParamWidget(ParamWidgetBase):
 
         browse = QPushButton("...")
         browse.setFixedWidth(36)
-        browse.clicked.connect(self._browse)
+        browse.clicked.connect(self._open_file_dialog)
 
         self._view = QPushButton()
         self._view.setIcon(material_icon("visibility"))
@@ -386,28 +382,25 @@ class FilePathParamWidget(ParamWidgetBase):
     def get_value(self) -> object:
         return self._line.text()
 
-    def _browse(self) -> None:
+    def _open_file_dialog(self) -> None:
         current = self._line.text() or ""
-        fallback = OUTPUT_DIR if self._is_save else INPUT_DIR
         # Relative values (e.g. "out.png" or "example.jpg") are stored
-        # relative to OUTPUT_DIR / INPUT_DIR, so resolve against that base
+        # relative to the node's base_dir, so resolve against that base
         # before taking the parent — otherwise the dialog would open in
         # the process CWD instead of the folder the file actually lives in.
         path_obj = Path(current)
         if not path_obj.is_absolute():
-            path_obj = fallback / path_obj
+            path_obj = self._base_dir / path_obj
         folder = path_obj.parent.resolve()
-        initial = str(folder) if folder.is_dir() else str(fallback)
+        initial = str(folder) if folder.is_dir() else str(self._base_dir)
 
         if self._is_save:
-            save_filter = VIDEO_SAVE_FILTER if self._is_video else FILE_SAVE_FILTER
             path, _ = QFileDialog.getSaveFileName(
-                self._line, "Save File As", initial, save_filter,
+                self._line, "Save File As", initial, self._filter,
             )
         else:
-            open_filter = VIDEO_OPEN_FILTER if self._is_video else FILE_OPEN_FILTER
             path, _ = QFileDialog.getOpenFileName(
-                self._line, "Select File", initial, open_filter,
+                self._line, "Select File", initial, self._filter,
             )
         if path:
             # Run the value through the node setter (which may normalise it
@@ -428,13 +421,12 @@ class FilePathParamWidget(ParamWidgetBase):
     def _resolved_current_path(self) -> Path:
         """Return the absolute path referenced by the line edit.
 
-        Relative values are joined with ``OUTPUT_DIR`` / ``INPUT_DIR``
-        to match how the corresponding node setters resolve them.
+        Relative values are joined with the node's base_dir to match
+        how the corresponding node setters resolve them.
         """
-        base = OUTPUT_DIR if self._is_save else INPUT_DIR
         p = Path(self._line.text() or "")
         if not p.is_absolute():
-            p = base / p
+            p = self._base_dir / p
         return p
 
     def _update_view_enabled(self) -> None:
