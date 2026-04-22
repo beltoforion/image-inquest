@@ -426,21 +426,20 @@ class FilePathParamWidget(ParamWidgetBase):
             path, _ = QFileDialog.getOpenFileName(
                 self._line, "Select File", initial, self._filter,
             )
+        
         if path:
-            # Run the value through the node setter (which may normalise it
-            # — e.g. ImageSource shortens paths inside INPUT_DIR) and then
-            # mirror the canonical form into the line edit so the user sees
-            # what is actually stored. blockSignals avoids re-triggering the
-            # textChanged → setter loop with the already-normalised value.
-            self._write_to_node(path)
-            canonical = str(getattr(self._node, self._param.name, path))
+
+#            self._write_to_node(path)
+#            canonical = str(getattr(self._node, self._param.name, path))
             self._line.blockSignals(True)
             try:
-                self._line.setText(canonical)
+                self.set_value(path) 
             finally:
                 self._line.blockSignals(False)
+
+            self._write_to_node(path)
             self._update_view_enabled()
-            self.value_changed.emit(canonical)
+#            self.value_changed.emit(canonical)
 
     def _update_view_enabled(self) -> None:
         self._view.setEnabled(self._path.is_file())
