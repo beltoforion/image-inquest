@@ -335,6 +335,9 @@ class FilePathParamWidget(ParamWidgetBase):
         super().__init__(node, param)
         self._is_save = param.metadata.get("mode") == "save"
         self._filter = str(param.metadata.get("filter", ""))
+        self._base_dir = Path(
+            param.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
+        )
 
         self._line = QLineEdit()
         self._line.setPlaceholderText("Select a file…")
@@ -381,16 +384,15 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def _browse(self) -> None:
         current = self._line.text() or ""
-        fallback = OUTPUT_DIR if self._is_save else INPUT_DIR
         # Relative values (e.g. "out.png" or "example.jpg") are stored
-        # relative to OUTPUT_DIR / INPUT_DIR, so resolve against that base
+        # relative to the node's base_dir, so resolve against that base
         # before taking the parent — otherwise the dialog would open in
         # the process CWD instead of the folder the file actually lives in.
         path_obj = Path(current)
         if not path_obj.is_absolute():
-            path_obj = fallback / path_obj
+            path_obj = self._base_dir / path_obj
         folder = path_obj.parent.resolve()
-        initial = str(folder) if folder.is_dir() else str(fallback)
+        initial = str(folder) if folder.is_dir() else str(self._base_dir)
 
         if self._is_save:
             path, _ = QFileDialog.getSaveFileName(
@@ -419,13 +421,12 @@ class FilePathParamWidget(ParamWidgetBase):
     def _resolved_current_path(self) -> Path:
         """Return the absolute path referenced by the line edit.
 
-        Relative values are joined with ``OUTPUT_DIR`` / ``INPUT_DIR``
-        to match how the corresponding node setters resolve them.
+        Relative values are joined with the node's base_dir to match
+        how the corresponding node setters resolve them.
         """
-        base = OUTPUT_DIR if self._is_save else INPUT_DIR
         p = Path(self._line.text() or "")
         if not p.is_absolute():
-            p = base / p
+            p = self._base_dir / p
         return p
 
     def _update_view_enabled(self) -> None:

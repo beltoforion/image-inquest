@@ -5,6 +5,7 @@ from pathlib import Path
 import cv2
 from typing_extensions import override
 
+from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
@@ -39,7 +40,7 @@ class VideoSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.mp4", "filter": "Video (*.mp4 *.avi *.mov *.mkv)"}),
+            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.mp4", "filter": "Video (*.mp4 *.avi *.mov *.mkv)", "base_dir": INPUT_DIR}),
             NodeParam("max_num_frames", NodeParamType.INT,       {"default": -1}),
         ]
 
