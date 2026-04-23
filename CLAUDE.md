@@ -15,3 +15,6 @@
 - If a PR that addresses an issue is merged without the auto-close keyword, close the issue manually and link back to the merged PR.
 - Mark every issue you file with a footer line `_Filed by Claude Code._` at the end of the body, so user-filed issues stay visually distinct from Claude-filed ones.
 - Do not pick up or attempt to fix issues that the user created unless the user explicitly asks for it. Claude-filed issues are fair game to work on when in scope.
+
+## Automated Responses
+- The `Claude Issue Assistant` workflow (`.github/workflows/claude-issue.yml`) must only act on events whose `github.actor` is the repository owner. Never remove or loosen that gate — third-party issue/comment activity must not trigger any Claude run, including no reply. If collaborator access is ever needed, switch to an explicit allowlist rather than opening the trigger up.
