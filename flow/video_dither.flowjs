@@ -4,152 +4,156 @@
   "nodes": [
     {
       "id": 0,
+      "module": "nodes.filters.rgb_split",
+      "class": "RgbSplit",
+      "position": [
+        -1509.4279939393775,
+        -639.4775833967562
+      ],
+      "params": {}
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.rgb_join",
+      "class": "RgbJoin",
+      "position": [
+        -1087.2932387107683,
+        -649.3087434840913
+      ],
+      "params": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1311.3662503142004,
+        -787.9546588863568
+      ],
+      "params": {
+        "method": 2
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1309.5658172348058,
+        -655.0544423466595
+      ],
+      "params": {
+        "method": 2
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1311.3662503142004,
+        -523.9546588863568
+      ],
+      "params": {
+        "method": 2
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1086.5160764474858,
+        -1149.651631284973
+      ],
+      "params": {},
+      "size": [
+        478.08774090451084,
+        462.6443809330724
+      ]
+    },
+    {
+      "id": 6,
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2424.310319205983,
-        -1286.873584668424
+        -1777.9276659019586,
+        -801.192720330503
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
         "max_num_frames": -1
-      },
-      "size": [
-        299.156587990836,
-        159.0
-      ]
+      }
     },
     {
-      "id": 1,
+      "id": 7,
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -912.4407474226541,
-        -1066.5738172026554
+        -707.5702002019946,
+        -616.648329692578
       ],
       "params": {
         "output_path": "out.mp4",
         "fps": 30.0,
         "codec": 0
       }
-    },
-    {
-      "id": 2,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -1762.9944107955318,
-        -1393.0306197486948
-      ],
-      "params": {},
-      "size": [
-        800.0,
-        598.3631556954801
-      ]
-    },
-    {
-      "id": 3,
-      "module": "nodes.filters.ncc",
-      "class": "Ncc",
-      "position": [
-        -2087.7299281000087,
-        -1022.7142910588416
-      ],
-      "params": {
-        "retain_size": true
-      }
-    },
-    {
-      "id": 4,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -2279.6932476161055,
-        -999.7513369937287
-      ],
-      "params": {}
-    },
-    {
-      "id": 5,
-      "module": "nodes.sources.image_source",
-      "class": "ImageSource",
-      "position": [
-        -2547.0182823301943,
-        -880.0711473173984
-      ],
-      "params": {
-        "file_path": "pad.jpg"
-      }
-    },
-    {
-      "id": 6,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -2278.1322105767763,
-        -922.9072311234843
-      ],
-      "params": {}
-    },
-    {
-      "id": 7,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
-      "position": [
-        -1924.927069719403,
-        -1151.181820353329
-      ],
-      "params": {}
     }
   ],
   "connections": [
     {
-      "src_node": 2,
+      "src_node": 0,
       "src_output": 0,
-      "dst_node": 1,
+      "dst_node": 2,
       "dst_input": 0
     },
     {
       "src_node": 0,
-      "src_output": 0,
+      "src_output": 1,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 2,
       "dst_node": 4,
       "dst_input": 0
     },
     {
       "src_node": 4,
       "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 0
+      "dst_node": 1,
+      "dst_input": 2
     },
     {
-      "src_node": 5,
+      "src_node": 1,
       "src_output": 0,
-      "dst_node": 6,
+      "dst_node": 5,
       "dst_input": 0
     },
     {
       "src_node": 6,
       "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 1
-    },
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 0,
       "dst_input": 0
     },
     {
-      "src_node": 7,
+      "src_node": 5,
       "src_output": 0,
-      "dst_node": 2,
+      "dst_node": 7,
       "dst_input": 0
     },
     {
       "src_node": 3,
       "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 1,
       "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
     }
   ]
 }

@@ -17,12 +17,10 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -893.9002165396971,
-        -637.5054134924299
+        -1087.2932387107683,
+        -649.3087434840913
       ],
-      "params": {
-        "three_color": false
-      }
+      "params": {}
     },
     {
       "id": 2,
@@ -53,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -781.5990196600775
+        -1311.3662503142004,
+        -787.9546588863568
       ],
       "params": {
         "method": 6
@@ -65,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1194.256362700881,
-        -648.6988031203803
+        -1309.5658172348058,
+        -655.0544423466595
       ],
       "params": {
         "method": 6
@@ -77,21 +75,29 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -517.5990196600775
+        -1311.3662503142004,
+        -523.9546588863568
       ],
       "params": {
         "method": 6
       }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -946.0822962547235,
+        -1065.9314930931341
+      ],
+      "params": {},
+      "size": [
+        317.8491968384102,
+        284.40150607302803
+      ]
     }
   ],
   "connections": [
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
     {
       "src_node": 3,
       "src_output": 0,
@@ -133,6 +139,18 @@
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 1
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
     }
   ]
 }
