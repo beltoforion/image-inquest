@@ -21,16 +21,6 @@ once a first tagged release is cut.
   diagnosing render glitches that correlate with brief display
   blackouts on Linux Mint / X11 / NVIDIA setups.
 
-### Fixed
-- **Black, unrecoverable node canvas after opening and cancelling the
-  "Open Flow" dialog on Windows**. The native Windows file dialog
-  (`IFileOpenDialog`) runs its own nested modal loop, which left the
-  `FlowView` viewport stuck in a never-repainting black state — the
-  scene/flow data was intact (save and reload recovered everything),
-  but no runtime interaction could bring the canvas back. Pass
-  `QFileDialog.Option.DontUseNativeDialog` on the Open handler so Qt's
-  own dialog is used instead, sidestepping the bug entirely.
-
 ## [0.1.4] — 2026-04-23
 
 ### Fixed
