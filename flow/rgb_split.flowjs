@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -1120.4627066632493,
-        -639.27543294652
+        -1087.2932387107683,
+        -649.3087434840913
       ],
       "params": {}
     },
@@ -27,8 +27,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -789.1169356819802,
-        -661.9506808931591
+        -613.0,
+        -600.0
       ],
       "params": {
         "output_path": "out.png"
@@ -39,8 +39,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1781.2051059591577,
-        -845.3087930648345
+        -1788.9559912621874,
+        -669.0594064681123
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -51,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1326.1532256559092,
-        -803.7242628362058
+        -1311.3662503142004,
+        -787.9546588863568
       ],
       "params": {
         "method": 6
@@ -63,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1326.1532256559092,
-        -671.7242628362058
+        -1309.5658172348058,
+        -655.0544423466595
       ],
       "params": {
         "method": 6
@@ -75,8 +75,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1326.1532256559092,
-        -539.7242628362058
+        -1311.3662503142004,
+        -523.9546588863568
       ],
       "params": {
         "method": 6
@@ -84,51 +84,16 @@
     },
     {
       "id": 7,
-      "module": "nodes.filters.subpixel_mosaic",
-      "class": "SubpixelMosaic",
-      "position": [
-        -957.5805246628266,
-        -661.9872758297544
-      ],
-      "params": {
-        "keep_aspect": true,
-        "output_grayscale": false
-      }
-    },
-    {
-      "id": 8,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
-      "position": [
-        -1110.8238024081456,
-        -960.6300556172022
-      ],
-      "params": {}
-    },
-    {
-      "id": 9,
-      "module": "nodes.sinks.file_sink",
-      "class": "FileSink",
-      "position": [
-        -757.7821472213956,
-        -804.6264503042779
-      ],
-      "params": {
-        "output_path": "out_merge.png"
-      }
-    },
-    {
-      "id": 10,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -936.5892617331432,
-        -1088.7455980248064
+        -946.0822962547235,
+        -1065.9314930931341
       ],
       "params": {},
       "size": [
-        260.28160915565513,
-        231.49323435621648
+        317.8491968384102,
+        284.40150607302803
       ]
     }
   ],
@@ -185,42 +150,6 @@
       "src_node": 7,
       "src_output": 0,
       "dst_node": 2,
-      "dst_input": 0
-    },
-    {
-      "src_node": 3,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 1
-    },
-    {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 2
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 3
-    },
-    {
-      "src_node": 8,
-      "src_output": 0,
-      "dst_node": 10,
-      "dst_input": 0
-    },
-    {
-      "src_node": 10,
-      "src_output": 0,
-      "dst_node": 9,
       "dst_input": 0
     }
   ]
