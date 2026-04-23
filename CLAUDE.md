@@ -11,3 +11,5 @@
 - Track reported bugs and feature requests as GitHub issues in the repo's tracker. When the user describes a bug, open an issue for it (unless one already exists).
 - When opening a PR that addresses an existing issue, include `Fixes #N` (or `Closes #N`) in the PR description so GitHub auto-closes the issue on merge.
 - If a PR that addresses an issue is merged without the auto-close keyword, close the issue manually and link back to the merged PR.
+- Mark every issue you file with a footer line `_Filed by Claude Code._` at the end of the body, so user-filed issues stay visually distinct from Claude-filed ones.
+- Do not pick up or attempt to fix issues that the user created unless the user explicitly asks for it. Claude-filed issues are fair game to work on when in scope.
