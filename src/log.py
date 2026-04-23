@@ -9,9 +9,16 @@ Log destinations:
 """
 from __future__ import annotations
 
+import datetime
+import faulthandler
 import logging
 import logging.handlers
 from pathlib import Path
+
+# Module-level handle so the file stays open for the lifetime of the
+# process. faulthandler writes directly via the underlying file
+# descriptor from its signal handler, so the object must not be GC'd.
+_faulthandler_file = None
 
 
 _STARTUP_BANNER = r"""
@@ -60,6 +67,8 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "image-inquest.log"
 
+    _enable_faulthandler(log_dir)
+
     fmt = _FixedWidthFormatter(
         fmt="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -96,3 +105,28 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
             logger.info(line)
 
     logger.info("Logging initialised → %s", log_file)
+    if _faulthandler_file is not None:
+        logger.info("faulthandler dump → %s", _faulthandler_file.name)
+
+
+def _enable_faulthandler(log_dir: Path) -> None:
+    """Route C-level crash dumps (SIGSEGV, SIGABRT, …) to a persistent file.
+
+    main.py enables faulthandler against stderr at import time so crashes
+    during Qt startup are still caught. Once we have a writable log dir
+    we re-enable it against an append-mode file so post-mortems survive
+    the terminal closing.
+    """
+    global _faulthandler_file
+    dump_path = log_dir / "faulthandler.log"
+    try:
+        _faulthandler_file = open(dump_path, "a", buffering=1, encoding="utf-8")
+    except OSError:
+        # Keep the stderr-based handler installed by main.py.
+        logging.getLogger(__name__).warning(
+            "Could not open %s for faulthandler; keeping stderr dump", dump_path
+        )
+        return
+    stamp = datetime.datetime.now().isoformat(timespec="seconds")
+    print(f"\n--- faulthandler attached at {stamp} ---", file=_faulthandler_file)
+    faulthandler.enable(file=_faulthandler_file, all_threads=True)

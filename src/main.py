@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import logging
 import sys
 from pathlib import Path
+
+# Enable as early as possible so crashes during Qt/plugin import or
+# QApplication construction (i.e. before setup_logging runs) still
+# produce a C-level traceback. setup_logging() re-points the dump at a
+# persistent file once LOG_DIR exists.
+faulthandler.enable(file=sys.stderr, all_threads=True)
 
 from PySide6.QtCore import Qt, QPointF, QTimer
 from PySide6.QtGui import (
