@@ -582,8 +582,13 @@ class NodeEditorPage(PageBase):
 
     def _on_open_clicked(self) -> None:
         FLOW_DIR.mkdir(parents=True, exist_ok=True)
+        # Force Qt's own dialog instead of Windows' native IFileOpenDialog:
+        # the native dialog's nested modal loop leaves the FlowView
+        # viewport stuck in a black, unpaintable state that no runtime
+        # interaction (resize, zoom, pan, click) can recover from.
         path_str, _ = QFileDialog.getOpenFileName(
             self, "Open Flow", str(FLOW_DIR), _FLOW_FILE_FILTER,
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path_str:
             self.load_flow(Path(path_str))
