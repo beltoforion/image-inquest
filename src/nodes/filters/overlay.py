@@ -122,26 +122,35 @@ class Overlay(NodeBase):
         base    = to_canvas(base_data).copy()
         overlay = to_canvas(overlay_data)
 
-        if self._scale != 1.0:
+        # When rotation is active, fold scale into the same affine warp
+        # so the overlay is resampled only once. Pure scaling (no
+        # rotation) uses cv2.resize instead — warpAffine with
+        # BORDER_CONSTANT would darken the outer pixels toward zero,
+        # while cv2.resize preserves sharp edges.
+        rotates = self._angle % 360.0 != 0.0
+        if rotates:
+            ov_h, ov_w = overlay.shape[:2]
+            center = (ov_w / 2.0, ov_h / 2.0)
+            M = cv2.getRotationMatrix2D(center, self._angle, self._scale)
+            # Expand the output bounding box so the scaled + rotated
+            # image fits without being cropped, and shift the matrix
+            # accordingly. cos/sin here already include the scale
+            # factor from getRotationMatrix2D.
+            cos = abs(M[0, 0])
+            sin = abs(M[0, 1])
+            out_w = max(1, int(round(ov_h * sin + ov_w * cos)))
+            out_h = max(1, int(round(ov_h * cos + ov_w * sin)))
+            M[0, 2] += (out_w / 2.0) - center[0]
+            M[1, 2] += (out_h / 2.0) - center[1]
+            overlay = cv2.warpAffine(
+                overlay, M, (out_w, out_h), flags=cv2.INTER_LINEAR
+            )
+        elif self._scale != 1.0:
             ov_h, ov_w = overlay.shape[:2]
             new_w = max(1, int(round(ov_w * self._scale)))
             new_h = max(1, int(round(ov_h * self._scale)))
-            overlay = cv2.resize(overlay, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-        if self._angle % 360.0 != 0.0:
-            ov_h, ov_w = overlay.shape[:2]
-            center = (ov_w / 2.0, ov_h / 2.0)
-            M = cv2.getRotationMatrix2D(center, self._angle, 1.0)
-            # Expand the bounding box so the rotated image fits without
-            # being cropped, and shift the rotation matrix accordingly.
-            cos = abs(M[0, 0])
-            sin = abs(M[0, 1])
-            rot_w = max(1, int(round(ov_h * sin + ov_w * cos)))
-            rot_h = max(1, int(round(ov_h * cos + ov_w * sin)))
-            M[0, 2] += (rot_w / 2.0) - center[0]
-            M[1, 2] += (rot_h / 2.0) - center[1]
-            overlay = cv2.warpAffine(
-                overlay, M, (rot_w, rot_h), flags=cv2.INTER_LINEAR
+            overlay = cv2.resize(
+                overlay, (new_w, new_h), interpolation=cv2.INTER_LINEAR
             )
 
         base_h, base_w = base.shape[:2]

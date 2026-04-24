@@ -249,6 +249,31 @@ def test_overlay_angle_360_matches_angle_zero() -> None:
     np.testing.assert_array_equal(out.image[0:3, 0:3], _bgr(3, 3, 200))
 
 
+def test_overlay_angle_and_scale_combine_into_single_warp() -> None:
+    node = Overlay()
+    node.alpha = 1.0
+    node.angle = 90.0
+    node.scale = 2.0
+    # 2x3 overlay, rotated 90° and scaled 2x, should land as a 6x4
+    # bounding box on the base (height 2*3 = 6 rows, width 2*2 = 4 cols).
+    _wire(
+        node,
+        IoData.from_image(_bgr(20, 20, 0)),
+        IoData.from_image(_bgr(2, 3, 255)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # Expected footprint is 6x4 starting at (0, 0); everything outside
+    # it must remain black.
+    assert out.image[0:6, 4:20].sum() == 0
+    assert out.image[6:20, 0:20].sum() == 0
+    # Most pixels inside the bounding box are non-black (edge pixels may
+    # be partially blended with the BORDER_CONSTANT=0 background).
+    footprint_nonzero = (out.image[0:6, 0:4] > 0).any(axis=2).sum()
+    assert footprint_nonzero >= 20  # out of 6x4 = 24 pixels
+
+
 def test_overlay_defaults_match_declared_params() -> None:
     node = Overlay()
     assert node.scale == 1.0
