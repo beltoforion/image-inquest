@@ -21,6 +21,12 @@ once a first tagged release is cut.
   outside the base are clipped; mixed greyscale/colour inputs are
   promoted to colour, otherwise the output stays greyscale.
 
+### Fixed
+- **Image Source: WebP files now show up in the file picker.** The
+  name-filter string had a stray comma after `*.webp`, which Qt
+  parsed as a literal glob pattern and caused the dialog to hide
+  every WebP file. Docstring now lists WebP alongside JPEG/PNG/CR2.
+
 ## [0.1.12] — 2026-04-24
 
 ### Changed

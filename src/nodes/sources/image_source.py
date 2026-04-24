@@ -18,7 +18,7 @@ _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
 class ImageSource(SourceNodeBase):
     """Source node that reads a single still image from disk.
 
-    Supported formats: JPEG, PNG, CR2 (RAW).
+    Supported formats: JPEG, PNG, WebP, CR2 (RAW).
 
     Paths inside the application's :data:`INPUT_DIR` are stored — and
     therefore displayed — relative to that folder. Anything outside is kept
@@ -51,7 +51,7 @@ class ImageSource(SourceNodeBase):
                 NodeParamType.FILE_PATH, 
                 {
                     "default": "example.jpg", 
-                    "filter": "Images (*.webp, *.png *.jpg *.jpeg *.cr2)", 
+                    "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
                     "base_dir": INPUT_DIR
                 }),
         ]
