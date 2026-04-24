@@ -10,6 +10,19 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.17] — 2026-04-24
+
+### Added
+- **Backdrops.** Coloured rectangular frames drawn behind groups of
+  nodes so dense pipelines can be annotated as loose chapter
+  headings (e.g. "Colour prep", "Alpha mask"). Right-click an empty
+  canvas to drop one; right-click the backdrop itself for rename /
+  colour preset / delete; resize via the bottom-right grip; Delete
+  key removes a selected backdrop. Persisted alongside nodes and
+  connections in the flow file under a new `backdrops` entry. Older
+  flows without the field load unchanged — the loader treats the
+  absence as "no backdrops".
+
 ## [0.1.16] — 2026-04-24
 
 ### Fixed
