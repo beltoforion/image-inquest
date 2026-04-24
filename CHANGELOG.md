@@ -10,6 +10,28 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.16] — 2026-04-24
+
+### Fixed
+- **`VideoSource` path handling is now consistent with every other
+  file-based node.** Paths under `INPUT_DIR` are stored as bare
+  relative names and resolved against `INPUT_DIR` at run time — same
+  contract `ImageSource` / `FileSink` / `VideoSink` already followed.
+  Previously `VideoSource` persisted the host-absolute path (breaking
+  flow portability across machines) and resolved any relative value
+  against the process's working directory (breaking the default
+  `./input/example.mp4` unless launched from the repo root). The
+  default is also bumped to `video.mp4`, a file that ships in
+  `input/` — no more "file not found" on a fresh node. Fixes #145.
+
+### Changed
+- **Bundled flow files re-stamped to the current format.** All
+  `*.flowjs` files under `flow/` had their `app_version` field
+  refreshed (previously ranged from v0.1.10 down to a missing field
+  entirely). No semantic changes — node / connection data is
+  untouched; this is purely a metadata refresh so the stamped
+  version doesn't lag behind the app by multiple releases.
+
 ## [0.1.15] — 2026-04-24
 
 ### Added
