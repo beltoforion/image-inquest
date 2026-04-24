@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
@@ -48,34 +47,21 @@ BACKDROP_PRESETS: dict[str, QColor] = {
 }
 
 
-class _Corner(Enum):
-    """Identifier for which corner of a backdrop a resize grip is attached to.
-
-    The mapping is consistent with screen coordinates used by Qt:
-    Y grows downward, so "north" is the top edge and "south" the
-    bottom.
-    """
-    NW = "NW"
-    NE = "NE"
-    SW = "SW"
-    SE = "SE"
-
-
 class BackdropItem(QGraphicsItem):
     """Rectangular frame drawn behind a group of nodes.
 
     A backdrop is a pure visual affordance: it has no connection to
-    the flow model, no execution semantics, and does not appear in the
-    node palette. Use it as a "chapter heading" on the canvas —
+    the flow model, no execution semantics, and does not appear in
+    the node palette. Use it as a "chapter heading" on the canvas —
     e.g. "Colour prep", "Alpha mask" — so dense pipelines stay
     readable.
 
-    Sits on a lower Z than nodes (:attr:`Z_VALUE`) so mouse events on
-    the interior of a framed group still reach the node on top. Drag
-    the title bar to move; drag *any* of the four corner grips to
-    resize — both axes scale at once and the opposite corner stays
-    pinned. All four are needed because the bottom-right grip alone
-    is unreachable as soon as another node sits on top of it.
+    Sits on a lower Z than nodes (:attr:`Z_VALUE`) so mouse events
+    on the interior of a framed group still reach the node on top.
+    Drag the title bar to move; the geometry is fixed at creation
+    time (see :meth:`FlowScene.create_group_around_selection`) and
+    is not interactively resizable — the framed group's contents are
+    expected to evolve, not the frame itself.
 
     The header carries an X close button on the right edge, mirroring
     the affordance every regular node has.
@@ -84,7 +70,6 @@ class BackdropItem(QGraphicsItem):
     Z_VALUE: int = -10
     HEADER_HEIGHT: float = 22.0
     CORNER_RADIUS: float = 6.0
-    GRIP_SIZE: float = 12.0
     CLOSE_BUTTON_SIZE: float = 14.0
     HEADER_BUTTON_MARGIN: float = 4.0
     TITLE_PADDING: float = 8.0
@@ -121,11 +106,6 @@ class BackdropItem(QGraphicsItem):
             QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True,
         )
 
-        # One grip per corner — bottom-right alone gets buried under
-        # nodes too easily to be a reliable handle.
-        self._grips: dict[_Corner, _BackdropResizeGrip] = {
-            corner: _BackdropResizeGrip(self, corner) for corner in _Corner
-        }
         self._close_button = _BackdropCloseButton(self)
         self._reposition_children()
 
@@ -156,8 +136,12 @@ class BackdropItem(QGraphicsItem):
         return self._height
 
     def set_size(self, width: float, height: float) -> None:
-        """Update the backdrop rectangle. Enforces the minimum so the
-        resize grips can't collapse the frame out of existence."""
+        """Update the backdrop rectangle. Used by the loader and
+        :meth:`FlowScene.create_group_around_selection` — the user
+        can't drive this at runtime since the frame has no resize
+        handles. The minimum clamp is kept as defensive sanity for
+        legacy flow files.
+        """
         new_w = max(MIN_BACKDROP_WIDTH, float(width))
         new_h = max(MIN_BACKDROP_HEIGHT, float(height))
         if (new_w, new_h) == (self._width, self._height):
@@ -277,140 +261,16 @@ class BackdropItem(QGraphicsItem):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _reposition_children(self) -> None:
-        """Place every grip + the close button at its corner / header slot.
+        """Place the close button in its header slot.
 
-        Called from :meth:`set_size` and from ``__init__``. Each grip
-        sits exactly on its corner (top-left coordinate of the
-        ``GRIP_SIZE`` square aligns with the corner so the grip extends
-        into the frame and not outside it).
+        Called from :meth:`set_size` and from ``__init__``.
         """
-        gs = self.GRIP_SIZE
-        w = self._width
-        h = self._height
-        self._grips[_Corner.NW].setPos(0, 0)
-        self._grips[_Corner.NE].setPos(w - gs, 0)
-        self._grips[_Corner.SW].setPos(0, h - gs)
-        self._grips[_Corner.SE].setPos(w - gs, h - gs)
-
         cb_size = self.CLOSE_BUTTON_SIZE
         margin = self.HEADER_BUTTON_MARGIN
         self._close_button.setPos(
-            w - cb_size - margin,
+            self._width - cb_size - margin,
             (self.HEADER_HEIGHT - cb_size) / 2.0,
         )
-
-
-class _BackdropResizeGrip(QGraphicsItem):
-    """Drag handle attached to one corner of a backdrop.
-
-    Each corner pins the *opposite* corner during a drag, so the
-    handle the user grabs is the one that follows the cursor and the
-    frame grows / shrinks symmetrically about that anchor. Below the
-    minimum size, the frame clamps and the dragged corner stops where
-    it would have shrunk past the anchor.
-    """
-
-    SIZE: float = 12.0
-
-    _CURSORS: dict[_Corner, Qt.CursorShape] = {
-        _Corner.NW: Qt.CursorShape.SizeFDiagCursor,  # top-left  ↘ shape
-        _Corner.SE: Qt.CursorShape.SizeFDiagCursor,  # bot-right ↘
-        _Corner.NE: Qt.CursorShape.SizeBDiagCursor,  # top-right ↙
-        _Corner.SW: Qt.CursorShape.SizeBDiagCursor,  # bot-left  ↙
-    }
-
-    def __init__(self, backdrop: BackdropItem, corner: _Corner) -> None:
-        super().__init__(parent=backdrop)
-        self._backdrop = backdrop
-        self._corner = corner
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemStacksBehindParent, False)
-        self.setCursor(self._CURSORS[corner])
-        self.setZValue(1)
-        self._drag_start_scene: QPointF | None = None
-        self._drag_start_pos: QPointF | None = None
-        self._drag_start_size: tuple[float, float] | None = None
-
-    def boundingRect(self) -> QRectF:  # type: ignore[override]
-        return QRectF(0, 0, self.SIZE, self.SIZE)
-
-    def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setPen(QPen(QColor(200, 200, 200, 180), 1))
-        # Three short diagonal tick marks oriented for the corner the
-        # grip sits on, so the affordance points "outward" the way an
-        # actual resize handle should.
-        s = self.SIZE
-        if self._corner == _Corner.SE:
-            for i in (2, 5, 8):
-                painter.drawLine(QPointF(s - i, s - 1), QPointF(s - 1, s - i))
-        elif self._corner == _Corner.NW:
-            for i in (2, 5, 8):
-                painter.drawLine(QPointF(0, i), QPointF(i, 0))
-        elif self._corner == _Corner.NE:
-            for i in (2, 5, 8):
-                painter.drawLine(QPointF(s - i, 0), QPointF(s, i))
-        else:  # SW
-            for i in (2, 5, 8):
-                painter.drawLine(QPointF(0, s - i), QPointF(i, s))
-
-    def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_start_scene = event.scenePos()
-            self._drag_start_pos = self._backdrop.pos()
-            self._drag_start_size = (self._backdrop.width, self._backdrop.height)
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event) -> None:  # type: ignore[override]
-        if (
-            self._drag_start_scene is None
-            or self._drag_start_pos is None
-            or self._drag_start_size is None
-        ):
-            super().mouseMoveEvent(event)
-            return
-        delta = event.scenePos() - self._drag_start_scene
-        sp = self._drag_start_pos
-        sw, sh = self._drag_start_size
-
-        new_x = sp.x()
-        new_y = sp.y()
-        new_w = sw
-        new_h = sh
-
-        if self._corner in (_Corner.SE, _Corner.NE):
-            new_w = sw + delta.x()
-        else:  # NW, SW — pull the left edge with the cursor
-            new_w = sw - delta.x()
-            new_x = sp.x() + delta.x()
-
-        if self._corner in (_Corner.SE, _Corner.SW):
-            new_h = sh + delta.y()
-        else:  # NW, NE — pull the top edge with the cursor
-            new_h = sh - delta.y()
-            new_y = sp.y() + delta.y()
-
-        # Clamp to minimum, and when clamped, re-pin the moved edge so
-        # the opposite corner doesn't drift.
-        if new_w < MIN_BACKDROP_WIDTH:
-            if self._corner in (_Corner.NW, _Corner.SW):
-                new_x = sp.x() + (sw - MIN_BACKDROP_WIDTH)
-            new_w = MIN_BACKDROP_WIDTH
-        if new_h < MIN_BACKDROP_HEIGHT:
-            if self._corner in (_Corner.NW, _Corner.NE):
-                new_y = sp.y() + (sh - MIN_BACKDROP_HEIGHT)
-            new_h = MIN_BACKDROP_HEIGHT
-
-        self._backdrop.setPos(new_x, new_y)
-        self._backdrop.set_size(new_w, new_h)
-        event.accept()
-
-    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
-        self._drag_start_scene = None
-        self._drag_start_pos = None
-        self._drag_start_size = None
-        super().mouseReleaseEvent(event)
 
 
 class _BackdropCloseButton(QGraphicsItem):

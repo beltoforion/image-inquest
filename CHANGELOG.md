@@ -22,17 +22,18 @@ once a first tagged release is cut.
   section appears when there's a multi-node selection and disappears
   again when there isn't) or right-click empty canvas → "Create
   Group". The backdrop is auto-fitted around the selection's
-  bounding box with a generous padding. Each backdrop carries an
-  `X` close button in its header and resize grips on all four
-  corners (one bottom-right grip is unreachable the moment another
-  node sits on top of it; each grip pins the opposite corner during
-  a drag and clamps without letting the anchor drift). Right-click
-  the backdrop for rename / colour preset / delete. **Dragging a
-  backdrop sweeps every fully enclosed node along** — the framed set
-  is snapshot at press-time, so nodes that weren't framed when the
-  drag started don't get vacuumed up mid-flight. Persisted
-  alongside nodes and connections in the flow file under a new
-  `backdrops` entry; older flows without the field load unchanged.
+  bounding box with a generous padding, so frame size is correct
+  the moment it's created and never has to be adjusted. Each
+  backdrop carries an `X` close button in its header and a
+  right-click menu for rename / colour preset / delete; the frame
+  is intentionally not interactively resizable — the framed group's
+  contents are expected to evolve, not the frame itself.
+  **Dragging a backdrop sweeps every fully enclosed node along** —
+  the framed set is snapshot at press-time, so nodes that weren't
+  framed when the drag started don't get vacuumed up mid-flight.
+  Persisted alongside nodes and connections in the flow file under
+  a new `backdrops` entry; older flows without the field load
+  unchanged.
 
 ### Changed
 - ``PageBase`` gains a ``toolbar_layout_changed`` signal so a page
