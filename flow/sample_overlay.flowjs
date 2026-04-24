@@ -51,8 +51,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1667.0,
-        -588.0
+        -1682.279805352798,
+        -566.0352798053526
       ],
       "params": {
         "file_path": "logo.png"
