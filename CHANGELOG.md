@@ -10,6 +10,23 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-04-24
+
+### Added
+- **Overlay node** (palette section *Composit*) — composites an
+  overlay image onto a base image. The overlay is optionally resized
+  by a `scale` factor, rotated by `angle` degrees (bounding box
+  expanded so no pixels are lost), placed at `(xpos, ypos)`, and
+  alpha-blended with opacity `alpha`. Parts of the overlay that fall
+  outside the base are clipped; mixed greyscale/colour inputs are
+  promoted to colour, otherwise the output stays greyscale.
+
+### Fixed
+- **Image Source: WebP files now show up in the file picker.** The
+  name-filter string had a stray comma after `*.webp`, which Qt
+  parsed as a literal glob pattern and caused the dialog to hide
+  every WebP file. Docstring now lists WebP alongside JPEG/PNG/CR2.
+
 ## [0.1.12] — 2026-04-24
 
 ### Changed

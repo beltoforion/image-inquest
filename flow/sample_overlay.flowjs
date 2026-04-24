@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "app_version": "0.1.13",
+  "name": "sample_overlay",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -1718.0,
+        -802.0
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -452.0,
+        -415.0
+      ],
+      "params": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [
+        -1356.0,
+        -878.0
+      ],
+      "params": {
+        "scale": 2.0,
+        "angle": 0.0,
+        "xpos": 0,
+        "ypos": 0,
+        "alpha": 0.3
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1667.0,
+        -588.0
+      ],
+      "params": {
+        "file_path": "pad.jpg"
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1078.0,
+        -913.0
+      ],
+      "params": {},
+      "size": [
+        537.0,
+        404.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    }
+  ]
+}
