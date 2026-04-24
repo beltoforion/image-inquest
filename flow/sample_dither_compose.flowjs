@@ -8,8 +8,8 @@
       "module": "nodes.filters.rgba_split",
       "class": "RgbaSplit",
       "position": [
-        -1714.460332388843,
-        -665.8560129048747
+        -1719.5071738505621,
+        -659.5474610777253
       ],
       "params": {}
     },
@@ -18,8 +18,8 @@
       "module": "nodes.filters.rgba_join",
       "class": "RgbaJoin",
       "position": [
-        -1230.7725027881079,
-        -677.6440576856013
+        -1235.819344249827,
+        -671.3355058584519
       ],
       "params": {}
     },
@@ -40,8 +40,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -2024.6060691477044,
-        -942.429374435634
+        -2015.7740965896955,
+        -1026.963968919434
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -52,8 +52,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1498.8120369817752,
-        -828.9036728212279
+        -1503.8588784434944,
+        -822.5951209940786
       ],
       "params": {
         "method": 6
@@ -64,8 +64,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1498.8120369817752,
-        -696.9036728212279
+        -1503.8588784434944,
+        -690.5951209940786
       ],
       "params": {
         "method": 6
@@ -76,8 +76,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1498.8120369817752,
-        -564.9036728212279
+        -1503.8588784434944,
+        -558.5951209940786
       ],
       "params": {
         "method": 6
@@ -111,8 +111,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -445.01671713218695,
-        -1141.2045441168323
+        -410.95053726558103,
+        -1146.2513855785517
       ],
       "params": {
         "output_path": "out_merge.png"
@@ -138,7 +138,7 @@
       "class": "Display",
       "position": [
         -1046.949218204616,
-        -1353.1693636151856
+        -1353.1693636151854
       ],
       "params": {},
       "size": [
@@ -248,8 +248,8 @@
   "backdrops": [
     {
       "position": [
-        -1740.460332388843,
-        -876.9036728212279
+        -1745.5071738505621,
+        -870.5951209940786
       ],
       "size": [
         655.6878296007351,
