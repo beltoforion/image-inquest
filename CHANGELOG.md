@@ -21,8 +21,16 @@ once a first tagged release is cut.
   flow portability across machines) and resolved any relative value
   against the process's working directory (breaking the default
   `./input/example.mp4` unless launched from the repo root). The
-  default is also bumped from `./input/example.mp4` to `example.mp4`
-  so it resolves correctly regardless of `cwd`. Fixes #145.
+  default is also bumped to `video.mp4`, a file that ships in
+  `input/` — no more "file not found" on a fresh node. Fixes #145.
+
+### Changed
+- **Bundled flow files re-stamped to the current format.** All
+  `*.flowjs` files under `flow/` had their `app_version` field
+  refreshed (previously ranged from v0.1.10 down to a missing field
+  entirely). No semantic changes — node / connection data is
+  untouched; this is purely a metadata refresh so the stamped
+  version doesn't lag behind the app by multiple releases.
 
 ## [0.1.15] — 2026-04-24
 
