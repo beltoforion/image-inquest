@@ -12,10 +12,12 @@ from core.port import InputPort, OutputPort
 class Overlay(NodeBase):
     """Composite an overlay image onto a base image.
 
-    The overlay input is optionally resized by ``scale`` and then blended
-    onto the base at ``(xpos, ypos)`` with opacity ``alpha``. The output
-    canvas always matches the base image — any part of the (scaled)
-    overlay that falls outside the base is clipped.
+    The overlay input is optionally resized by ``scale``, rotated by
+    ``angle`` degrees (counter-clockwise, around the overlay's centre,
+    with the bounding box expanded so no pixels are lost) and then
+    blended onto the base at ``(xpos, ypos)`` with opacity ``alpha``.
+    The output canvas always matches the base image — any part of the
+    transformed overlay that falls outside the base is clipped.
 
     Type strategy:
       If either input is colour (:data:`IoDataType.IMAGE`), any
@@ -29,6 +31,7 @@ class Overlay(NodeBase):
         super().__init__("Overlay", section="Composit")
 
         self._scale: float = 1.0
+        self._angle: float = 0.0
         self._xpos:  int   = 0
         self._ypos:  int   = 0
         self._alpha: float = 1.0
@@ -46,6 +49,7 @@ class Overlay(NodeBase):
     def params(self) -> list[NodeParam]:
         return [
             NodeParam("scale", NodeParamType.FLOAT, {"default": 1.0}),
+            NodeParam("angle", NodeParamType.FLOAT, {"default": 0.0}),
             NodeParam("xpos",  NodeParamType.INT,   {"default": 0}),
             NodeParam("ypos",  NodeParamType.INT,   {"default": 0}),
             NodeParam("alpha", NodeParamType.FLOAT, {"default": 1.0}),
@@ -63,6 +67,14 @@ class Overlay(NodeBase):
         if v <= 0.0:
             raise ValueError(f"scale must be > 0 (got {v})")
         self._scale = v
+
+    @property
+    def angle(self) -> float:
+        return self._angle
+
+    @angle.setter
+    def angle(self, value: float) -> None:
+        self._angle = float(value)
 
     @property
     def xpos(self) -> int:
@@ -115,6 +127,22 @@ class Overlay(NodeBase):
             new_w = max(1, int(round(ov_w * self._scale)))
             new_h = max(1, int(round(ov_h * self._scale)))
             overlay = cv2.resize(overlay, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        if self._angle % 360.0 != 0.0:
+            ov_h, ov_w = overlay.shape[:2]
+            center = (ov_w / 2.0, ov_h / 2.0)
+            M = cv2.getRotationMatrix2D(center, self._angle, 1.0)
+            # Expand the bounding box so the rotated image fits without
+            # being cropped, and shift the rotation matrix accordingly.
+            cos = abs(M[0, 0])
+            sin = abs(M[0, 1])
+            rot_w = max(1, int(round(ov_h * sin + ov_w * cos)))
+            rot_h = max(1, int(round(ov_h * cos + ov_w * sin)))
+            M[0, 2] += (rot_w / 2.0) - center[0]
+            M[1, 2] += (rot_h / 2.0) - center[1]
+            overlay = cv2.warpAffine(
+                overlay, M, (rot_w, rot_h), flags=cv2.INTER_LINEAR
+            )
 
         base_h, base_w = base.shape[:2]
         ov_h,   ov_w   = overlay.shape[:2]

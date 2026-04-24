@@ -195,9 +195,64 @@ def test_overlay_does_not_mutate_base_input() -> None:
     np.testing.assert_array_equal(base_img, _bgr(4, 4, 50))
 
 
+def test_overlay_angle_zero_is_no_op() -> None:
+    node = Overlay()
+    node.alpha = 1.0
+    node.angle = 0.0
+    _wire(
+        node,
+        IoData.from_image(_bgr(8, 8, 0)),
+        IoData.from_image(_bgr(3, 3, 200)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # With no rotation the overlay is placed as a plain 3x3 block.
+    np.testing.assert_array_equal(out.image[0:3, 0:3], _bgr(3, 3, 200))
+
+
+def test_overlay_angle_90_swaps_bounding_box_dimensions() -> None:
+    node = Overlay()
+    node.alpha = 1.0
+    node.angle = 90.0
+    # Non-square overlay so the rotation is observable in the output shape.
+    base = _bgr(20, 20, 0)
+    overlay = _bgr(2, 6, 255)  # 2 rows, 6 cols
+    _wire(node, IoData.from_image(base), IoData.from_image(overlay))
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # A 90° rotation maps a 2x6 block to a 6x2 footprint on the base —
+    # the rotated overlay occupies rows 0..6, cols 0..2 with interpolation
+    # artifacts on the outer edges. We only check that *most* of that
+    # region is non-black and that pixels fully outside it are still black.
+    footprint_nonzero = (out.image[0:6, 0:2] > 0).any(axis=2).sum()
+    assert footprint_nonzero >= 10  # out of a 6x2 = 12-pixel region
+    # Pixels strictly outside the rotated bounding box stay black.
+    assert out.image[0:6, 2:20].sum() == 0
+    assert out.image[6:20, 0:20].sum() == 0
+
+
+def test_overlay_angle_360_matches_angle_zero() -> None:
+    node = Overlay()
+    node.alpha = 1.0
+    node.angle = 360.0
+    _wire(
+        node,
+        IoData.from_image(_bgr(8, 8, 0)),
+        IoData.from_image(_bgr(3, 3, 200)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # 360° rotation is treated as identity (skips the warp entirely).
+    np.testing.assert_array_equal(out.image[0:3, 0:3], _bgr(3, 3, 200))
+
+
 def test_overlay_defaults_match_declared_params() -> None:
     node = Overlay()
     assert node.scale == 1.0
+    assert node.angle == 0.0
     assert node.xpos == 0
     assert node.ypos == 0
     assert node.alpha == 1.0
