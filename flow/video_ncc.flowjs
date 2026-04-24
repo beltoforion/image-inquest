@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "app_version": "0.1.10",
   "name": "video_ncc",
   "nodes": [
     {
@@ -7,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2424.310319205983,
-        -1286.873584668424
+        -2524.823780904452,
+        -1302.3371941604958
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
@@ -24,8 +25,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -912.4407474226541,
-        -1066.5738172026554
+        -1114.57221435474,
+        -804.7969993725771
       ],
       "params": {
         "output_path": "out.mp4",
@@ -38,8 +39,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1762.9944107955318,
-        -1393.0306197486948
+        -1668.0036667728032,
+        -1499.0667991229038
       ],
       "params": {},
       "size": [
@@ -52,8 +53,8 @@
       "module": "nodes.filters.ncc",
       "class": "Ncc",
       "position": [
-        -2087.7299281000087,
-        -1022.7142910588416
+        -2093.2526457757485,
+        -1080.1505548865382
       ],
       "params": {
         "template": "pad.jpg",
@@ -65,18 +66,18 @@
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
-        -2279.6932476161055,
-        -999.7513369937287
+        -2275.275073475514,
+        -1004.1695111343208
       ],
       "params": {}
     },
     {
-      "id": 7,
+      "id": 5,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1924.927069719403,
-        -1151.181820353329
+        -1837.6681304427102,
+        -1248.3816514463538
       ],
       "params": {}
     }
@@ -103,11 +104,11 @@
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 5,
       "dst_input": 0
     },
     {
-      "src_node": 7,
+      "src_node": 5,
       "src_output": 0,
       "dst_node": 2,
       "dst_input": 0
@@ -115,7 +116,7 @@
     {
       "src_node": 3,
       "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 5,
       "dst_input": 1
     }
   ]
