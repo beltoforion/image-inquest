@@ -10,6 +10,16 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-04-24
+
+### Added
+- **Overlay node** (palette section *Composit*) — composites an
+  overlay image onto a base image. The overlay is optionally resized
+  by a `scale` factor, placed at `(xpos, ypos)`, and alpha-blended
+  with opacity `alpha`. Parts of the overlay that fall outside the
+  base are clipped; mixed greyscale/colour inputs are promoted to
+  colour, otherwise the output stays greyscale.
+
 ## [0.1.12] — 2026-04-24
 
 ### Changed
