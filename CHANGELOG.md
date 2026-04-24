@@ -17,11 +17,15 @@ once a first tagged release is cut.
   nodes so dense pipelines can be annotated as loose chapter
   headings (e.g. "Colour prep", "Alpha mask"). Right-click an empty
   canvas to drop one; right-click the backdrop itself for rename /
-  colour preset / delete; resize via the bottom-right grip; Delete
-  key removes a selected backdrop. Persisted alongside nodes and
-  connections in the flow file under a new `backdrops` entry. Older
-  flows without the field load unchanged — the loader treats the
-  absence as "no backdrops".
+  colour preset / delete. Each backdrop carries an `X` close button
+  in its header (matching every regular node) and a resize grip on
+  *all four corners* — a single bottom-right grip is unreachable
+  the moment another node sits on top of it, so backdrops with one
+  grip are effectively unusable in a real flow. Each grip pins the
+  opposite corner during a drag, so resizing feels predictable from
+  every direction. Persisted alongside nodes and connections in the
+  flow file under a new `backdrops` entry; older flows without the
+  field load unchanged.
 
 ## [0.1.16] — 2026-04-24
 

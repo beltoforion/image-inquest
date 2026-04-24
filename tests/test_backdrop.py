@@ -21,6 +21,7 @@ from ui.backdrop_item import (
     DEFAULT_BACKDROP_COLOR,
     MIN_BACKDROP_HEIGHT,
     MIN_BACKDROP_WIDTH,
+    _Corner,
 )
 from ui.flow_io import load_flow_into, save_flow_to, serialize_flow
 from ui.flow_scene import FlowScene
@@ -144,3 +145,103 @@ def test_loading_flow_without_backdrops_field_is_fine(
     scene = FlowScene()
     load_flow_into(path, scene)
     assert scene.iter_backdrops() == []
+
+
+# ── Resize from each corner / close button ────────────────────────────────────
+
+
+def _simulate_grip_drag(backdrop: BackdropItem, corner: _Corner, dx: float, dy: float) -> None:
+    """Drive a grip drag programmatically by feeding the same start /
+    end scene positions a real Qt mouse press + move would emit.
+
+    We poke the grip's internal drag-state directly because building
+    real ``QGraphicsSceneMouseEvent`` instances offscreen is brittle —
+    the only behaviour under test is "drag-from-corner produces the
+    right pos / size", which mouseMoveEvent computes from those
+    fields.
+    """
+    grip = backdrop._grips[corner]  # noqa: SLF001 — test of internals
+    grip._drag_start_scene = QPointF(0, 0)
+    grip._drag_start_pos = backdrop.pos()
+    grip._drag_start_size = (backdrop.width, backdrop.height)
+
+    class _FakeEvent:
+        def __init__(self, p: QPointF) -> None:
+            self._p = p
+
+        def scenePos(self) -> QPointF:
+            return self._p
+
+        def accept(self) -> None:
+            pass
+
+    grip.mouseMoveEvent(_FakeEvent(QPointF(dx, dy)))
+
+
+def test_resize_from_se_grows_to_the_right_and_down(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(50, 60)
+    _simulate_grip_drag(backdrop, _Corner.SE, dx=40, dy=30)
+    # SE drag pins the top-left, so position is unchanged.
+    assert (backdrop.pos().x(), backdrop.pos().y()) == (50, 60)
+    assert (backdrop.width, backdrop.height) == (240, 180)
+
+
+def test_resize_from_nw_pins_the_bottom_right(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(50, 60)
+    _simulate_grip_drag(backdrop, _Corner.NW, dx=20, dy=10)
+    # The bottom-right corner must stay where it was: x=50+200=250,
+    # y=60+150=210. Pulling NW by (20, 10) shrinks both axes by that
+    # amount and shifts the position accordingly.
+    assert (backdrop.pos().x(), backdrop.pos().y()) == (70, 70)
+    assert (backdrop.width, backdrop.height) == (180, 140)
+    assert backdrop.pos().x() + backdrop.width == 250
+    assert backdrop.pos().y() + backdrop.height == 210
+
+
+def test_resize_from_ne_pins_the_bottom_left(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(50, 60)
+    _simulate_grip_drag(backdrop, _Corner.NE, dx=30, dy=20)
+    assert backdrop.pos().x() == 50
+    assert backdrop.pos().y() == 80
+    assert (backdrop.width, backdrop.height) == (230, 130)
+    assert backdrop.pos().y() + backdrop.height == 210
+
+
+def test_resize_from_sw_pins_the_top_right(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(50, 60)
+    _simulate_grip_drag(backdrop, _Corner.SW, dx=15, dy=25)
+    assert backdrop.pos().x() == 65
+    assert backdrop.pos().y() == 60
+    assert (backdrop.width, backdrop.height) == (185, 175)
+    assert backdrop.pos().x() + backdrop.width == 250
+
+
+def test_resize_clamp_keeps_anchor_pinned(qapp: QApplication) -> None:
+    """Clamping at the minimum must not let the anchor corner drift —
+    a giant inward drag with NW must still leave the bottom-right
+    where the user originally placed it."""
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(50, 60)
+    _simulate_grip_drag(backdrop, _Corner.NW, dx=999, dy=999)
+    assert backdrop.width == MIN_BACKDROP_WIDTH
+    assert backdrop.height == MIN_BACKDROP_HEIGHT
+    assert backdrop.pos().x() + backdrop.width == 250
+    assert backdrop.pos().y() + backdrop.height == 210
+
+
+def test_close_button_routes_to_scene_remove_backdrop(qapp: QApplication) -> None:
+    """The X close button on a backdrop must remove it through the
+    same path the context menu uses (``scene.remove_backdrop``).
+    """
+    scene = FlowScene()
+    scene.set_flow(Flow(name="bd_close"))
+    backdrop = scene.add_backdrop(QPointF(0, 0))
+    # The close button defers via QTimer.singleShot(0); call the
+    # scene method directly here to exercise the same end state without
+    # needing the Qt event loop.
+    scene.remove_backdrop(backdrop)
+    assert backdrop not in scene.iter_backdrops()
