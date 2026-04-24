@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.flow import Flow
 from core.node_base import NodeBase
+from ui.backdrop_item import BACKDROP_PRESETS, BackdropItem
 from ui.link_item import LinkItem, PendingLinkItem
 from ui.node_item import NodeItem
 from ui.port_item import PortItem
@@ -59,6 +60,7 @@ class FlowScene(QGraphicsScene):
         self._flow: Flow | None = None
         self._node_items: dict[int, NodeItem] = {}          # id(node_base) → NodeItem
         self._links: list[LinkItem] = []
+        self._backdrops: list[BackdropItem] = []
         self._pending_link: PendingLinkItem | None = None
         self._pending_src_port: PortItem | None = None
         self._last_emitted_selected: NodeBase | None = None
@@ -94,8 +96,11 @@ class FlowScene(QGraphicsScene):
             self._delete_link_item(link)
         for item in list(self._node_items.values()):
             self._delete_node_item(item)
+        for backdrop in list(self._backdrops):
+            self.removeItem(backdrop)
         self._node_items.clear()
         self._links.clear()
+        self._backdrops.clear()
         self._pending_link = None
         self._pending_src_port = None
         self._last_emitted_selected = None
@@ -241,10 +246,108 @@ class FlowScene(QGraphicsScene):
         self.removeItem(link)
         self._mark_dirty()
 
+    # ── Backdrops ──────────────────────────────────────────────────────────────
+
+    def add_backdrop(
+        self,
+        scene_pos: QPointF | None = None,
+        *,
+        title: str = "Backdrop",
+        width: float | None = None,
+        height: float | None = None,
+        color=None,
+    ) -> BackdropItem:
+        """Add a :class:`BackdropItem` to the scene and mark dirty.
+
+        Keyword arguments with ``None`` defaults let the caller pass
+        explicit geometry (e.g. from a deserialised flow) without
+        forcing every call site to re-import the defaults module.
+        """
+        kwargs: dict = {"title": title}
+        if width is not None:
+            kwargs["width"] = width
+        if height is not None:
+            kwargs["height"] = height
+        if color is not None:
+            kwargs["color"] = color
+        backdrop = BackdropItem(**kwargs)
+        self.addItem(backdrop)
+        if scene_pos is not None:
+            backdrop.setPos(scene_pos)
+        self._backdrops.append(backdrop)
+        self._mark_dirty()
+        return backdrop
+
+    def remove_backdrop(self, backdrop: BackdropItem) -> None:
+        if backdrop in self._backdrops:
+            self._backdrops.remove(backdrop)
+        self.removeItem(backdrop)
+        self._mark_dirty()
+
+    def iter_backdrops(self) -> list[BackdropItem]:
+        """Return a snapshot of every backdrop currently in the scene."""
+        return list(self._backdrops)
+
+    #: Padding around the bounding rect of selected nodes when a group
+    #: backdrop is auto-fitted around them. The top axis gets the
+    #: header height added on top of this so the title bar sits above
+    #: the framed nodes rather than overlapping their own headers.
+    GROUP_PADDING: float = 24.0
+
+    def create_group_around_selection(
+        self, *, title: str = "Group",
+    ) -> BackdropItem | None:
+        """Drop a backdrop framing every currently-selected node.
+
+        Returns ``None`` if fewer than two nodes are selected — the
+        caller (Toolbar / Context Menu) is responsible for gating the
+        action so this never gets a no-op invocation in normal use.
+        Geometry is the union of every selected node's scene
+        bounding rect, padded by :attr:`GROUP_PADDING` on every side
+        and an extra header-height on top so the title sits clear of
+        the nodes inside.
+        """
+        node_items = [
+            item for item in self.selectedItems() if isinstance(item, NodeItem)
+        ]
+        if len(node_items) < 2:
+            return None
+
+        # Union of every selected node's scene bounding rect.
+        rect = node_items[0].sceneBoundingRect()
+        for item in node_items[1:]:
+            rect = rect.united(item.sceneBoundingRect())
+
+        pad = self.GROUP_PADDING
+        header = BackdropItem.HEADER_HEIGHT
+        x = rect.x() - pad
+        y = rect.y() - pad - header
+        w = rect.width() + 2 * pad
+        h = rect.height() + 2 * pad + header
+
+        return self.add_backdrop(
+            QPointF(x, y), title=title, width=w, height=h,
+        )
+
     # ── Pending-link drag ──────────────────────────────────────────────────────
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
+        from PySide6.QtGui import QTransform
+        if event.button() == Qt.MouseButton.RightButton:
+            # Qt's default mousePress handler clears the scene
+            # selection on a right-click that lands on empty canvas,
+            # which kills any multi-node selection right before our
+            # context menu reads it for "Create Group". Swallow the
+            # press in that one case so the selection survives long
+            # enough for contextMenuEvent to use it. Right-clicks on
+            # actual items still flow to super() so single-item
+            # selection updates keep working.
+            views = self.views()
+            xform = views[0].transform() if views else QTransform()
+            if self.itemAt(event.scenePos(), xform) is None:
+                event.accept()
+                return
         if event.button() == Qt.MouseButton.LeftButton:
             port = self._port_at(event.scenePos())
             if port is not None:
@@ -302,13 +405,25 @@ class FlowScene(QGraphicsScene):
         from PySide6.QtGui import QTransform
         views = self.views()
         xform = views[0].transform() if views else QTransform()
-        item = self.itemAt(event.scenePos(), xform)
-        # Walk up to a LinkItem if a label was clicked.
-        while item is not None and not isinstance(item, LinkItem):
+        raw_item = self.itemAt(event.scenePos(), xform)
+        # Walk up the parent chain so right-clicking a title / grip on
+        # a backdrop hits the BackdropItem, and right-clicking a link
+        # label hits the LinkItem.
+        item = raw_item
+        while item is not None:
+            if isinstance(item, (LinkItem, BackdropItem)):
+                break
             item = item.parentItem()
 
         if isinstance(item, LinkItem):
             self._link_context_menu(item, event)
+            return
+        if isinstance(item, BackdropItem):
+            self._backdrop_context_menu(item, event)
+            return
+        # Empty canvas → offer Add Backdrop.
+        if raw_item is None:
+            self._canvas_context_menu(event)
             return
         super().contextMenuEvent(event)
 
@@ -318,6 +433,67 @@ class FlowScene(QGraphicsScene):
         delete.triggered.connect(lambda: self._delete_link_item(link))
         menu.addAction(delete)
         menu.exec(event.screenPos())
+
+    def _canvas_context_menu(self, event: QGraphicsSceneContextMenuEvent) -> None:
+        # The empty-canvas context menu is currently single-purpose:
+        # "Create Group" around the selection. Hide the menu entirely
+        # if nothing meaningful can be done — a menu with one disabled
+        # entry reads as broken UI.
+        node_count = sum(
+            1 for item in self.selectedItems() if isinstance(item, NodeItem)
+        )
+        if node_count < 2:
+            return
+        menu = QMenu()
+        group = QAction("Create Group", menu)
+        group.triggered.connect(self.create_group_around_selection)
+        menu.addAction(group)
+        menu.exec(event.screenPos())
+
+    def _backdrop_context_menu(
+        self, backdrop: BackdropItem, event: QGraphicsSceneContextMenuEvent,
+    ) -> None:
+        menu = QMenu()
+
+        rename = QAction("Rename…", menu)
+        rename.triggered.connect(lambda: self._prompt_rename_backdrop(backdrop))
+        menu.addAction(rename)
+
+        colour_menu = menu.addMenu("Colour")
+        for name, colour in BACKDROP_PRESETS.items():
+            act = QAction(name, colour_menu)
+            act.triggered.connect(
+                lambda _checked=False, c=colour: self._recolour_backdrop(backdrop, c)
+            )
+            colour_menu.addAction(act)
+
+        menu.addSeparator()
+        delete = QAction("Delete Backdrop", menu)
+        delete.triggered.connect(lambda: self.remove_backdrop(backdrop))
+        menu.addAction(delete)
+
+        menu.exec(event.screenPos())
+
+    def _prompt_rename_backdrop(self, backdrop: BackdropItem) -> None:
+        """Pop a tiny dialog to rename the backdrop.
+
+        Kept in the scene rather than on the backdrop item itself so
+        the input-dialog-vs-inline-edit decision can change later
+        without touching every BackdropItem.
+        """
+        from PySide6.QtWidgets import QInputDialog
+        views = self.views()
+        parent = views[0] if views else None
+        new_title, ok = QInputDialog.getText(
+            parent, "Rename Backdrop", "Title:", text=backdrop.title,
+        )
+        if ok and new_title != backdrop.title:
+            backdrop.set_title(new_title)
+            self._mark_dirty()
+
+    def _recolour_backdrop(self, backdrop: BackdropItem, colour) -> None:
+        backdrop.set_color(colour)
+        self._mark_dirty()
 
     # ── Selection → signal ─────────────────────────────────────────────────────
 
@@ -387,6 +563,8 @@ class FlowScene(QGraphicsScene):
                     self.remove_node_item(s)
                 elif isinstance(s, LinkItem):
                     self._delete_link_item(s)
+                elif isinstance(s, BackdropItem):
+                    self.remove_backdrop(s)
             event.accept()
             return
         super().keyPressEvent(event)

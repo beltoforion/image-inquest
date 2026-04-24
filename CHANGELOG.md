@@ -10,6 +10,43 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.17] — 2026-04-24
+
+### Added
+- **Backdrops + Create Group.** Coloured rectangular frames drawn
+  behind groups of nodes so dense pipelines can be annotated as
+  loose chapter headings (e.g. "Colour prep", "Alpha mask"). The
+  primary creation path is **Create Group**: select two or more
+  nodes, then either click the new toolbar Group button (in a
+  selection-only section together with V-Stack / H-Stack — the whole
+  section appears when there's a multi-node selection and disappears
+  again when there isn't) or right-click empty canvas → "Create
+  Group". The backdrop is auto-fitted around the selection's
+  bounding box with a generous padding, so frame size is correct
+  the moment it's created and never has to be adjusted. Each
+  backdrop carries an `X` close button in its header and a
+  right-click menu for rename / colour preset / delete; the frame
+  is intentionally not interactively resizable — the framed group's
+  contents are expected to evolve, not the frame itself.
+  **Dragging a backdrop sweeps every fully enclosed node along** —
+  the framed set is snapshot at press-time, so nodes that weren't
+  framed when the drag started don't get vacuumed up mid-flight.
+  Persisted alongside nodes and connections in the flow file under
+  a new `backdrops` entry; older flows without the field load
+  unchanged.
+
+### Changed
+- ``PageBase`` gains a ``toolbar_layout_changed`` signal so a page
+  can ask MainWindow to rebuild the toolbar when its
+  ``page_toolbar_sections`` answer would change at runtime — used
+  by the editor to add / remove the "Selection" section as the
+  multi-node selection comes and goes.
+- The empty-canvas right-click no longer clears the scene's
+  selection — Qt's default mousePress handler used to deselect
+  everything an instant before the context menu opened, which
+  killed any multi-node selection right before "Create Group" could
+  read it.
+
 ## [0.1.16] — 2026-04-24
 
 ### Fixed

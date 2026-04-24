@@ -48,6 +48,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "visibility":   "e8f4",
     "warning":      "e002",
     "refresh":      "e5d5",
+    "push_pin":     "f10d",
+    "select_all":   "e162",
 }
 
 

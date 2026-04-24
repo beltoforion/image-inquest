@@ -56,6 +56,11 @@ class PageBase(QWidget):
 
     title_changed = Signal(str)
     status_widget_changed = Signal()
+    #: Asks MainWindow to re-read :meth:`page_toolbar_sections` and
+    #: reinstall the toolbar. Emit when a section appears or
+    #: disappears at runtime — e.g. an "operate on selection"
+    #: section that's only present when the selection is non-empty.
+    toolbar_layout_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         if type(self) is PageBase:
