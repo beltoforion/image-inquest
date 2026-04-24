@@ -10,6 +10,13 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-04-24
+
+### Fixed
+- **Black, unrecoverable node canvas on Windows after a per-node file
+  picker dialog.** Passing the owning `QLineEdit` as parent to a native
+  `QFileDialog` did not work on windows (#125).
+
 ## [0.1.6] — 2026-04-24
 
 ### Fixed
