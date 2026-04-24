@@ -32,6 +32,12 @@ _SECTION_ORDER: tuple[str, ...] = (
     "Composit",
 )
 
+#: Sections whose nodes are created implicitly by the editor (e.g.
+#: reroutes inserted via double-click on a link) and must not appear
+#: in the drag-and-drop palette. The string must match what a node
+#: declares in its ``super().__init__(section=...)`` call.
+_HIDDEN_SECTIONS: frozenset[str] = frozenset({"__hidden__"})
+
 
 class NodeList(QWidget):
     """Palette listing every registered node grouped by the ``section``
@@ -66,7 +72,11 @@ class NodeList(QWidget):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _populate(self, registry: NodeRegistry) -> None:
-        grouped = registry.nodes_by_section()
+        grouped = {
+            section: entries
+            for section, entries in registry.nodes_by_section().items()
+            if section not in _HIDDEN_SECTIONS
+        }
         # Render well-known sections first in canonical order, then any
         # novel sections (e.g. from user plugins) in registry order.
         seen: set[str] = set()

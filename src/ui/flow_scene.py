@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
 
 from core.flow import Flow
 from core.node_base import NodeBase
+from nodes.util.reroute import Reroute
 from ui.link_item import LinkItem, PendingLinkItem
 from ui.node_item import NodeItem
 from ui.port_item import PortItem
+from ui.reroute_node_item import RerouteNodeItem
 
 if TYPE_CHECKING:
     from core.node_registry import NodeEntry
@@ -103,7 +105,12 @@ class FlowScene(QGraphicsScene):
     # ── Node operations ────────────────────────────────────────────────────────
 
     def add_node(self, node: NodeBase, scene_pos: QPointF | None = None) -> NodeItem:
-        item = NodeItem(node)
+        # Reroute nodes use a minimal "just a dot" item. Everything else
+        # gets the full header / params / buttons treatment.
+        if isinstance(node, Reroute):
+            item: NodeItem = RerouteNodeItem(node)
+        else:
+            item = NodeItem(node)
         item.signals.param_changed.connect(self.param_changed)
         self.addItem(item)
         if scene_pos is not None:
@@ -127,12 +134,39 @@ class FlowScene(QGraphicsScene):
         return self.add_node(node, scene_pos)
 
     def remove_node_item(self, item: NodeItem) -> None:
-        """Remove a node and every link attached to its ports."""
+        """Remove a node and every link attached to its ports.
+
+        Deleting a :class:`Reroute` preserves the data flow: after
+        removal, every downstream that used to consume the reroute's
+        output is re-linked directly to the reroute's upstream. Any
+        reconnection that would fail type-checking is silently dropped
+        (the graph stays strictly-typed; the user just loses that
+        branch rather than crashing).
+        """
+        bridge_src: PortItem | None = None
+        bridge_dsts: list[PortItem] = []
+        if isinstance(item, RerouteNodeItem):
+            in_links = item.input_ports[0].links
+            out_links = item.output_ports[0].links
+            if in_links:
+                bridge_src = in_links[0].src_port
+            bridge_dsts = [link.dst_port for link in out_links]
+
         # Delete attached links first so Flow.disconnect runs cleanly.
         for port in [*item.input_ports, *item.output_ports]:
             for link in list(port.links):
                 self._delete_link_item(link)
         self._delete_node_item(item)
+
+        if bridge_src is not None:
+            for dst in bridge_dsts:
+                try:
+                    self.connect_ports(bridge_src, dst)
+                except TypeError:
+                    logger.debug(
+                        "Skipping reroute-bridge reconnect (type mismatch)",
+                        exc_info=True,
+                    )
 
     # ── Layout helpers ─────────────────────────────────────────────────────────
 
@@ -318,6 +352,53 @@ class FlowScene(QGraphicsScene):
         delete.triggered.connect(lambda: self._delete_link_item(link))
         menu.addAction(delete)
         menu.exec(event.screenPos())
+
+    # ── Mouse: double-click on a link inserts a reroute ────────────────────────
+
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        """Double-click on a link → split it with a reroute at the cursor.
+
+        A reroute is a zero-logic pass-through (see :class:`Reroute`);
+        the existing link is deleted and replaced by two new links,
+        ``src → reroute`` and ``reroute → dst``. All other types of
+        items (nodes, ports, empty canvas) fall through to the default
+        handler.
+        """
+        from PySide6.QtGui import QTransform
+        from PySide6.QtCore import Qt
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mouseDoubleClickEvent(event)
+            return
+
+        views = self.views()
+        xform = views[0].transform() if views else QTransform()
+        item = self.itemAt(event.scenePos(), xform)
+        while item is not None and not isinstance(item, LinkItem):
+            item = item.parentItem()
+
+        if isinstance(item, LinkItem):
+            self._insert_reroute_on_link(item, event.scenePos())
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def _insert_reroute_on_link(self, link: LinkItem, pos: QPointF) -> None:
+        """Replace ``link`` with a reroute positioned at ``pos``.
+
+        Records the old src / dst ports, deletes the link, instantiates
+        a :class:`Reroute` node at the click point, then wires both
+        halves. Dirty bookkeeping and flow-model updates flow through
+        the existing add_node / connect_ports paths, so nothing special
+        needs to happen here beyond ordering.
+        """
+        src = link.src_port
+        dst = link.dst_port
+        self._delete_link_item(link)
+
+        node = Reroute()
+        item = self.add_node(node, pos)
+        self.connect_ports(src, item.input_ports[0])
+        self.connect_ports(item.output_ports[0], dst)
 
     # ── Selection → signal ─────────────────────────────────────────────────────
 
