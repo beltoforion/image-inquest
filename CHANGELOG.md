@@ -13,24 +13,38 @@ once a first tagged release is cut.
 ## [0.1.17] — 2026-04-24
 
 ### Added
-- **Backdrops.** Coloured rectangular frames drawn behind groups of
-  nodes so dense pipelines can be annotated as loose chapter
-  headings (e.g. "Colour prep", "Alpha mask"). Right-click an empty
-  canvas to drop one; right-click the backdrop itself for rename /
-  colour preset / delete. Each backdrop carries an `X` close button
-  in its header (matching every regular node) and a resize grip on
-  *all four corners* — a single bottom-right grip is unreachable
-  the moment another node sits on top of it, so backdrops with one
-  grip are effectively unusable in a real flow. Each grip pins the
-  opposite corner during a drag, so resizing feels predictable from
-  every direction. Backdrops also carry a **capture toggle** (push-pin
-  glyph in the header): with capture on, dragging the backdrop sweeps
-  every fully enclosed node along by the same delta, so a backdrop
-  doubles as an ad-hoc grouping handle. The captured set is locked in
-  at press-time, so a node that wasn't framed when the drag started
-  doesn't get vacuumed up mid-flight. Persisted alongside nodes and
-  connections in the flow file under a new `backdrops` entry; older
-  flows without the field load unchanged.
+- **Backdrops + Create Group.** Coloured rectangular frames drawn
+  behind groups of nodes so dense pipelines can be annotated as
+  loose chapter headings (e.g. "Colour prep", "Alpha mask"). The
+  primary creation path is **Create Group**: select two or more
+  nodes, then either click the new toolbar Group button (in a
+  selection-only section together with V-Stack / H-Stack — the whole
+  section appears when there's a multi-node selection and disappears
+  again when there isn't) or right-click empty canvas → "Create
+  Group". The backdrop is auto-fitted around the selection's
+  bounding box with a generous padding. Each backdrop carries an
+  `X` close button in its header and resize grips on all four
+  corners (one bottom-right grip is unreachable the moment another
+  node sits on top of it; each grip pins the opposite corner during
+  a drag and clamps without letting the anchor drift). Right-click
+  the backdrop for rename / colour preset / delete. **Dragging a
+  backdrop sweeps every fully enclosed node along** — the framed set
+  is snapshot at press-time, so nodes that weren't framed when the
+  drag started don't get vacuumed up mid-flight. Persisted
+  alongside nodes and connections in the flow file under a new
+  `backdrops` entry; older flows without the field load unchanged.
+
+### Changed
+- ``PageBase`` gains a ``toolbar_layout_changed`` signal so a page
+  can ask MainWindow to rebuild the toolbar when its
+  ``page_toolbar_sections`` answer would change at runtime — used
+  by the editor to add / remove the "Selection" section as the
+  multi-node selection comes and goes.
+- The empty-canvas right-click no longer clears the scene's
+  selection — Qt's default mousePress handler used to deselect
+  everything an instant before the context menu opened, which
+  killed any multi-node selection right before "Create Group" could
+  read it.
 
 ## [0.1.16] — 2026-04-24
 

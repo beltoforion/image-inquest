@@ -99,6 +99,13 @@ class MainWindow(QMainWindow):
             page.status_widget_changed.connect(
                 lambda p=page: self._on_page_status_widget_changed(p)
             )
+            # Pages that grow / shrink their toolbar section list at
+            # runtime (e.g. a "Selection" section that only exists
+            # when something is selected) emit toolbar_layout_changed
+            # to ask MainWindow to re-read page_toolbar_sections.
+            page.toolbar_layout_changed.connect(
+                lambda p=page: self._on_page_toolbar_layout_changed(p)
+            )
 
         # Per-page signals that only make sense on one page live outside
         # the iteration above.
@@ -301,6 +308,19 @@ class MainWindow(QMainWindow):
         self._detach_page_status_action()
         self._install_page_status_widget(page)
         self._apply_consistent_button_sizes()
+
+    def _on_page_toolbar_layout_changed(self, page: PageBase) -> None:
+        """Re-install the active page's toolbar sections.
+
+        Pages emit ``toolbar_layout_changed`` when their
+        :meth:`page_toolbar_sections` answer would change — typically
+        a section appearing or disappearing as selection state
+        changes. Inactive pages are ignored; their layout is rebuilt
+        from scratch the next time they activate.
+        """
+        if self._pages.currentWidget() is not page:
+            return
+        self._install_page_toolbar_actions(page)
 
     def _apply_consistent_button_sizes(self) -> None:
         """Apply a uniform fixed size to every QToolButton in the main toolbar."""

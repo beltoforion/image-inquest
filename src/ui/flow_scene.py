@@ -256,7 +256,6 @@ class FlowScene(QGraphicsScene):
         width: float | None = None,
         height: float | None = None,
         color=None,
-        capture_active: bool = False,
     ) -> BackdropItem:
         """Add a :class:`BackdropItem` to the scene and mark dirty.
 
@@ -264,7 +263,7 @@ class FlowScene(QGraphicsScene):
         explicit geometry (e.g. from a deserialised flow) without
         forcing every call site to re-import the defaults module.
         """
-        kwargs: dict = {"title": title, "capture_active": capture_active}
+        kwargs: dict = {"title": title}
         if width is not None:
             kwargs["width"] = width
         if height is not None:
@@ -289,10 +288,66 @@ class FlowScene(QGraphicsScene):
         """Return a snapshot of every backdrop currently in the scene."""
         return list(self._backdrops)
 
+    #: Padding around the bounding rect of selected nodes when a group
+    #: backdrop is auto-fitted around them. The top axis gets the
+    #: header height added on top of this so the title bar sits above
+    #: the framed nodes rather than overlapping their own headers.
+    GROUP_PADDING: float = 24.0
+
+    def create_group_around_selection(
+        self, *, title: str = "Group",
+    ) -> BackdropItem | None:
+        """Drop a backdrop framing every currently-selected node.
+
+        Returns ``None`` if fewer than two nodes are selected — the
+        caller (Toolbar / Context Menu) is responsible for gating the
+        action so this never gets a no-op invocation in normal use.
+        Geometry is the union of every selected node's scene
+        bounding rect, padded by :attr:`GROUP_PADDING` on every side
+        and an extra header-height on top so the title sits clear of
+        the nodes inside.
+        """
+        node_items = [
+            item for item in self.selectedItems() if isinstance(item, NodeItem)
+        ]
+        if len(node_items) < 2:
+            return None
+
+        # Union of every selected node's scene bounding rect.
+        rect = node_items[0].sceneBoundingRect()
+        for item in node_items[1:]:
+            rect = rect.united(item.sceneBoundingRect())
+
+        pad = self.GROUP_PADDING
+        header = BackdropItem.HEADER_HEIGHT
+        x = rect.x() - pad
+        y = rect.y() - pad - header
+        w = rect.width() + 2 * pad
+        h = rect.height() + 2 * pad + header
+
+        return self.add_backdrop(
+            QPointF(x, y), title=title, width=w, height=h,
+        )
+
     # ── Pending-link drag ──────────────────────────────────────────────────────
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
+        from PySide6.QtGui import QTransform
+        if event.button() == Qt.MouseButton.RightButton:
+            # Qt's default mousePress handler clears the scene
+            # selection on a right-click that lands on empty canvas,
+            # which kills any multi-node selection right before our
+            # context menu reads it for "Create Group". Swallow the
+            # press in that one case so the selection survives long
+            # enough for contextMenuEvent to use it. Right-clicks on
+            # actual items still flow to super() so single-item
+            # selection updates keep working.
+            views = self.views()
+            xform = views[0].transform() if views else QTransform()
+            if self.itemAt(event.scenePos(), xform) is None:
+                event.accept()
+                return
         if event.button() == Qt.MouseButton.LeftButton:
             port = self._port_at(event.scenePos())
             if port is not None:
@@ -380,11 +435,19 @@ class FlowScene(QGraphicsScene):
         menu.exec(event.screenPos())
 
     def _canvas_context_menu(self, event: QGraphicsSceneContextMenuEvent) -> None:
+        # The empty-canvas context menu is currently single-purpose:
+        # "Create Group" around the selection. Hide the menu entirely
+        # if nothing meaningful can be done — a menu with one disabled
+        # entry reads as broken UI.
+        node_count = sum(
+            1 for item in self.selectedItems() if isinstance(item, NodeItem)
+        )
+        if node_count < 2:
+            return
         menu = QMenu()
-        add = QAction("Add Backdrop", menu)
-        scene_pos = event.scenePos()
-        add.triggered.connect(lambda: self.add_backdrop(scene_pos))
-        menu.addAction(add)
+        group = QAction("Create Group", menu)
+        group.triggered.connect(self.create_group_around_selection)
+        menu.addAction(group)
         menu.exec(event.screenPos())
 
     def _backdrop_context_menu(

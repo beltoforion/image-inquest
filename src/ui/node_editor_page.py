@@ -137,10 +137,17 @@ class NodeEditorPage(PageBase):
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
-        # Stack actions need at least two selected nodes; keep them disabled
-        # until that is true and toggle them on selection changes.
+        # The "Selection" section (stack-V, stack-H, group) is hidden
+        # while there's no multi-node selection; flag tracks whether
+        # it's currently in the toolbar so threshold crossings can
+        # trigger a single rebuild instead of one per selection event.
+        self._selection_actions_visible: bool = False
+        # Stack / group actions need at least two selected nodes; keep
+        # them disabled until that is true and toggle them on selection
+        # changes.
         self._actions["stack_vertical"].setEnabled(False)
         self._actions["stack_horizontal"].setEnabled(False)
+        self._actions["group"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
         # Status bar at the bottom of the inner window. The running-flow
@@ -196,7 +203,7 @@ class NodeEditorPage(PageBase):
         return material_icon("account_tree")
 
     def page_toolbar_sections(self) -> list[ToolbarSection]:
-        return [
+        sections = [
             ToolbarSection("Flow", [
                 self._actions["run"],
                 self._actions["save"],
@@ -208,10 +215,19 @@ class NodeEditorPage(PageBase):
             ToolbarSection("View", [
                 self._actions["fit"],
                 self._actions["reset_zoom"],
-                self._actions["stack_vertical"],
-                self._actions["stack_horizontal"],
             ]),
         ]
+        # The "Selection" section only makes sense with at least two
+        # nodes selected; suppressing it (rather than just disabling
+        # its actions) avoids flashing greyed-out buttons in the
+        # toolbar most of the time.
+        if self._selection_actions_visible:
+            sections.append(ToolbarSection("Selection", [
+                self._actions["stack_vertical"],
+                self._actions["stack_horizontal"],
+                self._actions["group"],
+            ]))
+        return sections
 
     @override
     def page_status_widget(self) -> QWidget | None:
@@ -231,6 +247,10 @@ class NodeEditorPage(PageBase):
         menu.addAction(self._actions["save_as"])
         menu.addAction(self._actions["open"])
         menu.addAction(self._actions["reload"])
+        menu.addSeparator()
+        menu.addAction(self._actions["stack_vertical"])
+        menu.addAction(self._actions["stack_horizontal"])
+        menu.addAction(self._actions["group"])
         menu.addSeparator()
         menu.addAction(self._actions["clear"])
         menu.addSeparator()
@@ -342,18 +362,36 @@ class NodeEditorPage(PageBase):
             "stack_horizontal": mk(
                 "H-Stack", "view_column", self._on_stack_horizontal_clicked,
             ),
+            "group": mk("Group", "select_all", self._on_group_clicked),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
 
     def _update_selection_actions(self) -> None:
-        """Enable/disable selection-dependent actions based on node count."""
+        """Sync selection-dependent toolbar / menu state with the scene.
+
+        Two things move together:
+          - Each selection-gated action's ``enabled`` flag (so menu
+            entries grey out cleanly).
+          - The "Selection" toolbar section as a whole, which only
+            appears at all when there's something to operate on.
+            Toggling its visibility goes through
+            :attr:`toolbar_layout_changed` so MainWindow rebuilds the
+            toolbar instead of leaving an orphan separator.
+        """
         from ui.node_item import NodeItem
         selected_nodes = sum(
             1 for s in self._scene.selectedItems() if isinstance(s, NodeItem)
         )
-        self._actions["stack_vertical"].setEnabled(selected_nodes >= 2)
-        self._actions["stack_horizontal"].setEnabled(selected_nodes >= 2)
+        active = selected_nodes >= 2
+        for name in ("stack_vertical", "stack_horizontal", "group"):
+            self._actions[name].setEnabled(active)
+        if active != self._selection_actions_visible:
+            self._selection_actions_visible = active
+            self.toolbar_layout_changed.emit()
+
+    def _on_group_clicked(self) -> None:
+        self._scene.create_group_around_selection()
 
     def _on_stack_vertical_clicked(self) -> None:
         """Align selected nodes on a shared X axis and stack them vertically."""
