@@ -7,7 +7,7 @@ import logging
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
-
+from constants import APP_VERSION
 from core.flow import Flow
 from core.node_base import NodeBase
 
@@ -62,6 +62,7 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
 
     return {
         "version":     FLOW_FORMAT_VERSION,
+        "app_version": APP_VERSION,
         "name":        flow.name,
         "nodes":       nodes_out,
         "connections": connections_out,
