@@ -35,9 +35,9 @@ def test_grayscale_is_not_skippable() -> None:
     assert Grayscale().is_skippable is False
 
 
-def test_ncc_is_not_skippable() -> None:
-    """Two inputs, one output — no one-to-one mapping."""
-    assert Ncc().is_skippable is False
+def test_ncc_is_skippable() -> None:
+    """One greyscale input, one greyscale output — eligible for pass-through."""
+    assert Ncc().is_skippable is True
 
 
 def test_rgb_join_is_not_skippable() -> None:
