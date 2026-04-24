@@ -190,18 +190,25 @@ class NodeBase(ABC):
     def _signal_input_ready(self) -> None:
         """Called by an InputPort whenever its state changes.
 
-        Fires :meth:`process` as soon as every input has data and clears
-        the inputs afterwards so the node is ready for the next frame.
-        Fires :meth:`_on_finish` once every input has finished, so the
-        lifecycle signal propagates down the graph.
+        Fires :meth:`process` as soon as every *required* input has data
+        and clears every input afterwards so the node is ready for the
+        next frame. Optional inputs do not block dispatch: the node may
+        fire without them, and their payload (if any) is still cleared
+        along with the rest.
+
+        Fires :meth:`_on_finish` once every required input has finished,
+        so the lifecycle signal propagates down the graph even when an
+        optional input is dangling unconnected.
         """
-        if all(p.has_data for p in self._inputs):
+        required = [p for p in self._inputs if not p.optional]
+
+        if all(p.has_data for p in required):
             self.process()
             for p in self._inputs:
                 p.clear()
             return
 
-        if self._inputs and all(p.finished for p in self._inputs):
+        if required and all(p.finished for p in required):
             self._on_finish()
 
     # ── Overridable behaviour ──────────────────────────────────────────────────
