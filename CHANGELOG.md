@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-04-24
+
+### Fixed
+- **Unicode paths in ImageSource** (`src/nodes/sources/image_source.py`):
+  replaced `cv2.imread()` with `np.fromfile() + cv2.imdecode()` so that
+  images load correctly when the repository is cloned under a path containing
+  non-ASCII characters (e.g. `Stjörnhorn`) on Windows.
+- **Unicode paths in VideoSource** (`src/nodes/sources/video_source.py`):
+  `cv2.VideoCapture()` has no memory-buffer equivalent, so the fix uses
+  `GetShortPathNameW` (Windows 8.3 short path, always ASCII) on Windows and
+  passes the path through unchanged on other platforms.
+
 ## [0.1.5] — 2026-04-23
 
 ### Added

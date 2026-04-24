@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import cv2
@@ -11,6 +12,26 @@ from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
 
 _SUPPORTED_EXTS = {".mp4", ".avi", ".mov", ".mkv"}
+
+
+def _win_safe_path(path: Path) -> str:
+    """Return an ASCII-safe path for cv2 on Windows.
+
+    cv2.VideoCapture uses C-runtime narrow-string file I/O on Windows and
+    silently fails for paths containing non-ASCII characters.  The Windows
+    8.3 short path is always ASCII, so we use GetShortPathNameW when running
+    on Windows and fall back to the original string on all other platforms.
+    """
+    if sys.platform != "win32":
+        return str(path)
+    try:
+        import ctypes
+        buf = ctypes.create_unicode_buffer(32768)
+        if ctypes.windll.kernel32.GetShortPathNameW(str(path), buf, len(buf)):  # type: ignore[attr-defined]
+            return buf.value
+    except Exception:
+        pass
+    return str(path)
 
 
 class VideoSource(SourceNodeBase):
@@ -74,7 +95,7 @@ class VideoSource(SourceNodeBase):
                 f"Supported: {_SUPPORTED_EXTS}"
             )
 
-        cap = cv2.VideoCapture(str(self._file_path))
+        cap = cv2.VideoCapture(_win_safe_path(self._file_path))
         try:
             frame_count = 0
             while True:

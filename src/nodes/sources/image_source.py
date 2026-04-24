@@ -86,7 +86,10 @@ class ImageSource(SourceNodeBase):
         if ext == ".cr2":
             image: np.ndarray = rawpy.imread(str(resolved)).postprocess()
         else:
-            image = cv2.imread(str(resolved))
+            # np.fromfile uses Python's Unicode-aware I/O, bypassing cv2.imread's
+            # narrow-string limitation on Windows (silently fails on non-ASCII paths).
+            img_array = np.fromfile(resolved, dtype=np.uint8)
+            image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             if image is None:
                 raise OSError(f"cv2 could not read: {resolved}")
 
