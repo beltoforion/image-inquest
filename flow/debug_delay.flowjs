@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "name": "delay",
+  "app_version": "0.1.10",
+  "name": "debug_delay",
   "nodes": [
     {
       "id": 0,

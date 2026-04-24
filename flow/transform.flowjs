@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "app_version": "0.1.10",
   "name": "transform",
   "nodes": [
     {
@@ -7,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1757.343077934644,
-        -932.4210777935224
+        -1799.7637512894696,
+        -1048.4540960876052
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -19,8 +20,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -1044.494584282196,
-        -839.4076914559838
+        -1018.9174135829628,
+        -690.3115012824038
       ],
       "params": {
         "output_path": "out.png"
@@ -31,13 +32,27 @@
       "module": "nodes.filters.scale",
       "class": "Scale",
       "position": [
-        -1429.5090113351225,
-        -918.6977912847053
+        -1527.450860110236,
+        -954.2562968909564
       ],
       "params": {
         "scale_percent": 50,
         "interpolation": 1
       }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1320.0315414531171,
+        -1102.9375072254777
+      ],
+      "params": {},
+      "size": [
+        443.1665386536271,
+        359.64536323334005
+      ]
     }
   ],
   "connections": [
@@ -49,6 +64,12 @@
     },
     {
       "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0

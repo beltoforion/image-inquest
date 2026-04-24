@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "app_version": "0.1.10",
   "name": "video_dither",
   "nodes": [
     {
@@ -7,8 +8,8 @@
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
-        -1509.4279939393775,
-        -639.4775833967562
+        -1960.4279939393773,
+        -741.4775833967562
       ],
       "params": {}
     },
@@ -17,8 +18,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -1087.2932387107683,
-        -649.3087434840913
+        -1538.2932387107685,
+        -751.3087434840913
       ],
       "params": {}
     },
@@ -27,8 +28,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1311.3662503142004,
-        -787.9546588863568
+        -1762.3662503142004,
+        -889.9546588863568
       ],
       "params": {
         "method": 2
@@ -39,8 +40,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1309.5658172348058,
-        -655.0544423466595
+        -1760.5658172348058,
+        -757.0544423466595
       ],
       "params": {
         "method": 2
@@ -51,8 +52,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1311.3662503142004,
-        -523.9546588863568
+        -1762.3662503142004,
+        -625.9546588863568
       ],
       "params": {
         "method": 2
@@ -63,8 +64,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1086.5160764474858,
-        -1149.651631284973
+        -1537.5160764474858,
+        -1251.651631284973
       ],
       "params": {},
       "size": [
@@ -77,8 +78,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1777.9276659019586,
-        -801.192720330503
+        -2228.927665901959,
+        -903.1927203305031
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
@@ -90,8 +91,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -707.5702002019946,
-        -616.648329692578
+        -1158.5702002019946,
+        -718.648329692578
       ],
       "params": {
         "output_path": "out.mp4",
