@@ -9,6 +9,7 @@ from typing_extensions import override
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -418,15 +419,37 @@ class FilePathParamWidget(ParamWidgetBase):
         folder = path_obj.parent.resolve()
         initial = str(folder) if folder.is_dir() else str(self._base_dir)
 
+        # Parent is None on purpose: on Windows, passing any widget as
+        # parent to a native QFileDialog corrupts QGraphicsView paint
+        # state so the node canvas stays black after the dialog returns
+        # (#125). Centering is restored manually against the top-level
+        # window.
+        caption = self._param.metadata.get(
+            "caption", "Save File As" if self._is_save else "Select File",
+        )
+        dialog = QFileDialog(None, caption)
+        dialog.setNameFilter(self._filter)
+        dialog.setDirectory(initial)
         if self._is_save:
-            path, _ = QFileDialog.getSaveFileName(
-                self._line, "Save File As", initial, self._filter,
-            )
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         else:
-            path, _ = QFileDialog.getOpenFileName(
-                self._line, "Select File", initial, self._filter,
-            )
-        
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+            dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        # self._line.window() doesn't reach MainWindow because the param
+        # widget is embedded in a QGraphicsProxyWidget, which severs the
+        # widget-parent chain. activeWindow() returns the top-level
+        # window with focus, which is MainWindow when a node's browse
+        # button is clicked.
+        top = QApplication.activeWindow()
+        if top is not None:
+            geo = dialog.frameGeometry()
+            geo.moveCenter(top.frameGeometry().center())
+            dialog.move(geo.topLeft())
+        if dialog.exec() != QFileDialog.DialogCode.Accepted:
+            return
+        files = dialog.selectedFiles()
+        path = files[0] if files else ""
+
         if path:
 
 #            self._write_to_node(path)
