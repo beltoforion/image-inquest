@@ -22,7 +22,9 @@ once a first tagged release is cut.
   `dirty_changed(bool)` signal.
 - **Python runtime version** on the toolbar status widget — a muted
   `Python X.Y.Z` line below the application version, surfacing which
-  interpreter the running app is bound to.
+  interpreter the running app is bound to. The same version plus the
+  interpreter's path is logged at startup so bug reports include it
+  without having to ask.
 
 ### Changed
 - Extracted `AppVersionStatusWidget` from `ui.page` into its own
