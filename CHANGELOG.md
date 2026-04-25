@@ -10,6 +10,35 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.21] — 2026-04-25
+
+### Added
+- **Directory Source.** New source node that emits every image file
+  in a directory as a frame, in lexicographic order. Boolean
+  ``include_subdirectories`` parameter controls whether nested folders
+  are walked too. Accepts the same image formats as ImageSource (JPEG,
+  PNG, WebP, CR2); files with unsupported extensions are skipped
+  silently and files that fail to decode are logged + skipped so a
+  single corrupt frame doesn't abort the run. The directory path is
+  stored relative to ``INPUT_DIR`` when possible, matching the rest of
+  the file/path handling in the app.
+
+### Changed
+- **``FilePathParamWidget`` learned a ``mode="directory"`` metadata
+  flag** that switches the dialog to ``FileMode.Directory`` +
+  ``ShowDirsOnly`` and routes the "view" button through ``is_dir()``
+  / ``QDesktopServices.openUrl`` so it opens the OS file manager.
+  Used by the new Directory Source today; available to any future
+  folder-picking node.
+
+### Fixed
+- **Welcome page now scrolls the content column when it overflows.**
+  ``.content-col`` was sitting inside a body that hides overflow, so
+  once the "What's new" / Tips lists grew past the viewport the
+  bottom items got clipped silently. Adds ``overflow-y: auto`` on
+  ``.content-col`` plus a flat dark scrollbar that matches the
+  panel palette.
+
 ## [0.1.20] — 2026-04-25
 
 ### Added
