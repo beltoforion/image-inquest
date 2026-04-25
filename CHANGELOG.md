@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.19] — 2026-04-25
+
+### Fixed
+- **Windows: ComboBox popup background.** ``QComboBox`` parameter
+  widgets (the dropdowns used for every enum-typed node parameter)
+  rendered with a transparent / system-default popup on the Windows
+  native style because Qt does not propagate the
+  ``QListWidget``/``QTreeView`` rules in the dark stylesheet to the
+  ``QAbstractItemView`` it creates internally for the popup. An
+  explicit ``QComboBox QAbstractItemView`` rule pins the popup to
+  the same dark palette as the rest of the UI. Fixes #136.
+
 ## [0.1.18] — 2026-04-25
 
 ### Changed
