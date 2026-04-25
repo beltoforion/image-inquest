@@ -63,8 +63,8 @@
       "module": "nodes.filters.temporal_mean",
       "class": "TemporalMean",
       "position": [
-        -1629.4444444444443,
-        -905.4444444444448
+        -1627.2222222222222,
+        -906.5555555555557
       ],
       "params": {
         "window": 5
@@ -72,15 +72,14 @@
       "size": [
         169.0,
         118.0
-      ],
-      "skipped": true
+      ]
     },
     {
       "id": 5,
       "module": "nodes.filters.frame_difference",
       "class": "FrameDifference",
       "position": [
-        -1620.4444444444443,
+        -1616.0000000000002,
         -738.4444444444448
       ],
       "params": {}
