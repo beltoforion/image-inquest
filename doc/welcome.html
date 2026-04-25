@@ -215,6 +215,7 @@
     <section>
       <h2>What's new in v0.1.20</h2>
       <ul class="tips">
+        <li><strong>Directory Source.</strong> Drop a folder of images into a flow as a frame stream — sorted lexicographically, with an <code>include_subdirectories</code> toggle for recursive walks. Pairs naturally with the new Temporal nodes for timelapse / batch processing.</li>
         <li><strong>Eight new processing nodes.</strong> <em>Transform:</em> Flip (horizontal / vertical / both), Crop, Rotate (with optional canvas expansion). <em>Processing:</em> Gaussian Blur, Invert. <em>Temporal:</em> Frame Difference, Temporal Mean, Temporal Median — rolling per-pixel reductions over the last <em>N</em> frames.</li>
         <li><strong>FPS read-out on Display.</strong> The Display preview now shows an exponentially-smoothed FPS counter in the top-left corner. The overlay is preview-only — anything written downstream by a sink stays clean.</li>
         <li><strong>Enum dropdowns have a background again on Windows</strong> (v0.1.19) — the popup view of <code>QComboBox</code> parameter widgets is now explicitly themed, so it no longer renders transparent / over the canvas on the Windows native style.</li>

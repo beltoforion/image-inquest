@@ -13,6 +13,18 @@ once a first tagged release is cut.
 ## [0.1.20] — 2026-04-25
 
 ### Added
+- **Directory Source.** New source node that emits every image file
+  in a directory as a frame, in lexicographic order. Boolean
+  ``include_subdirectories`` parameter controls whether nested folders
+  are walked too. Accepts the same image formats as ImageSource (JPEG,
+  PNG, WebP, CR2); files with unsupported extensions are skipped
+  silently and files that fail to decode are logged + skipped so a
+  single corrupt frame doesn't abort the run. The directory path is
+  stored relative to ``INPUT_DIR`` when possible, matching the rest of
+  the file/path handling in the app. The folder picker reuses the
+  existing ``FilePathParamWidget`` via a new ``mode="directory"``
+  metadata flag, which switches the dialog to ``FileMode.Directory``
+  + ``ShowDirsOnly``.
 - **Eight new image-processing nodes.**
   - *Transform:* **Flip** (horizontal / vertical / both, mirroring
     OpenCV's ``flipCode`` convention), **Crop** (ROI by ``x, y,
