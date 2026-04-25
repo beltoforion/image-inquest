@@ -34,6 +34,16 @@ class Overlay(NodeBase):
       own transparency and ``alpha=0.5`` halves it uniformly. The base
       image is always reduced to BGR before compositing — any alpha
       channel on the base is dropped.
+
+    Port-driven angle:
+      The third input (``angle``) is an optional SCALAR port. When
+      unconnected, the literal ``angle`` parameter is used unchanged
+      (existing behaviour). When connected — typically to a
+      :class:`~nodes.sources.value_source.ValueSource` — each
+      streamed scalar overrides the parameter for that frame, so a
+      0..359 ramp produces a full rotation per Run. This is the first
+      pilot of the param-as-port mechanism; over time every numeric
+      parameter is meant to grow a matching optional port.
     """
 
     def __init__(self) -> None:
@@ -47,6 +57,10 @@ class Overlay(NodeBase):
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_input(InputPort("overlay", set(IMAGE_TYPES)))
+        # Optional SCALAR port that — when connected — drives ``angle``
+        # per frame. Index 2 so the existing image inputs keep their
+        # 0/1 indices and saved flows load unchanged.
+        self._add_input(InputPort("angle", {IoDataType.SCALAR}, optional=True))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
@@ -117,6 +131,16 @@ class Overlay(NodeBase):
     def process_impl(self) -> None:
         base_data    = self.inputs[0].data
         overlay_data = self.inputs[1].data
+        angle_port   = self.inputs[2]
+
+        # Port-driven override: the connected SCALAR overrides the
+        # literal ``angle`` param for this frame only — ``self._angle``
+        # is left untouched so the unconnected case keeps using its
+        # last-set value.
+        effective_angle: float = (
+            float(angle_port.data.payload.item())
+            if angle_port.has_data else self._angle
+        )
 
         any_color = (
             base_data.type == IoDataType.IMAGE
@@ -148,10 +172,10 @@ class Overlay(NodeBase):
         # ── Predict the transformed overlay's bounding box (no warp yet) ──
         # cheap enough to always compute, so we can decide whether to
         # bother with the expensive warpAffine / resize / base.copy().
-        rotates = self._angle % 360.0 != 0.0
+        rotates = effective_angle % 360.0 != 0.0
         if rotates:
             center = (src_w / 2.0, src_h / 2.0)
-            M = cv2.getRotationMatrix2D(center, self._angle, self._scale)
+            M = cv2.getRotationMatrix2D(center, effective_angle, self._scale)
             cos = abs(M[0, 0])
             sin = abs(M[0, 1])
             out_w = max(1, int(round(src_h * sin + src_w * cos)))

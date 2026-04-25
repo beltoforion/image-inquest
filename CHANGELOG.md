@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.22] — 2026-04-25
+
+### Added
+- **`Overlay.angle` is port-drivable.** Overlay grew a third input —
+  an optional ``angle`` SCALAR port. When unconnected, the literal
+  ``angle`` parameter is used unchanged (existing behaviour, existing
+  flows load identically). When connected, the streamed scalar
+  overrides the parameter for that frame, so wiring a
+  ``ValueSource(0..359)`` into it produces a full rotation per Run.
+  This is the first pilot of the param-as-port mechanism — every
+  numeric parameter is meant to grow a matching optional port over
+  time. The literal param is **not** mutated by port traffic, so
+  disconnecting the port restores the user-set angle. Saved flows
+  keep their existing port indices: ``image=0``, ``overlay=1``, new
+  ``angle=2``.
+
 ## [0.1.21] — 2026-04-25
 
 ### Added
