@@ -10,8 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.1.19] — 2026-04-25
+## [0.1.21] — 2026-04-25
 
+### Added
+- **`Math` node** — applies a binary arithmetic op (`ADD`, `SUB`, `MUL`,
+  `DIV`, `MIN`, `MAX`) to two SCALAR inputs and emits a SCALAR. Numpy
+  promotion rules apply (`int + int → int`, `int / int → float`); `DIV`
+  uses `np.true_divide` so divide-by-zero produces `inf`/`nan` rather
+  than crashing the flow. Lives in a new **Math** palette section.
+- **`Clamp` node** — constrains a SCALAR stream to
+  `[min_value, max_value]`. Inverted bounds are silently swapped so a
+  transient UI state (typing one bound at a time) never raises.
+- **`ConstantValue` source** — reactive, one-shot SCALAR source. Emits
+  its `value` parameter once per run; the value latches on streaming
+  consumers via the existing reactive-source mechanism, so a flow like
+  `ValueSource → Math.a` + `ConstantValue → Math.b` transforms every
+  streamed value by a fixed factor/offset.
+
+## [0.1.20] — 2026-04-25
 ### Added
 - **`ValueSource`** — new source node in the **Sources** palette section
   that emits a `SCALAR` payload per frame. Parameters: `min_value`,
@@ -31,7 +47,7 @@ once a first tagged release is cut.
   the full `IoData` envelope (was: bare `np.ndarray`) so the preview
   widget can dispatch on payload kind.
 
-## [0.1.18] — 2026-04-25
+## [0.1.19] — 2026-04-25
 
 ### Added
 - **Payload type expansion: `SCALAR` and `MATRIX`.** `IoDataType` gains
@@ -48,6 +64,22 @@ once a first tagged release is cut.
   workflow. The field is loosely typed (`object | None`) and not yet
   consumed by the executor, so existing nodes are unaffected. Exposed
   as a settable property plus `has_default` predicate.
+
+## [0.1.18] — 2026-04-25
+
+### Changed
+- **Merge node uses the standard optional-port mechanism.** Its four
+  quadrant inputs (``top_left``, ``top_right``, ``bottom_left``,
+  ``bottom_right``) are now declared ``optional=True`` on the
+  ``InputPort`` instead of being handled by a bespoke
+  ``_signal_input_ready`` override. The dispatch logic in
+  ``NodeBase._signal_input_ready`` (``not p.optional or p.upstream is
+  not None``) already filters unconnected optional inputs out of the
+  "wait on" set, so behaviour is unchanged: unconnected quadrants
+  become black and never deadlock the node. The four ports now
+  render as hollow dots in the UI — consistent with RGBA Join's
+  alpha input, which was the first (and until now the only) user of
+  the optional-port flag.
 
 ## [0.1.17] — 2026-04-24
 
