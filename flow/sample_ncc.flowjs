@@ -8,8 +8,8 @@
       "module": "nodes.filters.ncc",
       "class": "Ncc",
       "position": [
-        -1099.116076223057,
-        -1043.5566627793621
+        -1191.870165788128,
+        -1079.0551415017967
       ],
       "params": {
         "template": "pad.jpg",
@@ -21,8 +21,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1628.6183289216794,
-        -1161.351328405722
+        -1602.280747934067,
+        -1187.6889093933346
       ],
       "params": {
         "file_path": "chip.jpg"
@@ -33,8 +33,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -632.4087182944841,
-        -607.8085698549278
+        -728.5981445101131,
+        -649.0326096616261
       ],
       "params": {
         "output_path": "out.png"
@@ -45,13 +45,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1539.2275561811496,
-        -868.1875466752637
+        -1620.5305235776927,
+        -896.8153520965818
       ],
       "params": {},
       "size": [
         800.0,
-        385.96309207971785
+        363.0
       ]
     },
     {
@@ -59,8 +59,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -765.9610994461774,
-        -1096.2396572277
+        -887.3429944325663,
+        -1144.3343703355147
       ],
       "params": {}
     },
