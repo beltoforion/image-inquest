@@ -63,6 +63,22 @@
       padding: 24px 32px 20px 8px;
       display: flex;
       flex-direction: column;
+      /* When new content (a longer "What's new" list, more tips) pushes
+         the column past the available height, scroll inside the column
+         instead of clipping. Body-level overflow stays hidden so the
+         mascot column never scrolls. */
+      overflow-y: auto;
+    }
+    /* Override the global ::-webkit-scrollbar rule above for this column —
+       a flat dark scrollbar styled to match the panel palette. */
+    .content-col::-webkit-scrollbar       { width: 8px; }
+    .content-col::-webkit-scrollbar-track { background: transparent; }
+    .content-col::-webkit-scrollbar-thumb {
+      background: var(--bg-panel-alt);
+      border-radius: 4px;
+    }
+    .content-col::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
     }
 
     header.hero {
