@@ -206,3 +206,50 @@ def test_default_value_can_be_cleared() -> None:
     port.default_value = None
     assert port.default_value is None
     assert port.has_default is False
+
+
+# ── metadata field on InputPort ───────────────────────────────────────────────
+
+
+def test_metadata_defaults_to_empty_dict() -> None:
+    port = InputPort("p", {IoDataType.SCALAR})
+    assert port.metadata == {}
+    # Mutable for inline edits (the param widgets will write into it).
+    port.metadata["min"] = 0
+    assert port.metadata == {"min": 0}
+
+
+def test_metadata_initialised_from_constructor() -> None:
+    port = InputPort(
+        "angle",
+        {IoDataType.SCALAR},
+        metadata={"min": 0, "max": 360, "step": 1},
+    )
+    assert port.metadata == {"min": 0, "max": 360, "step": 1}
+
+
+def test_metadata_is_copied_so_caller_dict_cant_mutate_it() -> None:
+    """Sharing a literal ``{}`` between several port constructors used
+    to leak edits across instances — verify the constructor copies."""
+    shared = {"min": 0}
+    p1 = InputPort("a", {IoDataType.SCALAR}, metadata=shared)
+    p2 = InputPort("b", {IoDataType.SCALAR}, metadata=shared)
+
+    p1.metadata["min"] = 99
+    assert p2.metadata["min"] == 0
+    assert shared["min"] == 0
+
+
+def test_metadata_independent_of_default_value() -> None:
+    """``default_value`` and ``metadata`` are orthogonal storage — the
+    seed value lives on its own field, not under ``metadata['default']``,
+    so widget hints and the literal value never collide."""
+    port = InputPort(
+        "x",
+        {IoDataType.SCALAR},
+        default_value=5,
+        metadata={"min": 0, "max": 10},
+    )
+    assert port.default_value == 5
+    assert port.metadata == {"min": 0, "max": 10}
+    assert "default" not in port.metadata

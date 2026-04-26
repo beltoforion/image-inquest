@@ -34,11 +34,16 @@ class InputPort:
     decide whether to consume it.
 
     ``default_value`` is the literal value used when the port has no
-    upstream connection — the seed that a future Blender-style socket UI
-    will edit inline. It is loosely typed for now (``object | None``)
-    because the consuming protocol is still being defined; the port
-    merely stores and exposes it. Currently no executor reads from it,
-    so existing nodes are unaffected.
+    upstream connection — the seed that the Blender-style socket UI
+    edits inline. Loosely typed (``object | None``) because every
+    payload kind shares this slot.
+
+    ``metadata`` is a free-form dict that hosts widget hints
+    (``min``/``max``/``step``/``enum``/``filter``/…). It absorbs what
+    ``NodeParam.metadata`` carries today; once the param→port migration
+    completes, the same dict drives the inline widget rendering. Empty
+    by default for ports that never need inline editing (e.g. image
+    inputs), populated for everything that used to be a ``NodeParam``.
     """
 
     def __init__(
@@ -48,6 +53,7 @@ class InputPort:
         on_state_changed: Callable[[], None] | None = None,
         optional: bool = False,
         default_value: object | None = None,
+        metadata: dict | None = None,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
@@ -57,6 +63,10 @@ class InputPort:
         self._finished: bool = False
         self._upstream: "OutputPort | None" = None
         self._default_value: object | None = default_value
+        # Copy so a caller's literal dict can't mutate the port's metadata
+        # later (and vice versa) — common gotcha when the same default
+        # dict is reused across multiple node constructions.
+        self.metadata: dict = dict(metadata) if metadata else {}
 
     @property
     def has_data(self) -> bool:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -10,6 +12,10 @@ class IoDataType(Enum):
     IMAGE_GREY = "ImageGrey"
     SCALAR = "Scalar"
     MATRIX = "Matrix"
+    BOOL = "Bool"
+    STRING = "String"
+    ENUM = "Enum"
+    PATH = "Path"
 
 
 #: Set of :class:`IoDataType` values that carry image payloads. Useful for
@@ -33,13 +39,21 @@ class IoData:
         as a Python scalar.
       - :data:`IoDataType.MATRIX` — a 2-D numpy array of arbitrary dtype
         and shape; treats a single value as a 1×1 matrix.
+      - :data:`IoDataType.BOOL` / :data:`IoDataType.STRING` /
+        :data:`IoDataType.ENUM` / :data:`IoDataType.PATH` — non-numeric
+        payloads stored as raw Python objects (``bool``, ``str``,
+        ``IntEnum`` / ``int``, ``pathlib.Path``). They exist so that
+        every editable property on a node can be modelled as an
+        :class:`~core.port.InputPort` (Blender-style); most flows
+        won't ever route data into them, the literal default value
+        on the port carries the configured value instead.
 
     Stream lifetime — the signal that a producer is done — is expressed
     out of band via :meth:`core.port.OutputPort.finish`, not through a
     payload value on this channel.
     """
 
-    def __init__(self, type: IoDataType, payload: np.ndarray) -> None:
+    def __init__(self, type: IoDataType, payload: Any) -> None:
         self._type = type
         self._payload = payload
 
@@ -91,6 +105,43 @@ class IoData:
             )
         return cls(IoDataType.MATRIX, payload=arr)
 
+    @classmethod
+    def from_bool(cls, value: object) -> IoData:
+        """Wrap a boolean as :data:`IoDataType.BOOL`.
+
+        Coerces with ``bool(value)`` so widget-side strings like
+        ``"true"`` / ``"false"`` round-trip predictably (note: Python's
+        ``bool("false")`` is ``True`` — callers handing in strings
+        should normalise first).
+        """
+        return cls(IoDataType.BOOL, payload=bool(value))
+
+    @classmethod
+    def from_string(cls, value: object) -> IoData:
+        """Wrap a string as :data:`IoDataType.STRING`."""
+        return cls(IoDataType.STRING, payload=str(value))
+
+    @classmethod
+    def from_enum(cls, value: object) -> IoData:
+        """Wrap an enum member (or its int value) as :data:`IoDataType.ENUM`.
+
+        The payload is stored verbatim — receivers that expect a
+        specific :class:`enum.IntEnum` should coerce on read
+        (``MyEnum(data.payload)``) so an ``int`` from a saved flow file
+        round-trips through the same path as a typed enum member.
+        """
+        return cls(IoDataType.ENUM, payload=value)
+
+    @classmethod
+    def from_path(cls, value: object) -> IoData:
+        """Wrap a filesystem path as :data:`IoDataType.PATH`.
+
+        Coerces to :class:`pathlib.Path` so consumers can rely on the
+        ``Path`` API regardless of whether the caller supplied a
+        ``str``, an existing ``Path``, or a path-like object.
+        """
+        return cls(IoDataType.PATH, payload=Path(value))
+
     # ── Properties ─────────────────────────────────────────────────────────────
 
     @property
@@ -98,11 +149,13 @@ class IoData:
         return self._type
 
     @property
-    def payload(self) -> np.ndarray:
-        """The underlying numpy array, regardless of payload kind.
+    def payload(self) -> Any:
+        """The underlying value, regardless of payload kind.
 
-        Use this in code that handles SCALAR/MATRIX as well as image
-        payloads. Image-specific code can keep using :attr:`image`.
+        For image / SCALAR / MATRIX payloads this is a numpy array; for
+        BOOL / STRING / ENUM / PATH payloads it is the raw Python
+        object. Use :attr:`image` for image-specific code paths that
+        expect ``np.ndarray`` semantics.
         """
         return self._payload
 
@@ -130,5 +183,9 @@ class IoData:
         return IoData(self._type, payload=image)
 
     def __repr__(self) -> str:
-        shape = self._payload.shape
-        return f"IoData({self._type.name}, shape={shape})"
+        # Image / SCALAR / MATRIX payloads expose a numpy ``shape``; the
+        # non-numeric kinds don't, so fall back to ``repr(value)`` so the
+        # __repr__ is meaningful for every payload kind.
+        if hasattr(self._payload, "shape"):
+            return f"IoData({self._type.name}, shape={self._payload.shape})"
+        return f"IoData({self._type.name}, value={self._payload!r})"

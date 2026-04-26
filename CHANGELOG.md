@@ -10,6 +10,31 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.28] — 2026-04-26
+
+### Added
+- **Param-as-port groundwork (step 1/8).** First plumbing toward the
+  Blender-style abstraction in which every editable property on a
+  node is an :class:`InputPort`:
+  - ``IoDataType`` gains ``BOOL``, ``STRING``, ``ENUM`` and ``PATH``
+    so non-numeric properties (today's ``NodeParamType.BOOL`` /
+    ``STRING`` / ``ENUM`` / ``FILE_PATH``) have a port type to ride
+    on. Existing ``IMAGE`` / ``IMAGE_GREY`` / ``SCALAR`` / ``MATRIX``
+    are unchanged.
+  - ``IoData`` gains ``from_bool``, ``from_string``, ``from_enum``
+    and ``from_path`` factories. Non-numeric payloads are stored as
+    raw Python objects (``bool`` / ``str`` / ``Path`` / enum member
+    or its int value); the ``payload`` accessor's return type widens
+    from ``np.ndarray`` to ``Any`` accordingly. Image-specific call
+    sites that use ``.image`` are unaffected.
+  - ``InputPort`` gains a ``metadata: dict`` field with the same
+    free-form contract ``NodeParam.metadata`` carries today (min /
+    max / step / enum / filter / …). Constructor copies the dict so
+    callers sharing a literal default can't accidentally cross-mutate
+    state between port instances.
+  No node migrates to the new abstraction in this step — that's the
+  next stage. Existing flows load and run identically.
+
 ## [0.1.27] — 2026-04-26
 
 ### Changed

@@ -124,3 +124,86 @@ def test_repr_includes_type_and_shape_for_matrix() -> None:
     r = repr(IoData.from_matrix([[1, 2, 3], [4, 5, 6]]))
     assert "MATRIX" in r
     assert "(2, 3)" in r
+
+
+# ── BOOL / STRING / ENUM / PATH (param-as-port payload kinds) ─────────────────
+
+from enum import IntEnum
+from pathlib import Path
+
+
+def test_from_bool_true() -> None:
+    data = IoData.from_bool(True)
+    assert data.type is IoDataType.BOOL
+    assert data.payload is True
+    assert data.is_image() is False
+
+
+def test_from_bool_coerces_truthy_value() -> None:
+    """``bool(value)`` semantics: any non-zero / non-empty value
+    becomes True. Useful when a widget hands the factory a 0/1 int."""
+    assert IoData.from_bool(1).payload is True
+    assert IoData.from_bool(0).payload is False
+    assert IoData.from_bool("anything").payload is True
+    assert IoData.from_bool("").payload is False
+
+
+def test_from_string() -> None:
+    data = IoData.from_string("hello")
+    assert data.type is IoDataType.STRING
+    assert data.payload == "hello"
+
+
+def test_from_string_coerces_non_string() -> None:
+    """Numeric / Path inputs round-trip through ``str(value)`` so a
+    saved-flow loader can hand the factory a JSON-loaded value of any
+    primitive type without pre-converting."""
+    assert IoData.from_string(42).payload == "42"
+    assert IoData.from_string(Path("a/b")).payload == str(Path("a/b"))
+
+
+class _OpEnum(IntEnum):
+    ADD = 0
+    MUL = 1
+
+
+def test_from_enum_preserves_member() -> None:
+    data = IoData.from_enum(_OpEnum.MUL)
+    assert data.type is IoDataType.ENUM
+    assert data.payload is _OpEnum.MUL
+
+
+def test_from_enum_accepts_int_for_round_trip() -> None:
+    """A saved flow stores the int value of an IntEnum; round-tripping
+    must not crash. Receivers coerce via ``MyEnum(data.payload)``."""
+    data = IoData.from_enum(1)
+    assert data.payload == 1
+    assert _OpEnum(data.payload) is _OpEnum.MUL
+
+
+def test_from_path_coerces_string() -> None:
+    data = IoData.from_path("input/example.jpg")
+    assert data.type is IoDataType.PATH
+    assert isinstance(data.payload, Path)
+    assert str(data.payload) == "input/example.jpg"
+
+
+def test_from_path_passes_existing_path() -> None:
+    p = Path("a/b/c")
+    data = IoData.from_path(p)
+    assert data.payload == p
+
+
+def test_repr_for_non_numeric_payloads_uses_value_form() -> None:
+    """Non-numeric payloads have no ``shape`` attribute — repr falls
+    back to ``value=...`` so the discriminator stays informative."""
+    assert "value=True" in repr(IoData.from_bool(True))
+    assert "value='hi'" in repr(IoData.from_string("hi"))
+
+
+def test_image_types_set_unaffected_by_new_kinds() -> None:
+    """``IMAGE_TYPES`` must keep being just IMAGE + IMAGE_GREY — adding
+    BOOL/STRING/ENUM/PATH must not pollute the set that filters use to
+    declare image-only ports."""
+    new_kinds = {IoDataType.BOOL, IoDataType.STRING, IoDataType.ENUM, IoDataType.PATH}
+    assert IMAGE_TYPES.isdisjoint(new_kinds)
