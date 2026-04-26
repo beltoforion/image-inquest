@@ -10,6 +10,7 @@ from typing_extensions import override
 from constants import OUTPUT_DIR
 from core.io_data import IMAGE_TYPES
 from core.node_base import NodeParam, NodeParamType, SinkNodeBase
+from core.path_utils import resolve_against, store_relative_to
 from core.port import InputPort
 
 
@@ -85,13 +86,7 @@ class VideoSink(SinkNodeBase):
 
     @output_path.setter
     def output_path(self, output_path: str | Path) -> None:
-        p = Path(output_path)
-        if p.is_absolute():
-            try:
-                p = p.resolve().relative_to(OUTPUT_DIR.resolve())
-            except (OSError, ValueError):
-                pass  # outside OUTPUT_DIR — keep absolute
-        self._output_path = p
+        self._output_path = store_relative_to(output_path, OUTPUT_DIR)
 
     @property
     def fps(self) -> float:
@@ -163,9 +158,7 @@ class VideoSink(SinkNodeBase):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _resolved_path(self) -> Path:
-        if self._output_path.is_absolute():
-            return self._output_path
-        return OUTPUT_DIR / self._output_path
+        return resolve_against(self._output_path, OUTPUT_DIR)
 
     def _open_writer(self, frame: np.ndarray) -> None:
         h, w = frame.shape[:2]
