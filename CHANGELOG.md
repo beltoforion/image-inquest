@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.3.0] — 2026-04-26
+## [0.2.1] — 2026-04-26
 
 ### Added
 - **PyInstaller-based binary distribution.** A new `release.yml` workflow
