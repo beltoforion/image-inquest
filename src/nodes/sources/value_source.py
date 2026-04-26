@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
@@ -101,7 +103,16 @@ class ValueSource(SourceNodeBase):
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
-    def process_impl(self) -> None:
+    def iter_frames(self) -> Iterator[None]:
+        """Per-frame generator: one ``yield`` per emitted scalar.
+
+        Letting :class:`core.flow.Flow.run` round-robin streaming
+        sources requires this — without per-frame yielding two
+        ``ValueSource``s feeding two param ports on the same node
+        produce only one composite frame total (the first source
+        drains entirely before the second sends anything; see
+        :meth:`SourceNodeBase.iter_frames`).
+        """
         # Empty range — nothing to emit. Don't raise; the flow can still
         # be valid (a downstream filter might tolerate zero frames), so
         # log nothing and return.
@@ -117,3 +128,11 @@ class ValueSource(SourceNodeBase):
             for n in range(self._min_value, self._max_value + 1):
                 value: int | float = n if is_unit_mult else n * self._multiplier
                 self.outputs[0].send(IoData.from_scalar(value))
+                yield
+
+    @override
+    def process_impl(self) -> None:
+        """Direct-invocation path used by tests: drain :meth:`iter_frames`
+        in one call, mirroring the pre-round-robin all-at-once semantics."""
+        for _ in self.iter_frames():
+            pass

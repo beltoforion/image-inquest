@@ -10,6 +10,57 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.6] — 2026-04-26
+
+### Added
+- **Streaming sources interleave frame-by-frame.** ``SourceNodeBase``
+  grew an ``iter_frames()`` generator API; ``ValueSource``,
+  ``VideoSource`` and ``DirectorySource`` now yield once per emitted
+  frame, and ``Flow.run`` round-robins their iterators so two
+  streaming sources driving two param ports on the same node both
+  animate. Pre-fix, two ``ValueSource``s wired into ``Overlay.angle``
+  and ``Overlay.xpos`` produced exactly one composite frame total
+  (the first source drained entirely before the second sent
+  anything). Param-style input ports (``param_type`` in metadata)
+  also latch their last value across the dispatcher's clear, so
+  when the shorter source exhausts the longer one keeps firing
+  against the latched value rather than stalling.
+- **Stop button on the editor toolbar.** Long-running flows
+  (multi-thousand-frame video decodes, looping ``ValueSource``s)
+  can now be cancelled mid-run. ``Flow.request_stop`` flips a flag
+  the execution loop polls between every interleave step;
+  ``FlowRunner.request_stop`` forwards the click from the UI thread
+  to the worker thread (Python's GIL handles the bool write).
+  ``after_run`` fires on every node on stop so video captures
+  release cleanly. The action is greyed out while idle and is the
+  only enabled action while a run is in flight.
+
+### Changed
+- **Dispatcher only fires on a fresh arrival.** ``InputPort`` grew
+  an ``is_fresh`` flag (set by ``receive``, cleared by ``clear`` /
+  ``reset``); ``NodeBase._signal_input_ready`` now requires both
+  "all waited inputs have data" *and* "at least one is fresh"
+  before invoking ``process``. Without it, a sibling input's
+  ``finish`` would re-fire the dispatcher against latched stale
+  values and emit a duplicate composite frame once param-port
+  latching landed.
+
+## [0.2.5] — 2026-04-26
+
+### Changed
+- **Overlay placement is now centre-anchored.** The Overlay node's
+  `xpos` / `ypos` params (and their matching SCALAR ports) now denote
+  the centre of the rotated, scaled overlay's bounding box on the
+  base instead of its top-left corner. Rotation already pivoted
+  around the overlay's centre, so placement and rotation now share
+  the same reference point — a logo driven by a 0..360° angle ramp
+  stays put instead of orbiting the anchor. Behavioural break for
+  existing flows: an old `xpos=0, ypos=0` placement now centres the
+  overlay at the base's top-left corner; bump those numbers by half
+  the overlay's rendered width / height to recover the previous look.
+  The bundled `flow/video_overlay.flowjs` and
+  `flow/video_overlay_rot.flowjs` samples were updated accordingly.
+
 ## [0.2.4] — 2026-04-26
 
 ### Fixed

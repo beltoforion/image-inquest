@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 
 import cv2
@@ -97,7 +98,8 @@ class DirectorySource(SourceNodeBase):
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
-    def process_impl(self) -> None:
+    def iter_frames(self) -> Iterator[None]:
+        """Per-frame generator: one ``yield`` per decoded image file."""
         resolved = self._resolved_path()
         if not resolved.exists():
             raise FileNotFoundError(f"Input directory not found: {resolved}")
@@ -109,6 +111,13 @@ class DirectorySource(SourceNodeBase):
             if image is None:
                 continue
             self.outputs[0].send(IoData.from_image(image))
+            yield
+
+    @override
+    def process_impl(self) -> None:
+        """Direct-invocation path: drain :meth:`iter_frames` in one call."""
+        for _ in self.iter_frames():
+            pass
 
     # ── Internals ──────────────────────────────────────────────────────────────
 

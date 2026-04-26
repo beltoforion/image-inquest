@@ -155,3 +155,5 @@ cython_debug/
 output/*
 logs/*
 
+input/weatherstation.mp4
+input/scoreboard.mp4

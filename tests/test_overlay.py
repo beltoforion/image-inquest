@@ -29,8 +29,9 @@ def _wire(node: Overlay, base: IoData, overlay: IoData) -> None:
 def test_overlay_full_alpha_replaces_pixels_in_roi() -> None:
     node = Overlay()
     node.alpha = 1.0
-    node.xpos = 2
-    node.ypos = 3
+    # 4x5 overlay centred at (4, 5) -> top-left at (4-5//2, 5-4//2) = (2, 3).
+    node.xpos = 4
+    node.ypos = 5
     node.scale = 1.0
     _wire(
         node,
@@ -83,6 +84,9 @@ def test_overlay_scale_resizes_overlay_before_compositing() -> None:
     node = Overlay()
     node.scale = 2.0
     node.alpha = 1.0
+    # 2x2 overlay scaled 2x -> 4x4; centring it at (2, 2) puts the top-left at (0, 0).
+    node.xpos = 2
+    node.ypos = 2
     _wire(
         node,
         IoData.from_image(_bgr(10, 10, 0)),
@@ -100,8 +104,10 @@ def test_overlay_scale_resizes_overlay_before_compositing() -> None:
 def test_overlay_clips_when_partially_outside_base() -> None:
     node = Overlay()
     node.alpha = 1.0
-    node.xpos = 8
-    node.ypos = 8
+    # 4x4 overlay centred at (10, 10) -> top-left at (8, 8); only the
+    # 2x2 top-left corner of the overlay lands on the 10x10 base.
+    node.xpos = 10
+    node.ypos = 10
     _wire(
         node,
         IoData.from_image(_bgr(10, 10, 0)),
@@ -110,15 +116,16 @@ def test_overlay_clips_when_partially_outside_base() -> None:
 
     out = node.outputs[0].last_emitted
     assert out is not None
-    # Only the 2x2 top-left corner of the overlay lands on the base.
     np.testing.assert_array_equal(out.image[8:10, 8:10], _bgr(2, 2, 255))
 
 
 def test_overlay_negative_position_clips_top_left() -> None:
     node = Overlay()
     node.alpha = 1.0
-    node.xpos = -2
-    node.ypos = -3
+    # 6x6 overlay centred at (1, 0) -> top-left at (-2, -3); visible chunk
+    # is overlay rows 3..6, cols 2..6 landing at base (0..3, 0..4).
+    node.xpos = 1
+    node.ypos = 0
     _wire(
         node,
         IoData.from_image(_bgr(10, 10, 0)),
@@ -127,7 +134,6 @@ def test_overlay_negative_position_clips_top_left() -> None:
 
     out = node.outputs[0].last_emitted
     assert out is not None
-    # Visible chunk: overlay rows 3..6, cols 2..6 land at base (0..3, 0..4).
     np.testing.assert_array_equal(out.image[0:3, 0:4], _bgr(3, 4, 255))
 
 
@@ -168,6 +174,9 @@ def test_overlay_greyscale_base_and_overlay_stays_greyscale() -> None:
 def test_overlay_mixed_types_promotes_output_to_color() -> None:
     node = Overlay()
     node.alpha = 1.0
+    # 2x2 overlay centred at (1, 1) -> top-left at (0, 0).
+    node.xpos = 1
+    node.ypos = 1
     _wire(
         node,
         IoData.from_image(_bgr(4, 4, 10)),
@@ -199,6 +208,9 @@ def test_overlay_angle_zero_is_no_op() -> None:
     node = Overlay()
     node.alpha = 1.0
     node.angle = 0.0
+    # 3x3 overlay centred at (1, 1) -> top-left at (0, 0).
+    node.xpos = 1
+    node.ypos = 1
     _wire(
         node,
         IoData.from_image(_bgr(8, 8, 0)),
@@ -215,7 +227,10 @@ def test_overlay_angle_90_swaps_bounding_box_dimensions() -> None:
     node = Overlay()
     node.alpha = 1.0
     node.angle = 90.0
-    # Non-square overlay so the rotation is observable in the output shape.
+    # 2x6 overlay rotated 90° -> 6x2 bounding box; centring it at (1, 3)
+    # puts the top-left at (0, 0) so the footprint matches the assertions.
+    node.xpos = 1
+    node.ypos = 3
     base = _bgr(20, 20, 0)
     overlay = _bgr(2, 6, 255)  # 2 rows, 6 cols
     _wire(node, IoData.from_image(base), IoData.from_image(overlay))
@@ -237,6 +252,9 @@ def test_overlay_angle_360_matches_angle_zero() -> None:
     node = Overlay()
     node.alpha = 1.0
     node.angle = 360.0
+    # 3x3 overlay centred at (1, 1) -> top-left at (0, 0).
+    node.xpos = 1
+    node.ypos = 1
     _wire(
         node,
         IoData.from_image(_bgr(8, 8, 0)),
@@ -256,6 +274,9 @@ def test_overlay_angle_and_scale_combine_into_single_warp() -> None:
     node.scale = 2.0
     # 2x3 overlay, rotated 90° and scaled 2x, should land as a 6x4
     # bounding box on the base (height 2*3 = 6 rows, width 2*2 = 4 cols).
+    # Centring it at (2, 3) puts the top-left at (0, 0).
+    node.xpos = 2
+    node.ypos = 3
     _wire(
         node,
         IoData.from_image(_bgr(20, 20, 0)),
@@ -334,6 +355,31 @@ def test_overlay_defaults_match_declared_params() -> None:
     assert node.alpha == 1.0
 
 
+def test_overlay_position_anchors_overlay_centre() -> None:
+    """``(xpos, ypos)`` denotes the centre of the overlay's bounding
+    box on the base — not the top-left corner."""
+    node = Overlay()
+    node.alpha = 1.0
+    # 4x4 overlay centred at (5, 5) on a 10x10 base -> top-left at (3, 3),
+    # bottom-right exclusive at (7, 7).
+    node.xpos = 5
+    node.ypos = 5
+    _wire(
+        node,
+        IoData.from_image(_bgr(10, 10, 0)),
+        IoData.from_image(_bgr(4, 4, 200)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    np.testing.assert_array_equal(out.image[3:7, 3:7], _bgr(4, 4, 200))
+    # Pixels outside the centred footprint stay black.
+    assert out.image[0:3, :].sum() == 0
+    assert out.image[7:, :].sum() == 0
+    assert out.image[:, 0:3].sum() == 0
+    assert out.image[:, 7:].sum() == 0
+
+
 def test_overlay_alpha_is_clamped_to_unit_interval() -> None:
     node = Overlay()
     node.alpha = 2.5
@@ -384,6 +430,9 @@ def test_overlay_bgra_fully_opaque_matches_bgr_behaviour() -> None:
     to a plain BGR overlay of the same colour."""
     node = Overlay()
     node.alpha = 1.0
+    # 3x3 overlay centred at (1, 1) -> top-left at (0, 0).
+    node.xpos = 1
+    node.ypos = 1
     base = _bgr(6, 6, 0)
     overlay = _bgra(3, 3, 200, 255)
     _wire(
@@ -485,8 +534,9 @@ def test_unconnected_angle_port_uses_param() -> None:
     node = Overlay()
     node.angle = 0.0
     node.alpha = 1.0
-    node.xpos = 0
-    node.ypos = 0
+    # 2x2 overlay centred at (1, 1) -> top-left at (0, 0).
+    node.xpos = 1
+    node.ypos = 1
     _wire_with_angle(
         node,
         IoData.from_image(_bgr(8, 8, 0)),

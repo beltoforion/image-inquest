@@ -41,8 +41,8 @@
       "port_defaults": {
         "angle": 0.0,
         "scale": 0.42,
-        "xpos": 0,
-        "ypos": 0,
+        "xpos": 138,
+        "ypos": 137,
         "alpha": 0.5
       }
     },

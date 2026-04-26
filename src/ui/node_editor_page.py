@@ -148,6 +148,8 @@ class NodeEditorPage(PageBase):
         self._actions["stack_vertical"].setEnabled(False)
         self._actions["stack_horizontal"].setEnabled(False)
         self._actions["group"].setEnabled(False)
+        # Stop is only meaningful while a run is in flight.
+        self._actions["stop"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
         # Status bar at the bottom of the inner window. The running-flow
@@ -197,6 +199,7 @@ class NodeEditorPage(PageBase):
         sections = [
             ToolbarSection("Flow", [
                 self._actions["run"],
+                self._actions["stop"],
                 self._actions["save"],
                 self._actions["save_as"],
                 self._actions["open"],
@@ -234,6 +237,7 @@ class NodeEditorPage(PageBase):
         # across hosts.
         menu = QMenu("Node Editor")
         menu.addAction(self._actions["run"])
+        menu.addAction(self._actions["stop"])
         menu.addAction(self._actions["save"])
         menu.addAction(self._actions["save_as"])
         menu.addAction(self._actions["open"])
@@ -340,6 +344,7 @@ class NodeEditorPage(PageBase):
 
         return {
             "run":     mk("Run",      "play_arrow",  self._on_run_clicked),
+            "stop":    mk("Stop",     "stop",        self._on_stop_clicked),
             "save":    mk("Save",     "save",        self._on_save_clicked),
             "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
             "open":    mk("Open",     "folder_open", self._on_open_clicked),
@@ -429,6 +434,9 @@ class NodeEditorPage(PageBase):
 
         self._set_toolbar_enabled(False)
         self._set_param_widgets_enabled(False)
+        # Stop is only meaningful while a flow is in flight — keep it
+        # enabled while every other toolbar action is greyed out.
+        self._actions["stop"].setEnabled(True)
         self._flow_status_widget.show_running(self._flow.name)
         self._set_status("Running…", kind="muted")
 
@@ -484,6 +492,20 @@ class NodeEditorPage(PageBase):
         self._set_status(f"Run failed ({detail})", kind="fail")
         self._finalize_run()
 
+    def _on_stop_clicked(self) -> None:
+        """Ask the running flow to stop after its current step.
+
+        No-op when nothing is running. The runner forwards the request
+        to :meth:`Flow.request_stop`, which the execution loop polls
+        between every interleave step — already-decoded frames flush
+        through, then nodes get their normal ``after_run`` cleanup.
+        """
+        if self._run_runner is None:
+            return
+        self._actions["stop"].setEnabled(False)
+        self._set_status("Stopping…", kind="muted")
+        self._run_runner.request_stop()
+
     def _finalize_run(self) -> None:
         """Drop references to the worker thread and re-enable the Run action.
 
@@ -506,15 +528,22 @@ class NodeEditorPage(PageBase):
     def _set_toolbar_enabled(self, enabled: bool) -> None:
         """Disable every toolbar action for the duration of a run.
 
-        Covers everything exposed via :meth:`page_toolbar_sections` — Run,
-        the file actions and the view actions — so the user can't save,
-        open or clear a flow that is still executing on the worker thread.
-        When re-enabling, ``_update_selection_actions`` re-applies the
-        selection-dependent gating for the stack actions instead of
-        leaving them unconditionally enabled.
+        Covers everything exposed via :meth:`page_toolbar_sections` —
+        Run, the file actions and the view actions — so the user can't
+        save, open or clear a flow that is still executing on the
+        worker thread. ``Stop`` inverts: it is the *only* action
+        enabled while a run is in flight; when re-enabling after a
+        run, Stop is greyed out instead. When re-enabling,
+        ``_update_selection_actions`` re-applies the selection-
+        dependent gating for the stack actions instead of leaving
+        them unconditionally enabled.
         """
-        for action in self._actions.values():
-            action.setEnabled(enabled)
+        for name, action in self._actions.items():
+            if name == "stop":
+                # Inverted polarity: Stop is only useful while running.
+                action.setEnabled(not enabled)
+            else:
+                action.setEnabled(enabled)
         if enabled:
             self._update_selection_actions()
 

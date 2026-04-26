@@ -15,9 +15,10 @@ class Overlay(NodeBase):
     The overlay input is optionally resized by ``scale``, rotated by
     ``angle`` degrees (counter-clockwise, around the overlay's centre,
     with the bounding box expanded so no pixels are lost) and then
-    blended onto the base at ``(xpos, ypos)`` with opacity ``alpha``.
-    The output canvas always matches the base image — any part of the
-    transformed overlay that falls outside the base is clipped.
+    blended onto the base so that the overlay's **centre** lands at
+    ``(xpos, ypos)`` with opacity ``alpha``. The output canvas always
+    matches the base image — any part of the transformed overlay that
+    falls outside the base is clipped.
 
     Type strategy:
       If either input is colour (:data:`IoDataType.IMAGE`), any
@@ -215,11 +216,17 @@ class Overlay(NodeBase):
         base_src = strip_alpha(to_canvas(base_data))
         base_h, base_w = base_src.shape[:2]
 
+        # ``(xpos, ypos)`` denotes the *centre* of the (rotated, scaled)
+        # overlay's bounding box on the base — translate to the top-left
+        # corner that the rest of the placement math expects.
+        top_left_x = self._xpos - out_w // 2
+        top_left_y = self._ypos - out_h // 2
+
         # Destination rectangle on the base, clipped to the base bounds.
-        x0 = max(self._xpos, 0)
-        y0 = max(self._ypos, 0)
-        x1 = min(self._xpos + out_w, base_w)
-        y1 = min(self._ypos + out_h, base_h)
+        x0 = max(top_left_x, 0)
+        y0 = max(top_left_y, 0)
+        x1 = min(top_left_x + out_w, base_w)
+        y1 = min(top_left_y + out_h, base_h)
 
         # ── Skip path 2: transformed overlay misses the base entirely ─────
         # Same deal — pass the base through without warping or copying.
@@ -243,10 +250,11 @@ class Overlay(NodeBase):
 
         base = base_src.copy()
 
-        # Matching rectangle inside the overlay (accounts for negative
-        # xpos/ypos shifting the overlay off the top-left edge).
-        ox0 = x0 - self._xpos
-        oy0 = y0 - self._ypos
+        # Matching rectangle inside the overlay (accounts for the
+        # centre-anchored placement shifting the overlay off the
+        # top-left edge of the base).
+        ox0 = x0 - top_left_x
+        oy0 = y0 - top_left_y
         ox1 = ox0 + (x1 - x0)
         oy1 = oy0 + (y1 - y0)
 

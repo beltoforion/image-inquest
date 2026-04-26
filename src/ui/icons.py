@@ -37,6 +37,7 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "home":         "e88a",
     "account_tree": "e97a",
     "play_arrow":   "e037",
+    "stop":         "e047",
     "save":         "e161",
     "save_as":      "eb60",
     "delete":       "e872",
