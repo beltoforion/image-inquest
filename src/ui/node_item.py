@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
+from typing_extensions import override
+
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -55,6 +57,54 @@ class _NodeSignals(QObject):
 
     #: Emitted when any parameter widget on the owning node changes value.
     param_changed = Signal()
+
+
+class _SelectOnParamFocusFilter(QObject):
+    """Promote the owning ``NodeItem`` to the only selected node when
+    any descendant param widget gains keyboard focus.
+
+    Without this, clicking inside a spinbox / line edit / combo on a
+    node body gives that *widget* keyboard focus but does not select
+    the *node* — the Output Inspector and any other selection-driven
+    panel keeps showing whatever was selected before, and the
+    ``Delete`` key dispatcher in :meth:`FlowScene.keyPressEvent` (which
+    branches on whether the focus item is a proxy widget) ends up
+    targeting the wrong thing. Issue: #170
+
+    Installed by :meth:`NodeItem._wire_param_focus_to_selection` on
+    each ParamWidgetBase wrapper *and* every focusable child inside it
+    (``QSpinBox``, ``QLineEdit``, etc.) — the wrapper is never
+    keyboard-focusable itself, so a filter on it alone would never
+    fire.
+    """
+
+    def __init__(self, owner_node_item: "NodeItem") -> None:
+        # ``NodeItem`` is a ``QGraphicsItem`` (not a ``QObject``) so we
+        # can't parent the filter to it the QObject way. Lifetime is
+        # tied to the editor's ``_stjornhorn_focus_filter`` strong-ref
+        # in :meth:`NodeItem._wire_param_focus_to_selection`.
+        super().__init__()
+        self._owner = owner_node_item
+
+    @override
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
+        if event.type() == QEvent.Type.FocusIn:
+            scene = self._owner.scene()
+            if scene is not None:
+                # Focus is single-target — make the owner the only
+                # selected item, even if it was already part of a
+                # multi-selection. Skip the no-op case (owner is the
+                # *only* selected item already) so we don't fire a
+                # spurious selectionChanged that would re-trigger every
+                # selection-driven panel update.
+                others = [
+                    item for item in scene.selectedItems()
+                    if item is not self._owner
+                ]
+                if others or not self._owner.isSelected():
+                    scene.clearSelection()
+                    self._owner.setSelected(True)
+        return False  # never consume — let Qt do its normal focus work.
 
 
 class _ResizeGripItem(QGraphicsItem):
@@ -557,8 +607,67 @@ class NodeItem(QGraphicsItem):
         # glued to the port dots.
         if change == QGraphicsItem.GraphicsItemChange.ItemScenePositionHasChanged:
             self.refresh_all_links()
-            
+
+        # Selection and keyboard focus must stay in lock-step: when
+        # this node loses selection, drop focus from any of its
+        # embedded param widgets that still hold it. Otherwise the
+        # user's next keystroke would edit a control on a node that
+        # no longer "looks" selected. Issue: #170
+        if change == QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+            if not bool(value):
+                self._clear_param_widget_focus()
+
         return super().itemChange(change, value)
+
+    def _wire_param_focus_to_selection(self, editor: QWidget) -> None:
+        """Install a focus filter that selects this NodeItem when the
+        embedded *editor* (or any focusable widget inside it) gains
+        keyboard focus.
+
+        Filters every keyboard-focusable descendant rather than the
+        wrapper alone — ParamWidgetBase wrappers are
+        ``WA_TranslucentBackground`` containers whose actual focusable
+        controls are children (``QSpinBox``, ``QLineEdit``,
+        ``QComboBox``, ``QCheckBox``). A filter on the wrapper alone
+        would never see a ``FocusIn`` event. Issue: #170
+        """
+        filt = _SelectOnParamFocusFilter(self)
+        editor.installEventFilter(filt)
+        for child in editor.findChildren(QWidget):
+            child.installEventFilter(filt)
+        # Hold a strong reference on the editor so the filter QObject
+        # outlives the local — without this the filter is GC'd
+        # immediately after this method returns and Qt silently drops
+        # the installation.
+        editor._stjornhorn_focus_filter = filt  # type: ignore[attr-defined]
+
+    def _clear_param_widget_focus(self) -> None:
+        """Drop keyboard focus from every embedded param widget on
+        this node that currently has it.
+
+        Called from :meth:`itemChange` on a selection→unselected
+        transition. Iterates the param-port editors, the constant-
+        param editors and the preview proxy; each may host either a
+        single focusable control or a layout of several
+        (FilePathParamWidget has line-edit + two buttons), so we ask
+        Qt for the actual ``focusWidget()`` inside the wrapper rather
+        than guessing. Issue: #170
+        """
+        proxies: list[QGraphicsProxyWidget] = []
+        proxies.extend(self._param_proxies_by_row.values())
+        proxies.extend(self._constant_proxies_by_row.values())
+        if self._preview_proxy is not None:
+            proxies.append(self._preview_proxy)
+
+        for proxy in proxies:
+            wrapper = proxy.widget()
+            if wrapper is None:
+                continue
+            focused = wrapper.focusWidget()
+            if focused is not None:
+                focused.clearFocus()
+            elif wrapper.hasFocus():
+                wrapper.clearFocus()
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -754,6 +863,7 @@ class NodeItem(QGraphicsItem):
             editor.setEnabled(port_model.upstream is None)
             proxy = QGraphicsProxyWidget(self)
             proxy.setWidget(editor)
+            self._wire_param_focus_to_selection(editor)
             self._param_widgets_by_row[i] = editor
             self._param_proxies_by_row[i] = proxy
             self._param_widgets.append(editor)
@@ -780,6 +890,7 @@ class NodeItem(QGraphicsItem):
             )
             proxy = QGraphicsProxyWidget(self)
             proxy.setWidget(editor)
+            self._wire_param_focus_to_selection(editor)
             self._constant_widgets_by_row[row] = editor
             self._constant_proxies_by_row[row] = proxy
             self._param_widgets.append(editor)

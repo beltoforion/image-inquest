@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.8] — 2026-04-26
+
+### Fixed
+- **Param-widget focus and node selection were decoupled.** Clicking
+  inside a spinbox / line-edit / combo / checkbox on a node body
+  gave the *widget* keyboard focus but did not select the *node* —
+  the Output Inspector kept showing whatever was selected before,
+  and ``FlowScene.keyPressEvent``'s Delete-routing branch (which
+  decides between deleting the selected node and forwarding the key
+  to the focused widget) targeted the wrong thing once focus and
+  selection drifted apart. ``NodeItem`` now installs a focus event
+  filter on every embedded ``ParamWidgetBase`` and its focusable
+  descendants: a ``QEvent.FocusIn`` makes the owning node the *only*
+  selected item (collapsing any prior multi-selection). The inverse
+  also holds — ``NodeItem.itemChange`` watches for
+  ``ItemSelectedHasChanged → False`` and clears keyboard focus from
+  every embedded widget that still has it, so the next keystroke
+  can't edit a control whose owning node is no longer active.
+  Issue: #170
+
 ## [0.2.7] — 2026-04-26
 
 ### Changed
