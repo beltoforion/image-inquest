@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.7</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.8</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.8</h2>
+      <ul class="tips">
+        <li><strong>Param-widget focus selects its node.</strong> Clicking inside a spinbox / line-edit / combo / checkbox on a node body now selects the owning node (replacing whatever else was selected) — so the Output Inspector and any other selection-driven panel stays in sync with what you're editing. Inverse direction too: when a node is unselected, any of its param widgets that still hold keyboard focus drop it, so the next keystroke can't edit a control whose owning node is no longer "active". Issue #170.</li>
+      </ul>
     </section>
 
     <section>
