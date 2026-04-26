@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.11</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.13</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,12 +213,27 @@
     </section>
 
     <section>
-      <h2>What's new in v0.2.11</h2>
+      <h2>What's new in v0.2.13</h2>
       <ul class="tips">
         <li><strong>Display now renders 4-channel (BGRA) frames.</strong> PNG and WebP files with an alpha channel reaching the <em>Display</em> node used to be silently dropped — the per-frame BGRA → QImage conversion crashed on a non-existent <code>Format_BGRA8888</code> enum, the exception was swallowed by a broad <code>except</code>, and only opaque (3-channel) frames made it onto the preview. Now the path uses <code>Format_RGBA8888</code> with an explicit channel-order swap so transparent images render as expected. Issue #179.</li>
         <li><strong>Three-severity floating banner.</strong> The top-right toast (renamed <em>MessageBanner</em>) now covers <strong>red errors</strong>, <strong>amber warnings</strong>, and <strong>blue info</strong>. Triggered via the new process-wide <code>core.notifications</code> hub — any module calls <code>notifications.info(...)</code> / <code>warn(...)</code> / <code>error(...)</code> and the banner pops on the UI thread without interrupting the running flow. The Display preview's frame-conversion path uses it as a safety net so future failures of the same shape surface in the UI instead of disappearing into the log.</li>
         <li><strong>New <em>Notify</em> node (<em>UI</em> section).</strong> Sits inline on any image edge: pick severity (<em>Info</em> / <em>Warning</em> / <em>Error</em>) and provide a message. <em>Info</em> / <em>Warning</em> fire through the notifications hub (banner pops, run continues); <em>Error</em> raises a <code>RuntimeError</code> (banner pops, run aborts at the node). The <em>message</em> input is a port — type a literal string into the inline editor, or wire any STRING source in to drive the banner text dynamically per frame.</li>
         <li><strong><em>Delay</em> moved to the <em>UI</em> section.</strong> The node is genuinely useful as a "slideshow pacing" knob (one frame per second from a directory walker into a Display, etc.), not only as a development aid; the section move makes it discoverable from the regular palette layout instead of buried under <em>Debug</em>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.12</h2>
+      <ul class="tips">
+        <li><strong>HSV / HSL split and join nodes.</strong> Four new <em>Color Spaces</em> filters — <em>HSV Split</em>, <em>HSV Join</em>, <em>HSL Split</em>, <em>HSL Join</em> — decompose a BGR (or BGRA, alpha dropped) image into three uint8 greyscale planes and merge them back. The full-range hue variant of OpenCV's converter is used so the H plane spans the whole 0..255 range, keeping its greyscale preview uniformly bright. Splitting greys round-trips exactly; arbitrary colour pixels round-trip within a small uint8-quantisation noise budget (HSV / HLS ↔ BGR is not bit-exact at 8-bit precision).</li>
+        <li><strong>2-D FFT and inverse FFT nodes.</strong> New <em>Frequency</em> section. <em>FFT 2D</em> takes a greyscale image and emits both a centred complex spectrum (as a 2-D <code>MATRIX</code>) for downstream frequency-domain manipulation and a log-scaled magnitude image (uint8 greyscale, 0..255) that wires straight into a <em>Display</em> node. <em>Inverse FFT 2D</em> reconstructs a greyscale image from a centred complex spectrum; the inverse pass is rounded before the uint8 cast so <em>FFT → IFFT</em> is a pixel-exact identity. Colour images need to be split into single channels first (<em>RGBA Split</em> / <em>HSV Split</em> / <em>Grayscale</em>) — <code>MATRIX</code> is 2-D only.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.11</h2>
+      <ul class="tips">
+        <li><strong>ImageSource default fixed.</strong> The default <code>file_path</code> for <em>ImageSource</em> was <code>example.jpg</code>, which was never bundled — dropping a fresh node and pressing Run raised a <code>FileNotFoundError</code>. Changed to <code>ship.jpg</code>, which ships under <code>input/</code>. Issue #173.</li>
       </ul>
     </section>
 

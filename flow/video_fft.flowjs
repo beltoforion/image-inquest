@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "app_version": "0.2.11",
+  "name": "video_fft",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -1831.0,
+        -542.0
+      ],
+      "port_defaults": {
+        "file_path": "video.mp4",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1270.0,
+        -704.0
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -1464.0,
+        -724.0
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1045.0,
+        -737.0
+      ],
+      "port_defaults": {},
+      "size": [
+        585.0,
+        591.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 1,
+      "dst_node": 3,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
