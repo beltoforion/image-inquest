@@ -12,36 +12,38 @@ from core.port import OutputPort
 class ValueSource(SourceNodeBase):
     """Source node that emits a SCALAR counter, one value per frame.
 
-    Drives downstream nodes with a numeric stream — useful as a test
-    probe for the new SCALAR payload type and, once param-driven ports
-    land, as a way to animate any numeric parameter (e.g. an Overlay
-    rotation angle that ramps from 0 to 360).
+    Drives downstream nodes with a numeric stream — animate a
+    Math expression's ``a``, an Overlay's rotation angle, etc.
 
     Parameters:
-      min_value  -- first emitted integer (inclusive)
-      max_value  -- last emitted integer (inclusive)
-      multiplier -- each emitted value is ``n * multiplier``; the result
-                    is float when ``multiplier`` is non-integer, int when
-                    it's exactly ``1.0`` and the count is an int
-      loop       -- when False (default), emits ``min..max`` once and
-                    finishes; when True, repeats the range
-                    :data:`_LOOP_CYCLES` times so the wraparound is
-                    observable in a finite run
+      min_value  -- first emitted value (inclusive).
+      max_value  -- inclusive upper bound; the iterator stops once
+                    ``min_value + n * increment`` would exceed it.
+      increment  -- step size between emitted values (must be > 0).
+                    Whole-number increments emit ints (so a
+                    downstream Display shows ``42`` rather than
+                    ``42.0``); fractional increments promote every
+                    emitted value to float.
+      loop       -- when False (default), emits the range once and
+                    finishes; when True, repeats it
+                    :data:`_LOOP_CYCLES` times so a wraparound is
+                    observable in a finite run.
 
-    The looping cycle count is bounded because the flow runner has no
-    cancel mechanism — an unbounded ``loop=True`` would hang every Run.
+    The looping cycle count is bounded because emitting forever would
+    only stop on a Stop click — the cap keeps a forgotten ``loop=True``
+    from filling logs / output files indefinitely.
     """
 
-    #: How many times the counter cycles when ``loop=True``. Bounded so
-    #: a Run terminates without a Stop button (which the flow runner
-    #: doesn't have yet).
+    #: How many times the counter cycles when ``loop=True``. Bounded
+    #: so a stray ``loop=True`` doesn't run indefinitely if the user
+    #: walks away.
     _LOOP_CYCLES: int = 10
 
     def __init__(self) -> None:
         super().__init__("Value Source", section="Sources")
         self._min_value: int = 0
         self._max_value: int = 99
-        self._multiplier: float = 1.0
+        self._increment: float = 1.0
         self._loop: bool = False
         self._add_param(NodeParam(
             "min_value",
@@ -54,7 +56,7 @@ class ValueSource(SourceNodeBase):
             default=99,
         ))
         self._add_param(NodeParam(
-            "multiplier",
+            "increment",
             NodeParamType.FLOAT,
             default=1.0,
         ))
@@ -85,12 +87,15 @@ class ValueSource(SourceNodeBase):
         self._max_value = int(value)
 
     @property
-    def multiplier(self) -> float:
-        return self._multiplier
+    def increment(self) -> float:
+        return self._increment
 
-    @multiplier.setter
-    def multiplier(self, value: float) -> None:
-        self._multiplier = float(value)
+    @increment.setter
+    def increment(self, value: float) -> None:
+        v = float(value)
+        if v <= 0.0:
+            raise ValueError(f"increment must be > 0 (got {v})")
+        self._increment = v
 
     @property
     def loop(self) -> bool:
@@ -113,21 +118,32 @@ class ValueSource(SourceNodeBase):
         drains entirely before the second sends anything; see
         :meth:`SourceNodeBase.iter_frames`).
         """
-        # Empty range — nothing to emit. Don't raise; the flow can still
-        # be valid (a downstream filter might tolerate zero frames), so
-        # log nothing and return.
+        # Defensive — both can only happen if a setter was bypassed
+        # (the increment setter rejects 0 / negatives, and an empty
+        # range just emits nothing rather than raising).
+        if self._increment <= 0.0:
+            return
         if self._max_value < self._min_value:
             return
 
         cycles = self._LOOP_CYCLES if self._loop else 1
-        # Keep integer output when multiplier is exactly 1.0, so a
-        # downstream Display shows "42" instead of "42.0". Any other
-        # multiplier promotes the value to float.
-        is_unit_mult = self._multiplier == 1.0
+        # Whole-number increment + integer bounds → emit ints, so a
+        # downstream Display shows ``42`` rather than ``42.0``. Any
+        # fractional increment promotes every emitted value to float.
+        emit_int = self._increment.is_integer()
+        # Tolerance on the upper bound so float drift (e.g. 10 *
+        # 0.1 == 1.0000000000000002) doesn't truncate the last value.
+        tol = abs(self._increment) * 1e-9
         for _ in range(cycles):
-            for n in range(self._min_value, self._max_value + 1):
-                value: int | float = n if is_unit_mult else n * self._multiplier
+            n = 0
+            while True:
+                value: int | float = self._min_value + n * self._increment
+                if value > self._max_value + tol:
+                    break
+                if emit_int:
+                    value = int(value)
                 self.outputs[0].send(IoData.from_scalar(value))
+                n += 1
                 yield
 
     @override

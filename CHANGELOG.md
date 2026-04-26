@@ -10,6 +10,29 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.8] — 2026-04-26
+
+### Changed
+- **Value Source: ``multiplier`` replaced with ``increment``.** The
+  emitted sequence is now defined directly by step size:
+  ``min_value=0, max_value=10, increment=0.5`` emits ``0, 0.5, 1.0,
+  …, 10.0``. Whole-number increments keep emitted values integer
+  (so a downstream Display shows ``42`` rather than ``42.0``);
+  fractional increments promote every value to float. ``increment``
+  must be > 0 — the setter rejects 0 / negative values rather than
+  silently producing an empty / infinite range. The upper-bound
+  comparison carries a small tolerance so float drift (10 * 0.1 ==
+  1.0000000000000002) doesn't truncate the last value of a range
+  like ``min=0, max=1, increment=0.1``. **No backward compatibility**
+  with the previous ``multiplier`` param: flows saved against the old
+  schema still load (the unknown ``multiplier`` key is logged and
+  ignored, ``increment`` falls back to its 1.0 default), but anyone
+  relying on a non-1.0 multiplier needs to manually rewrite the
+  range — e.g. old ``min=-180, max=0, multiplier=2.0`` becomes new
+  ``min=-360, max=0, increment=2``. The bundled
+  ``flow/test_numeric.flowjs`` and ``flow/video_overlay_rot.flowjs``
+  samples were updated.
+
 ## [0.2.7] — 2026-04-26
 
 ### Changed
