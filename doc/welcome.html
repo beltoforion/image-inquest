@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.10</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.11</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,14 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.11</h2>
+      <ul class="tips">
+        <li><strong>HSV / HSL split and join nodes.</strong> Four new <em>Color Spaces</em> filters — <em>HSV Split</em>, <em>HSV Join</em>, <em>HSL Split</em>, <em>HSL Join</em> — decompose a BGR (or BGRA, alpha dropped) image into three uint8 greyscale planes and merge them back. The full-range hue variant of OpenCV's converter is used so the H plane spans the whole 0..255 range, keeping its greyscale preview uniformly bright. Splitting greys round-trips exactly; arbitrary colour pixels round-trip within a small uint8-quantisation noise budget (HSV / HLS ↔ BGR is not bit-exact at 8-bit precision).</li>
+        <li><strong>2-D FFT and inverse FFT nodes.</strong> New <em>Frequency</em> section. <em>FFT 2D</em> takes a greyscale image and emits both a centred complex spectrum (as a 2-D <code>MATRIX</code>) for downstream frequency-domain manipulation and a log-scaled magnitude image (uint8 greyscale, 0..255) that wires straight into a <em>Display</em> node. <em>Inverse FFT 2D</em> reconstructs a greyscale image from a centred complex spectrum; the inverse pass is rounded before the uint8 cast so <em>FFT → IFFT</em> is a pixel-exact identity. Colour images need to be split into single channels first (<em>RGBA Split</em> / <em>HSV Split</em> / <em>Grayscale</em>) — <code>MATRIX</code> is 2-D only.</li>
+      </ul>
     </section>
 
     <section>
