@@ -10,6 +10,43 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.12] — 2026-04-26
+
+### Added
+- **HSV / HSL split and join nodes.** Four new ``Color Spaces``
+  filters: ``HSV Split``, ``HSV Join``, ``HSL Split``, ``HSL Join``.
+  Decompose a BGR (or BGRA — alpha is dropped) image into three
+  uint8 greyscale planes and merge them back. The full-range hue
+  variant of OpenCV's converter (``cv2.COLOR_BGR2HSV_FULL`` /
+  ``COLOR_BGR2HLS_FULL``) is used so the H plane spans the full
+  0..255 range, keeping its greyscale preview uniformly bright.
+  The ``HSL`` ports are labelled in the user-facing H, S, L order
+  even though OpenCV stores the channels as H, L, S internally —
+  the node re-orders before / after ``cv2.cvtColor``. Round-trip
+  through split → join preserves greys exactly and stays within a
+  small uint8-quantisation noise budget on arbitrary colour input
+  (HSV / HLS ↔ BGR is not bit-exact at 8-bit precision).
+- **2-D FFT and inverse FFT nodes.** New ``Frequency`` section with
+  two filters:
+  - ``FFT 2D`` — takes a single-channel (greyscale) image and
+    emits two payloads: a complex ``MATRIX`` ``spectrum`` (DC
+    centred via ``np.fft.fftshift``) suitable for in-place
+    frequency-domain manipulation, and an 8-bit greyscale
+    ``magnitude`` (``log1p`` of the spectrum, normalised to
+    0..255) that can be wired straight into a ``Display`` node
+    for a quick visual.
+  - ``Inverse FFT 2D`` — takes the centred complex ``spectrum``
+    emitted by ``FFT 2D`` (or a user-modulated copy of it) and
+    reconstructs a uint8 greyscale image. The ``ifft2`` result
+    is rounded before clipping so ``FFT 2D → Inverse FFT 2D``
+    is a pixel-exact identity on greyscale uint8 input —
+    without the explicit ``np.round``, sub-ULP float drift
+    would truncate values like ``15 - 1e-13`` to ``14`` on the
+    cast.
+  Colour images aren't accepted directly because ``MATRIX`` is
+  2-D only; split into single channels first (``RGBA Split`` /
+  ``HSV Split`` / ``Grayscale``) and FFT each channel separately.
+
 ## [0.2.11] — 2026-04-26
 
 ### Fixed
