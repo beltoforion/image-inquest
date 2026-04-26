@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.6",
+  "app_version": "0.2.7",
   "name": "video_overlay_rot",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1685.6871561211278,
-        -1614.91434963322
+        -2009.5990685841575,
+        -1542.7375215409606
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,8 +20,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1685.6871561211278,
-        -1502.91434963322
+        -2009.5990685841575,
+        -1430.7375215409606
       ],
       "port_defaults": {
         "file_path": "logo.png"
@@ -32,8 +32,8 @@
       "module": "nodes.sources.value_source",
       "class": "ValueSource",
       "position": [
-        -1650.728853570314,
-        -1320.1237869678223
+        -2091.514204847656,
+        -1238.133158669781
       ],
       "port_defaults": {
         "min_value": -360,
@@ -47,15 +47,15 @@
       "module": "nodes.filters.overlay",
       "class": "Overlay",
       "position": [
-        -1356.2724971097616,
-        -1509.5988159785077
+        -1656.988154540944,
+        -1457.9417519528834
       ],
       "port_defaults": {
         "angle": 0.0,
         "scale": 0.5,
         "xpos": 150,
         "ypos": 150,
-        "alpha": 1.0
+        "alpha": 0.5
       }
     },
     {
@@ -63,8 +63,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1138.9905140841001,
-        -1654.809559802499
+        -1448.6278080659927,
+        -1580.8484044000975
       ],
       "port_defaults": {},
       "size": [
@@ -77,14 +77,29 @@
       "module": "nodes.sources.value_source",
       "class": "ValueSource",
       "position": [
-        -1650.728853570314,
-        -1124.1237869678223
+        -2091.514204847656,
+        -1041.2409950147098
       ],
       "port_defaults": {
-        "min_value": 150,
-        "max_value": 1500,
+        "min_value": 0,
+        "max_value": 1000,
         "increment": 1.0,
         "loop": false
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.math",
+      "class": "Math",
+      "position": [
+        -1863.7863811157217,
+        -1104.587032946501
+      ],
+      "port_defaults": {
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "expression": "A+150"
       }
     }
   ],
@@ -108,23 +123,29 @@
       "dst_input": 0
     },
     {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 4
-    },
-    {
       "src_node": 2,
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 4
     }
   ],
   "backdrops": [
     {
       "position": [
-        -1711.6871561211278,
-        -1662.91434963322
+        -2035.5990685841575,
+        -1590.7375215409606
       ],
       "size": [
         282.828125,
@@ -140,8 +161,8 @@
     },
     {
       "position": [
-        -1676.728853570314,
-        -1368.1237869678223
+        -2117.514204847656,
+        -1286.133158669781
       ],
       "size": [
         228.8125,
