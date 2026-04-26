@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.4",
+  "app_version": "0.2.5",
   "name": "video_overlay_rot",
   "nodes": [
     {
@@ -32,13 +32,13 @@
       "module": "nodes.sources.value_source",
       "class": "ValueSource",
       "position": [
-        -1707.9717247492397,
-        -1398.636882231192
+        -1706.237101372058,
+        -1407.3099991170998
       ],
       "port_defaults": {
-        "min_value": 0,
-        "max_value": 99,
-        "multiplier": 1.0,
+        "min_value": -180,
+        "max_value": 0,
+        "multiplier": 2.0,
         "loop": false
       }
     },
@@ -52,9 +52,9 @@
       ],
       "port_defaults": {
         "angle": 0.0,
-        "scale": 1.0,
-        "xpos": 960,
-        "ypos": 538,
+        "scale": 0.5,
+        "xpos": 150,
+        "ypos": 150,
         "alpha": 1.0
       }
     },
@@ -71,6 +71,21 @@
         702.3323880953664,
         570.9432352481874
       ]
+    },
+    {
+      "id": 5,
+      "module": "nodes.sources.value_source",
+      "class": "ValueSource",
+      "position": [
+        -1633.147909616484,
+        -1194.288195189537
+      ],
+      "port_defaults": {
+        "min_value": 150,
+        "max_value": 800,
+        "multiplier": 1.0,
+        "loop": false
+      }
     }
   ],
   "connections": [
@@ -97,6 +112,12 @@
       "src_output": 0,
       "dst_node": 4,
       "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 4
     }
   ],
   "backdrops": []
