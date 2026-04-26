@@ -255,6 +255,15 @@ class NodeEditorPage(PageBase):
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._node_list_dock.toggleViewAction())
         view_menu.addAction(self._viewer_dock.toggleViewAction())
+        view_menu.addSeparator()
+        # Preset dock arrangements. Qt's drag-and-drop into a split-with-
+        # existing-dock zone is precise enough to be hard to discover when
+        # the source dock is on the opposite side of the canvas, so the
+        # two layouts users actually want are exposed as one-click presets
+        # in addition to the freeform drag affordances. Issue: #183
+        layout_menu = view_menu.addMenu("Dock Layout")
+        layout_menu.addAction(self._actions["layout_inspector_right"])
+        layout_menu.addAction(self._actions["layout_inspector_under_node_list"])
         return [menu]
 
     def on_activated(self) -> None:
@@ -277,6 +286,55 @@ class NodeEditorPage(PageBase):
     def save_dock_layout(self) -> None:
         """Persist the current dock arrangement so the next launch restores it."""
         save_dock_layout(self._inner)
+
+    def _apply_layout_inspector_right(self) -> None:
+        """Inspector full-height on the right, Node List full-height on the left.
+
+        This is the v0.2.13 default. Exposed as a one-click preset so the
+        user can get back to it after experimenting with floats / tabs
+        without having to drag each dock back into place. Issue: #183
+        """
+        self._viewer_dock.setFloating(False)
+        self._node_list_dock.setFloating(False)
+        self._viewer_dock.show()
+        self._node_list_dock.show()
+        self._inner.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock,
+        )
+        self._inner.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self._viewer_dock,
+        )
+
+    def _apply_layout_inspector_under_node_list(self) -> None:
+        """Stack both docks vertically on the left (pre-0.2.13 default).
+
+        Mirrors the layout the editor used before the right-side default
+        landed. Drag-and-drop into the existing left-area split-zone is
+        precise enough to be hard to discover, so the same arrangement
+        is exposed as a preset. Issue: #183
+        """
+        self._viewer_dock.setFloating(False)
+        self._node_list_dock.setFloating(False)
+        self._viewer_dock.show()
+        self._node_list_dock.show()
+        self._inner.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock,
+        )
+        self._inner.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self._viewer_dock,
+        )
+        self._inner.splitDockWidget(
+            self._node_list_dock, self._viewer_dock, Qt.Orientation.Vertical,
+        )
+        # Equalise the split so the inspector gets a useful initial slot
+        # rather than the minimum height Qt picks by default.
+        h = max(self._inner.height(), 2)
+        half = h // 2
+        self._inner.resizeDocks(
+            [self._node_list_dock, self._viewer_dock],
+            [half, h - half],
+            Qt.Orientation.Vertical,
+        )
 
     # ── Public API (called by MainWindow) ──────────────────────────────────────
 
@@ -357,6 +415,14 @@ class NodeEditorPage(PageBase):
                 "H-Stack", "view_column", self._on_stack_horizontal_clicked,
             ),
             "group": mk("Group", "select_all", self._on_group_clicked),
+            "layout_inspector_right": mk(
+                "Inspector on Right (default)", "vertical_split",
+                self._apply_layout_inspector_right,
+            ),
+            "layout_inspector_under_node_list": mk(
+                "Inspector under Node List", "horizontal_split",
+                self._apply_layout_inspector_under_node_list,
+            ),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────

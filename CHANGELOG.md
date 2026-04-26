@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.14] — 2026-04-26
+
+### Added
+- **Dock-layout presets.** New ``View → Dock Layout`` submenu with two
+  one-click arrangements: *Inspector on Right (default)* and
+  *Inspector under Node List* (the pre-0.2.13 layout). Qt's
+  drag-and-drop into a split-with-existing-dock zone is precise enough
+  to be hard to discover when the source dock is on the opposite side
+  of the canvas, so both useful arrangements are exposed as menu
+  entries in addition to the existing freeform drag affordances.
+  Issue: #183
+
 ## [0.2.13] — 2026-04-26
 
 ### Changed
