@@ -10,6 +10,40 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.34] — 2026-04-26
+
+### Changed
+- **Param-as-port migration (step 7b/8): inline socket layout.**
+  Param widgets are no longer collected in a separate property-panel
+  ``QWidget`` above the IO rows; each one now sits directly on its
+  input port's row, right of the port name (Blender-style). The
+  ``_build_params_widget`` panel-builder is gone; ``_build_ports``
+  builds a per-row ``QGraphicsProxyWidget`` for every input port
+  whose metadata carries a ``"param_type"``. ``_relayout``
+  positions one widget per row in ``_layout_param_widgets``,
+  width-clamped between 60 and 140 px and right-aligned within the
+  row so it never overlaps the input label or an output label
+  sitting on the same row. ``paint()`` truncates the input label
+  on widget-bearing rows so the label text never paints
+  underneath the widget.
+- **Preview widget (Display's pixmap) moves below the IO rows.**
+  Previously stacked at the bottom of the property panel; now
+  positioned in its own ``QGraphicsProxyWidget`` below all input/
+  output rows where it inherits the resize grip's leftover
+  vertical space exactly like before.
+- **Live refresh of widget enabled/disabled state on connect/
+  disconnect is intentionally not wired** (the user reported the
+  previous attempt at this was too racy). Disabled state is set at
+  ``NodeItem`` creation only; after a connect or disconnect the
+  user re-opens the flow / clicks elsewhere to pick up the
+  refreshed state.
+
+### Removed
+- Unused ``QLabel`` and ``QVBoxLayout`` imports in ``ui.node_item``.
+- The ``_params_widget``, ``_proxy`` and ``_params_height``
+  attributes on ``NodeItem`` (replaced by per-row ``_param_proxies_by_row``
+  / ``_param_widgets_by_row`` dicts plus a single ``_preview_proxy``).
+
 ## [0.1.33] — 2026-04-26
 
 ### Removed

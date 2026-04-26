@@ -17,8 +17,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QGraphicsItem,
     QGraphicsProxyWidget,
-    QLabel,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -327,11 +325,15 @@ class NodeItem(QGraphicsItem):
         self._signals = _NodeSignals()
         self._input_ports: list[PortItem] = []
         self._output_ports: list[PortItem] = []
-        self._params_widget: QWidget | None = None  # container; holds ParamWidgetBases
+        # Each param-style input port gets its own inline editor proxy
+        # built in _build_ports; the dicts there map port-index → widget
+        # so _relayout can position one per row. Preview (Display's
+        # pixmap) lives in its own proxy below the IO rows.
         self._param_widgets: list[ParamWidgetBase] = []
+        self._param_widgets_by_row: dict[int, ParamWidgetBase] = {}
+        self._param_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
         self._preview_widget: QWidget | None = None
-        self._proxy: QGraphicsProxyWidget | None = None
-        self._params_height: float = 0.0
+        self._preview_proxy: QGraphicsProxyWidget | None = None
         self._body_height: float = 0.0
         self._width: float = self.MAX_WIDTH
         # User-chosen overrides (from resize grip or flow load). None
@@ -350,7 +352,6 @@ class NodeItem(QGraphicsItem):
         )
         self._resize_grip = _ResizeGripItem(self)
 
-        self._build_params_widget()
         self._build_ports()
         self._relayout()
 
@@ -482,9 +483,16 @@ class NodeItem(QGraphicsItem):
 
         for i, port in enumerate(self._input_ports):
             y = io_top + (i + 0.5) * self.PORT_ROW_HEIGHT
+            # If this row hosts an inline param widget, truncate the
+            # input label so it doesn't paint underneath the widget.
+            label_right = self._width - label_margin
+            proxy = self._param_proxies_by_row.get(i)
+            if proxy is not None:
+                label_right = proxy.pos().x() - 4.0
             painter.drawText(
                 QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
+                       max(0.0, label_right - label_margin),
+                       self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                 port.name,
             )
@@ -555,7 +563,10 @@ class NodeItem(QGraphicsItem):
         return path
 
     def _io_top(self) -> float:
-        return self.HEADER_HEIGHT + self._params_height + (self.PARAM_GAP if self._params_height else 0)
+        # Inline-socket layout (step 7b): no separate property panel
+        # above the IO rows, so the first port row sits flush under
+        # the header.
+        return self.HEADER_HEIGHT
 
     def _compute_width(self) -> float:
         """Pick a body width that fits the node's content, clamped to MAX_WIDTH.
@@ -575,20 +586,37 @@ class NodeItem(QGraphicsItem):
         port_margin = PortItem.RADIUS + 6.0
         port_need = 0.0
         rows = max(len(self._input_ports), len(self._output_ports))
+        widget_inset = 4.0
+        # A param-style row needs room for input label + widget + output
+        # label. We use the widget's natural sizeHint so the auto-fit
+        # width is generous enough that the widget doesn't get
+        # squeezed below ~100px.
         for i in range(rows):
             in_w = (metrics.horizontalAdvance(self._input_ports[i].name)
                     if i < len(self._input_ports) else 0.0)
             out_w = (metrics.horizontalAdvance(self._output_ports[i].name)
                      if i < len(self._output_ports) else 0.0)
-            row_need = 2 * port_margin + in_w + self.PORT_LABEL_GAP + out_w
+            widget_w = 0.0
+            editor = self._param_widgets_by_row.get(i)
+            if editor is not None:
+                widget_w = max(
+                    100.0,
+                    min(140.0, float(editor.sizeHint().width())),
+                )
+                widget_w += 2 * widget_inset
+            else:
+                # Plain port row: use the legacy gap budget.
+                widget_w = self.PORT_LABEL_GAP
+            row_need = 2 * port_margin + in_w + widget_w + out_w
             port_need = max(port_need, row_need)
 
-        params_need = 0.0
-        if self._params_widget is not None:
-            # +2 mirrors the 1px left/right inset applied in _relayout.
-            params_need = float(self._params_widget.sizeHint().width()) + 2.0
+        # Preview widget asks for as much width as it can get; cap at
+        # MAX_WIDTH via the outer min() below.
+        preview_need = 0.0
+        if self._preview_widget is not None:
+            preview_need = float(self._preview_widget.sizeHint().width()) + 2 * self.PADDING
 
-        content = max(header_need, port_need, params_need)
+        content = max(header_need, port_need, preview_need)
         return max(self.MIN_WIDTH, min(self.MAX_WIDTH, content))
 
     def refresh_param_widgets(self) -> None:
@@ -612,56 +640,61 @@ class NodeItem(QGraphicsItem):
         for editor in self._param_widgets:
             editor.setEnabled(enabled)
 
-    def _build_params_widget(self) -> None:
-        preview = build_preview_widget(self._node)
-        if not self._node.params and preview is None:
-            return
-        w = QWidget()
-        w.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        w.setStyleSheet("QWidget { background: transparent; }")
-        layout = QVBoxLayout(w)
-        layout.setContentsMargins(int(self.PADDING), int(self.PADDING), int(self.PADDING), 0)
-        layout.setSpacing(2)
-
-        for port in self._node.params:
-            name_label = QLabel(port.name)
-            name_label.setProperty("muted", True)
-            layout.addWidget(name_label)
-            editor: ParamWidgetBase | None = build_param_widget(self._node, port)
-            if editor is not None:
-                editor.value_changed.connect(lambda _v: self._signals.param_changed.emit())
-                # Gray out the widget when the port has an upstream
-                # producer driving it — the streamed value overrides
-                # whatever the slider would write, so leaving the
-                # widget editable would be misleading. Step 7
-                # (full inline-socket layout) replaces this with a
-                # hidden widget next to a "driven" socket indicator.
-                editor.setEnabled(port.upstream is None)
-                layout.addWidget(editor)
-                self._param_widgets.append(editor)
-            else:
-                kind = port.metadata.get("param_type")
-                kind_name = kind.name if kind is not None else "unknown"
-                layout.addWidget(QLabel(f"(unsupported: {kind_name})"))
-
-        if preview is not None:
-            # Stretch factor 1 — when the user drags the resize grip the
-            # params widget is given a fixed height, and the QVBoxLayout
-            # funnels the spare vertical space into the preview.
-            layout.addWidget(preview, 1)
-            self._preview_widget = preview
-
-        self._params_widget = w
-        self._proxy = QGraphicsProxyWidget(self)
-        self._proxy.setWidget(w)
-
     def _build_ports(self) -> None:
-        self._input_ports = [
-            PortItem(self, "input", i, port) for i, port in enumerate(self._node.inputs)
-        ]
+        """Build PortItems and the per-row inline widgets (param sockets).
+
+        Each input port becomes a :class:`PortItem`; if its underlying
+        :class:`InputPort` is param-style (metadata carries
+        ``"param_type"``), an inline editor widget is attached to the
+        same row via a :class:`QGraphicsProxyWidget`. The widget is
+        positioned in :meth:`_relayout` to sit on the same horizontal
+        row as the port dot. The widget is disabled at construction
+        when ``port.upstream is not None`` — a streamed value would
+        override whatever the slider writes, so leaving the editor
+        live would be misleading. Live refresh on connect/disconnect
+        is intentionally not wired (would race with link drag/drop in
+        practice); the user re-opens / reloads the flow to pick up
+        changes.
+        """
+        self._input_ports = []
+        # Per input-port-index → editor (if param-style) and proxy.
+        # Using parallel dicts keyed by port index so a layout pass
+        # can find the right widget for row N without walking lists.
+        self._param_widgets_by_row: dict[int, ParamWidgetBase] = {}
+        self._param_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
+
+        for i, port_model in enumerate(self._node.inputs):
+            port_item = PortItem(self, "input", i, port_model)
+            self._input_ports.append(port_item)
+            if "param_type" not in port_model.metadata:
+                continue
+            editor = build_param_widget(self._node, port_model)
+            if editor is None:
+                continue
+            editor.value_changed.connect(
+                lambda _v: self._signals.param_changed.emit()
+            )
+            editor.setEnabled(port_model.upstream is None)
+            proxy = QGraphicsProxyWidget(self)
+            proxy.setWidget(editor)
+            self._param_widgets_by_row[i] = editor
+            self._param_proxies_by_row[i] = proxy
+            self._param_widgets.append(editor)
+
         self._output_ports = [
-            PortItem(self, "output", i, port) for i, port in enumerate(self._node.outputs)
+            PortItem(self, "output", i, port_model)
+            for i, port_model in enumerate(self._node.outputs)
         ]
+
+        # Preview widget (Display's pixmap, etc.) lives in its own
+        # proxy below the IO rows; it has no port row of its own.
+        preview = build_preview_widget(self._node)
+        if preview is not None:
+            self._preview_widget = preview
+            self._preview_proxy = QGraphicsProxyWidget(self)
+            self._preview_proxy.setWidget(preview)
+        else:
+            self._preview_proxy = None
 
     def _relayout(self) -> None:
         """Recompute width / body height and place every child item.
@@ -678,22 +711,24 @@ class NodeItem(QGraphicsItem):
         else:
             self._width = self._compute_width()
 
-        # ── Natural params height (used as a floor for user-set heights) ──────
-        natural_params_h = 0.0
-        if self._params_widget is not None and self._proxy is not None:
-            self._params_widget.setFixedWidth(int(self._width - 2))
-            # Temporarily clear any fixed height so sizeHint reflects content.
-            self._params_widget.setMinimumHeight(0)
-            self._params_widget.setMaximumHeight(16777215)
-            natural_params_h = float(self._params_widget.sizeHint().height())
-
+        # ── IO area ────────────────────────────────────────────────────────────
         n_rows = max(len(self._input_ports), len(self._output_ports), 0)
         io_height = n_rows * self.PORT_ROW_HEIGHT
+
+        # Preview (if any) gets a natural minimum and stretches to fill
+        # whatever vertical space the user dragged the resize grip to.
+        natural_preview_h = 0.0
+        if self._preview_widget is not None:
+            natural_preview_h = max(
+                float(self._preview_widget.sizeHint().height()),
+                100.0,  # don't collapse below something legible
+            )
+        gap_before_preview = self.PARAM_GAP if natural_preview_h > 0 else 0
         natural_body_h = (
             self.HEADER_HEIGHT
-            + natural_params_h
-            + (self.PARAM_GAP if natural_params_h else 0)
             + io_height
+            + gap_before_preview
+            + natural_preview_h
             + self.PADDING
         )
 
@@ -708,15 +743,6 @@ class NodeItem(QGraphicsItem):
             )
         else:
             self._body_height = natural_body_h
-
-        # Distribute body height to params widget so the preview
-        # (with stretch=1) gets the leftover space.
-        if self._params_widget is not None and self._proxy is not None:
-            params_h = self._body_height - self.HEADER_HEIGHT - io_height - self.PADDING
-            params_h = max(natural_params_h, params_h)
-            self._params_widget.setFixedHeight(int(params_h))
-            self._params_height = params_h
-            self._proxy.setPos(1.0, self.HEADER_HEIGHT)
 
         # ── Reposition handles & ports ─────────────────────────────────────────
         self._close_button.setPos(
@@ -739,5 +765,54 @@ class NodeItem(QGraphicsItem):
         for i, port in enumerate(self._output_ports):
             port.setPos(self._width, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
 
+        # ── Per-row inline param widgets ───────────────────────────────────────
+        self._layout_param_widgets(io_top)
+
+        # ── Preview widget below the IO rows ───────────────────────────────────
+        if self._preview_widget is not None and self._preview_proxy is not None:
+            preview_top = io_top + io_height + gap_before_preview
+            preview_h = self._body_height - preview_top - self.PADDING
+            preview_h = max(natural_preview_h, preview_h)
+            self._preview_widget.setFixedWidth(int(self._width - 2 * self.PADDING))
+            self._preview_widget.setFixedHeight(int(preview_h))
+            self._preview_proxy.setPos(self.PADDING, preview_top)
+
         self.refresh_all_links()
         self.update()
+
+    def _layout_param_widgets(self, io_top: float) -> None:
+        """Position each per-row inline param widget on its port row.
+
+        Widget is right-aligned within the row, leaving the left side
+        of the row for the input port dot + name label. Width is
+        clamped so a long widget never spills past the right edge or
+        an output dot/label sitting on the same row.
+        """
+        if not self._param_widgets_by_row:
+            return
+        metrics = QFontMetricsF(QApplication.font())
+        port_margin = PortItem.RADIUS + 6.0
+        widget_inset = 4.0  # gap between widget and right edge / output label
+        widget_h = self.PORT_ROW_HEIGHT - 2.0  # leave 1px breathing room
+        for row, editor in self._param_widgets_by_row.items():
+            proxy = self._param_proxies_by_row[row]
+            # If this row also has an output port, leave horizontal
+            # space for its label so the widget doesn't overlap.
+            out_label_w = 0.0
+            if row < len(self._output_ports):
+                out_label_w = (
+                    metrics.horizontalAdvance(self._output_ports[row].name)
+                    + port_margin
+                )
+            in_label_w = (
+                metrics.horizontalAdvance(self._input_ports[row].name)
+                + port_margin
+            )
+            # Available horizontal space for the widget on this row.
+            avail = self._width - in_label_w - out_label_w - 2 * widget_inset
+            widget_w = max(60.0, min(140.0, avail))
+            x = self._width - out_label_w - widget_inset - widget_w
+            x = max(in_label_w + widget_inset, x)  # never overlap input label
+            y = io_top + row * self.PORT_ROW_HEIGHT + 1.0
+            editor.setFixedSize(int(widget_w), int(widget_h))
+            proxy.setPos(x, y)
