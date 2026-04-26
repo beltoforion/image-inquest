@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.9",
+  "app_version": "0.2.13",
   "name": "folder_resize",
   "nodes": [
     {
@@ -21,8 +21,8 @@
       "module": "nodes.filters.resize",
       "class": "Resize",
       "position": [
-        -1821.0521739130436,
-        -575.7217391304349
+        -1885.3602824500156,
+        -443.386723460806
       ],
       "port_defaults": {
         "width": 256,
@@ -65,21 +65,32 @@
       "module": "nodes.filters.delay",
       "class": "Delay",
       "position": [
-        -1686.1565217391303,
-        -307.5565217391304
+        -1885.3602824500156,
+        -247.38672346080602
       ],
       "port_defaults": {
         "delay_seconds": 1.0
       }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.notify",
+      "class": "Notify",
+      "position": [
+        -1885.3602824500156,
+        -611.386723460806
+      ],
+      "port_defaults": {
+        "message": "Processing Frames",
+        "severity": 0
+      },
+      "size": [
+        300.17849591399545,
+        148.0
+      ]
     }
   ],
   "connections": [
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 1,
-      "dst_input": 0
-    },
     {
       "src_node": 2,
       "src_output": 0,
@@ -96,6 +107,18 @@
       "src_node": 4,
       "src_output": 0,
       "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 1,
       "dst_input": 0
     }
   ],
