@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-04-26
+
+### Fixed
+- **Frozen bundle was missing the `input/`, `output/`, and `logs/`
+  per-user directories on first launch, and the sample input images
+  shipped in the dev tree weren't bundled at all.** File dialogs
+  defaulted to non-existent paths and there was nothing to load. The
+  PyInstaller spec now bundles `input/` and `flow/` as data, and
+  `main._seed_user_data()` runs at startup to (a) `mkdir(exist_ok=True)`
+  every user-data directory and (b) copy the bundled sample images and
+  flows into the user dir on first launch. Idempotent — only seeds
+  files that aren't already present, so anything the user saves
+  persists across launches. Issue: #165
+
 ## [0.2.3] — 2026-04-26
 
 ### Fixed

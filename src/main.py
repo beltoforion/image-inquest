@@ -4,6 +4,7 @@ import argparse
 import faulthandler
 import logging
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -49,7 +50,9 @@ from constants import (
     APP_USER_MODEL_ID,
     APP_VERSION,
     FLOW_DIR,
+    INPUT_DIR,
     LOG_DIR,
+    OUTPUT_DIR,
     SPLASH_DURATION_MS,
     SPLASH_IMAGE_PATH,
 )
@@ -267,6 +270,54 @@ def _make_splash(screen: QScreen) -> QSplashScreen | None:
     return splash
 
 
+def _seed_user_data() -> None:
+    """Ensure the per-user writable directories exist, and on first launch
+    of a frozen build seed ``input/`` and ``flow/`` from the bundled
+    samples.
+
+    PyInstaller extracts data files under ``sys._MEIPASS`` (read-only),
+    so the user-facing directories live in a separate per-user data root
+    (``~/.local/share/Stjornhorn`` on Linux, ``%LOCALAPPDATA%/Stjornhorn``
+    on Windows). Without this, ``input/`` / ``output/`` / ``logs/`` don't
+    exist on first launch — file dialogs default to a path that isn't
+    there, and there's nothing to load. ``setup_logging`` already creates
+    ``LOG_DIR``; we do the rest here and seed the sample assets so the
+    welcome page's example flows and the file dialog's default input
+    actually work out of the box.
+
+    Idempotent: only copies files that aren't already present in the
+    user dir, so anything the user saves persists across launches.
+    Issue: #165
+    """
+    for d in (INPUT_DIR, OUTPUT_DIR, FLOW_DIR, LOG_DIR):
+        d.mkdir(parents=True, exist_ok=True)
+
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if not getattr(sys, "frozen", False) or bundle_root is None:
+        return
+
+    seeds = (
+        (Path(bundle_root) / "input", INPUT_DIR, ("*",)),
+        (Path(bundle_root) / "flow",  FLOW_DIR,  ("*.flowjs",)),
+    )
+    for src_dir, dst_dir, patterns in seeds:
+        if not src_dir.is_dir():
+            continue
+        for pattern in patterns:
+            for src in src_dir.glob(pattern):
+                if not src.is_file():
+                    continue
+                dst = dst_dir / src.name
+                if dst.exists():
+                    continue
+                try:
+                    shutil.copy2(src, dst)
+                except OSError:
+                    # Best-effort seeding — don't kill startup over a
+                    # single asset that couldn't be copied.
+                    logger.exception("Failed to seed %s → %s", src, dst)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Image Inquest Application")
     parser.add_argument("--no-splash", action="store_true", help="Skip the startup splash screen")
@@ -279,6 +330,7 @@ def main(argv: list[str]) -> int:
     args, qt_args = parser.parse_known_args(argv)
 
     setup_logging(LOG_DIR)
+    _seed_user_data()
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
     # Record the interpreter the app is bound to — handy when triaging
     # bug reports where behaviour depends on the Python version (e.g.
