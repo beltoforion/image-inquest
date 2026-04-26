@@ -21,8 +21,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -548.916186082276,
-        -1327.1710880430605
+        -151.23106497500945,
+        -870.7026624375242
       ],
       "params": {
         "output_path": "out.mp4",
@@ -47,8 +47,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1398.8273740868894,
-        -1142.7443291041911
+        -1092.7509611687815,
+        -1071.5491157247216
       ],
       "params": {},
       "size": [
@@ -70,32 +70,54 @@
       "size": [
         169.0,
         118.0
-      ],
-      "skipped": true
+      ]
     },
     {
       "id": 5,
       "module": "nodes.filters.frame_difference",
       "class": "FrameDifference",
       "position": [
-        -1635.7231833910034,
-        -562.0315263360251
+        -1635.7231833910037,
+        -560.7714340638222
       ],
-      "params": {},
-      "skipped": true
+      "params": {}
     },
     {
       "id": 6,
       "module": "nodes.filters.gaussian_blur",
       "class": "GaussianBlur",
       "position": [
-        -1653.021914648212,
-        -763.0680507497117
+        -1654.282006920415,
+        -763.0680507497116
       ],
       "params": {
         "ksize": 21,
         "sigma": 0.0
       }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -1302.7090943971955,
+        -762.7021794141817
+      ],
+      "params": {}
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1094.831170703576,
+        -1680.0180219146487
+      ],
+      "params": {},
+      "size": [
+        800.0,
+        593.0
+      ]
     }
   ],
   "connections": [
@@ -134,6 +156,36 @@
       "src_output": 0,
       "dst_node": 5,
       "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 1
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 3
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 0
     }
   ],
   "backdrops": [
@@ -145,6 +197,23 @@
       "size": [
         269.0,
         641.0830449826988
+      ],
+      "title": "Group",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1120.831170703576,
+        -1728.0180219146487
+      ],
+      "size": [
+        854.0802095347944,
+        1311.468906189927
       ],
       "title": "Group",
       "color": [
