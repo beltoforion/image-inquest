@@ -10,6 +10,25 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.31] — 2026-04-26
+
+### Changed
+- **Param-as-port pilot (step 4/8): Overlay drops its manual angle
+  branch.** ``Overlay.process_impl`` no longer reads
+  ``self.inputs[2].data.payload`` itself — the framework path from
+  step 2 (port-driven attribute populate) plus step 3 (auto-port
+  per param) covers it: ``self._angle`` is already populated with
+  the streamed value before ``process_impl`` runs and restored to
+  the user-set fallback after. Same external behaviour as before;
+  the implementation just stopped duplicating what the framework
+  now does for free. The explicit ``angle`` ``InputPort`` in
+  ``__init__`` stays put so saved flows that referenced port
+  index 2 keep loading unchanged. Other numeric params
+  (``scale``, ``xpos``, ``ypos``, ``alpha``) get their auto-ports
+  from step 3 and are immediately drivable too — so a flow like
+  ``ValueSource → Overlay.scale`` produces an animated zoom with
+  zero per-param code.
+
 ## [0.1.30] — 2026-04-26
 
 ### Added
