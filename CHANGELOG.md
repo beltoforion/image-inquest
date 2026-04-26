@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.40] — 2026-04-26
+
+### Changed
+- **Param widgets line up along a uniform X anchor per node.**
+  Previously each row's inline editor was right-aligned within the
+  available space, which meant the widget's left edge floated based
+  on how long the port label in front of it was — a row with
+  ``file_path`` and a row with ``min`` could not look like a clean
+  vertical stack because their widgets started at different X.
+  ``NodeItem._layout_param_widgets`` now picks a single
+  widget-start X per node (one ``WIDGET_INSET`` past the longest
+  param-bearing input label) and positions every widget at that X.
+  Width still varies per widget (checkbox stays at its compact
+  ``minimumSizeHint``, FilePathParamWidget stretches to fill the
+  row), but the left edges align. ``_compute_width`` updated to
+  size the node body off the *combined* longest-label-plus-widest-
+  widget-min so the uniform anchor always has room.
+
 ## [0.1.39] — 2026-04-26
 
 ### Fixed

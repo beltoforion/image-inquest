@@ -621,20 +621,36 @@ class NodeItem(QGraphicsItem):
             row_need = 2 * label_inset + metrics.horizontalAdvance(port.name)
             port_need = max(port_need, row_need)
 
-        # Inputs follow below — each row needs room for the left-edge
-        # socket dot + label + (optional) inline widget. We use
-        # ``minimumSizeHint`` so a multi-element widget
-        # (FilePathParamWidget's line-edit + buttons ≈ 160 px) doesn't
-        # overlap its children because the row was sized to a single
-        # SpinBox-shaped budget.
+        # Plain image-flow inputs (no widget) just need room for the
+        # left-edge socket dot + label.
         for i, port in enumerate(self._input_ports):
-            label_w = metrics.horizontalAdvance(port.name)
-            editor = self._param_widgets_by_row.get(i)
-            if editor is not None:
-                widget_w = float(editor.minimumSizeHint().width()) + 2 * self.WIDGET_INSET
-            else:
-                widget_w = 0.0
-            row_need = 2 * label_inset + label_w + widget_w
+            if i in self._param_widgets_by_row:
+                continue
+            row_need = 2 * label_inset + metrics.horizontalAdvance(port.name)
+            port_need = max(port_need, row_need)
+
+        # Inputs with widgets line up along a single shared widget-X
+        # anchor (see :meth:`_layout_param_widgets`) so the widget
+        # column reads as a clean vertical stack regardless of how
+        # short or long each label is. The anchor sits past the
+        # *longest* label, so the natural-width budget grows to fit
+        # ``label_inset + max_label_w + WIDGET_INSET + max_widget_min
+        # + WIDGET_INSET`` — once at the longest label, once at the
+        # widest widget-min in the same node.
+        if self._param_widgets_by_row:
+            max_label_w = max(
+                metrics.horizontalAdvance(self._input_ports[i].name)
+                for i in self._param_widgets_by_row
+            )
+            max_widget_min_w = max(
+                float(editor.minimumSizeHint().width())
+                for editor in self._param_widgets_by_row.values()
+            )
+            row_need = (
+                label_inset + max_label_w
+                + 2 * self.WIDGET_INSET
+                + max_widget_min_w
+            )
             port_need = max(port_need, row_need)
 
         # Preview widget asks for as much width as it can get; cap at
@@ -825,26 +841,32 @@ class NodeItem(QGraphicsItem):
             return
         metrics = QFontMetricsF(QApplication.font())
         label_inset = PortItem.LABEL_OFFSET
-        for row, editor in self._param_widgets_by_row.items():
-            proxy = self._param_proxies_by_row[row]
-            in_label_w = (
+
+        # Pick a single widget-start X for every row so the widgets line
+        # up along a common left edge regardless of how short or long
+        # each port label is. The shared anchor sits one WIDGET_INSET
+        # past the longest input-row label, which guarantees the label
+        # of every row fits to the left of the widget without
+        # overlapping. Width still varies per widget (clamped by its
+        # own minimumSizeHint and natural sizeHint) so a checkbox stays
+        # compact while a multi-element FilePathParamWidget stretches
+        # to fill the row.
+        max_label_w = 0.0
+        for row in self._param_widgets_by_row:
+            label_w = (
                 metrics.horizontalAdvance(self._input_ports[row].name)
                 + label_inset
             )
-            avail = self._width - in_label_w - 2 * self.WIDGET_INSET
-            # Width: use the widget's natural sizeHint, clamped between
-            # its own minimum (so QHBoxLayout-based widgets like
-            # FilePathParamWidget don't end up with the line-edit
-            # overlapping the buttons) and what's available on this
-            # row. Stretchy widgets (QSpinBox, QLineEdit) report a
-            # generous sizeHint and fill the row; fixed-size widgets
-            # (QCheckBox) report ~20 px and stay small + tucked right.
+            max_label_w = max(max_label_w, label_w)
+        widget_x = max_label_w + self.WIDGET_INSET
+
+        avail = self._width - widget_x - self.WIDGET_INSET
+        for row, editor in self._param_widgets_by_row.items():
+            proxy = self._param_proxies_by_row[row]
             min_w = float(editor.minimumSizeHint().width())
             hint_w = float(editor.sizeHint().width())
             widget_w = max(min_w, min(hint_w, avail))
             widget_h = float(editor.sizeHint().height())
             y = inputs_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
-            x = self._width - self.WIDGET_INSET - widget_w
-            x = max(in_label_w + self.WIDGET_INSET, x)
             editor.setFixedSize(int(widget_w), int(widget_h))
-            proxy.setPos(x, y)
+            proxy.setPos(widget_x, y)
