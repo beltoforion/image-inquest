@@ -10,6 +10,36 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.36] — 2026-04-26
+
+### Fixed
+- **Inline socket widgets no longer collapse into their own
+  buttons.** Three follow-up fixes after the param-as-port layout
+  introduced in 0.1.34:
+  - ``PORT_ROW_HEIGHT`` 22 → 28 px so a native QSpinBox / QLineEdit
+    has room to render its full-size up / down arrows and text
+    caret. The previous 22 px was below the OS-style natural
+    height; QSpinBox would render but with the spinner buttons
+    squeezed into ~6 px of vertical space, the user-visible
+    "tiny icons" report.
+  - ``MAX_WIDTH`` 220 → 320 px so a node carrying a
+    :class:`FilePathParamWidget` (line-edit + Browse + View
+    ≈ 160 px wide) auto-fits to a width that doesn't squeeze the
+    line-edit under the buttons. ``ImageSource`` ends up at ~280
+    px now instead of being capped at 220 with its line-edit
+    overlapping the two buttons.
+  - Per-widget width logic in ``_layout_param_widgets`` switched
+    from ``max(60, min(140, avail))`` to
+    ``max(min_size_hint, min(size_hint, avail))``. Stretchy
+    widgets (QSpinBox, QLineEdit-based FilePath) report a
+    generous size hint and fill the row width; fixed-size widgets
+    (a QCheckBox like ``ValueSource.loop``) report ~14 px and
+    stay tucked to the right of the row instead of stretching
+    across as empty whitespace.
+  Width budget computation in ``_compute_width`` uses
+  ``minimumSizeHint`` instead of a hardcoded 100-140 cap so the
+  auto-fit gives every widget at least its non-overlapping minimum.
+
 ## [0.1.35] — 2026-04-26
 
 ### Changed

@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.35</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.36</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.35</h2>
+      <h2>What's new in v0.1.36</h2>
       <ul class="tips">
-        <li><strong>Flow file format finalised.</strong> The on-disk per-node ``params`` key is renamed to ``port_defaults`` to reflect the post-NodeParam mental model. Existing flow files still load — the loader reads the legacy key as a fallback. All bundled samples have been re-saved to the new format.</li>
+        <li><strong>Inline socket widgets render properly.</strong> Fix-ups for the new per-row layout: tall enough rows that QSpinBox / QLineEdit show full-size up/down arrows and text caret, wide enough nodes that <em>FilePathParamWidget</em>'s line-edit + Browse + View buttons stop overlapping each other. Sub-fixed widgets (a checkbox like <em>ValueSource.loop</em>) stay at their natural size on the right of the row instead of stretching across.</li>
+        <li><strong>Flow file format finalised</strong> (v0.1.35) — on-disk per-node <code>params</code> key renamed to <code>port_defaults</code>. Existing flow files still load — the loader reads the legacy key as a fallback.</li>
         <li><strong>Inline socket layout</strong> (v0.1.34) — param widgets sit directly on their input port's row, right of the port name. The separate property-panel block above the IO rows is gone — every editable property is a socket with an inline editor.</li>
         <li><strong>Param widgets gray out when their socket is driven</strong> (v0.1.33) — if you wire a Value Source into <em>Overlay.angle</em>, the slider for that param disables. Disabled state is captured at NodeItem creation; re-load the flow after a connect/disconnect to refresh.</li>
         <li><strong>The <code>NodeParam</code> class is gone.</strong> The UI now binds every editable widget to an <code>InputPort</code> directly: <code>port.name</code> drives the node attribute, <code>port.metadata</code> carries the widget hints, <code>port.upstream</code> reflects the connection state. Saved flows load identically; the old <code>params</code> property still exists on <code>NodeBase</code> but now returns the list of param-style input ports instead of <code>NodeParam</code> objects.</li>

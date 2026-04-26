@@ -305,11 +305,18 @@ class NodeItem(QGraphicsItem):
     """
 
     MIN_WIDTH: float = 120.0
-    MAX_WIDTH: float = 220.0      # natural (content-driven) upper bound
+    MAX_WIDTH: float = 320.0      # natural (content-driven) upper bound;
+                                  # bumped from 220 in 0.1.36 so multi-element
+                                  # inline widgets (FilePathParamWidget's
+                                  # line-edit + 2 buttons ≈ 160 px) fit next
+                                  # to a port label without overlapping.
     MAX_USER_WIDTH: float = 800.0 # cap when the user drags the resize grip
     MAX_USER_HEIGHT: float = 1000.0
     HEADER_HEIGHT: float = 28.0
-    PORT_ROW_HEIGHT: float = 22.0
+    PORT_ROW_HEIGHT: float = 28.0  # tall enough that a native QSpinBox /
+                                   # QLineEdit renders its full-size
+                                   # up/down arrows and text caret without
+                                   # the OS style squeezing the icons.
     CORNER_RADIUS: float = 5.0
     PADDING: float = 8.0
     PARAM_GAP: float = 4.0
@@ -590,22 +597,18 @@ class NodeItem(QGraphicsItem):
         rows = max(len(self._input_ports), len(self._output_ports))
         widget_inset = 4.0
         # A param-style row needs room for input label + widget + output
-        # label. We use the widget's natural sizeHint so the auto-fit
-        # width is generous enough that the widget doesn't get
-        # squeezed below ~100px.
+        # label. We use ``minimumSizeHint`` so the auto-fit is generous
+        # enough that a multi-element widget (FilePathParamWidget's
+        # line-edit + buttons ≈ 160 px) doesn't overlap its children
+        # because the row was sized to a single SpinBox-shaped budget.
         for i in range(rows):
             in_w = (metrics.horizontalAdvance(self._input_ports[i].name)
                     if i < len(self._input_ports) else 0.0)
             out_w = (metrics.horizontalAdvance(self._output_ports[i].name)
                      if i < len(self._output_ports) else 0.0)
-            widget_w = 0.0
             editor = self._param_widgets_by_row.get(i)
             if editor is not None:
-                widget_w = max(
-                    100.0,
-                    min(140.0, float(editor.sizeHint().width())),
-                )
-                widget_w += 2 * widget_inset
+                widget_w = float(editor.minimumSizeHint().width()) + 2 * widget_inset
             else:
                 # Plain port row: use the legacy gap budget.
                 widget_w = self.PORT_LABEL_GAP
@@ -786,20 +789,24 @@ class NodeItem(QGraphicsItem):
         """Position each per-row inline param widget on its port row.
 
         Widget is right-aligned within the row, leaving the left side
-        of the row for the input port dot + name label. Width is
-        clamped so a long widget never spills past the right edge or
-        an output dot/label sitting on the same row.
+        of the row for the input port dot + name label. Width fills
+        whatever's available between the input label and an output
+        label / right edge, with a small inset gap; no upper cap, so
+        a multi-element widget (line-edit + buttons in
+        :class:`FilePathParamWidget`) gets enough room for its full
+        natural shape and doesn't end up with the line edit
+        overlapping the buttons.
         """
         if not self._param_widgets_by_row:
             return
         metrics = QFontMetricsF(QApplication.font())
         port_margin = PortItem.RADIUS + 6.0
-        widget_inset = 4.0  # gap between widget and right edge / output label
-        widget_h = self.PORT_ROW_HEIGHT - 2.0  # leave 1px breathing room
+        widget_inset = 4.0
+        # Use the widget's natural sizeHint height (typically ~24 px
+        # for QSpinBox / QLineEdit on most styles) so the OS-rendered
+        # spinner buttons / text caret stay full-size.
         for row, editor in self._param_widgets_by_row.items():
             proxy = self._param_proxies_by_row[row]
-            # If this row also has an output port, leave horizontal
-            # space for its label so the widget doesn't overlap.
             out_label_w = 0.0
             if row < len(self._output_ports):
                 out_label_w = (
@@ -810,11 +817,21 @@ class NodeItem(QGraphicsItem):
                 metrics.horizontalAdvance(self._input_ports[row].name)
                 + port_margin
             )
-            # Available horizontal space for the widget on this row.
             avail = self._width - in_label_w - out_label_w - 2 * widget_inset
-            widget_w = max(60.0, min(140.0, avail))
+            # Width: use the widget's natural sizeHint, clamped between
+            # its own minimum (so QHBoxLayout-based widgets like
+            # FilePathParamWidget don't end up with the line-edit
+            # overlapping the buttons) and what's available on this
+            # row. Stretchy widgets (QSpinBox, QLineEdit) report a
+            # generous sizeHint and fill the row; fixed-size widgets
+            # (QCheckBox) report ~20 px and stay small + tucked right.
+            min_w = float(editor.minimumSizeHint().width())
+            hint_w = float(editor.sizeHint().width())
+            widget_w = max(min_w, min(hint_w, avail))
+            widget_h = float(editor.sizeHint().height())
+            # Centre the widget vertically in the row.
+            y = io_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
             x = self._width - out_label_w - widget_inset - widget_w
-            x = max(in_label_w + widget_inset, x)  # never overlap input label
-            y = io_top + row * self.PORT_ROW_HEIGHT + 1.0
+            x = max(in_label_w + widget_inset, x)
             editor.setFixedSize(int(widget_w), int(widget_h))
             proxy.setPos(x, y)
