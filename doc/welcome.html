@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.6</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.7</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,8 +213,9 @@
     </section>
 
     <section>
-      <h2>What's new in v0.2.6</h2>
+      <h2>What's new in v0.2.7</h2>
       <ul class="tips">
+        <li><strong>Value Source: <code>multiplier</code> replaced with <code>increment</code>.</strong> Sequence is now defined directly by step size — <code>min_value=0</code>, <code>max_value=10</code>, <code>increment=0.5</code> emits <em>0, 0.5, 1.0, …, 10.0</em>. Whole-number increments emit ints (Display still shows <code>42</code>, not <code>42.0</code>); fractional increments emit floats. Increment must be &gt; 0; the setter rejects 0 / negatives. Float drift on the upper bound is tolerated, so <code>max=1, increment=0.1</code> reliably emits all 11 values rather than truncating the last one. <strong>No backward compat</strong>: flows saved with the old <code>multiplier</code> param load with the value silently ignored — manually convert to <code>increment</code> by multiplying out the old range (e.g. old <code>min=-180, max=0, multiplier=2.0</code> → new <code>min=-360, max=0, increment=2</code>).</li>
         <li><strong>Streaming sources interleave frame-by-frame.</strong> Two <em>Value Source</em>s (or a <em>Video Source</em> + a <em>Value Source</em>, etc.) wired into different param ports on the same node now both animate together — the flow runner round-robins each streaming source's frames instead of running each source to completion sequentially. Param-style ports also latch their last value across the dispatcher's clear, so once the shorter source exhausts, the longer one keeps animating against the latched value rather than stalling.</li>
         <li><strong>Stop button on the toolbar.</strong> A long-running flow (a multi-thousand-frame video, an infinite loop on a <em>Value Source</em>) can now be cancelled mid-run. Stop sets a flag the runner polls between every interleave step — already-decoded frames flush through, then every node's <code>after_run</code> fires so video captures and file handles release cleanly.</li>
         <li><strong>Overlay is centre-anchored.</strong> The <em>xpos</em> / <em>ypos</em> params on the Overlay node now denote the centre of the (rotated, scaled) overlay's bounding box on the base — not its top-left corner. Rotation already pivoted around the overlay's centre; the placement now matches, so spinning a logo with a 0..360° ramp keeps it locked in place instead of orbiting the anchor. Heads-up for existing flows: an old <code>xpos=0, ypos=0</code> placement now centres the overlay at the top-left corner of the base; bump those numbers by half the overlay's rendered width / height to recover the previous look.</li>
