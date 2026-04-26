@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.9] — 2026-04-26
+
+### Added
+- **Resize node.** New ``Transform`` filter that resizes an image to
+  an explicit ``(width, height)`` using one of three strategies,
+  selected by the ``method`` enum:
+  - ``SCALE`` — stretches the X and Y axes independently to match
+    the target (aspect ratio not preserved; calls
+    ``cv2.resize`` directly).
+  - ``CROP_OR_FILL`` — centres the source on a target-sized canvas
+    at pixel scale, cropping where the source overflows and
+    padding with black where it doesn't. No resampling.
+  - ``BEST_FIT`` — scales uniformly to the largest size that fits
+    inside the target, centres on a black canvas (letterbox /
+    pillarbox). Aspect ratio preserved.
+  Greyscale (1 channel), BGR (3) and BGRA (4) inputs all
+  supported; output dtype + channel count match the input. Canvas
+  fill is plain ``np.zeros`` — RGB(0,0,0) for colour, alpha=0 for
+  BGRA (transparent black; split / re-join the alpha channel
+  separately if an opaque-black letterbox is needed).
+
 ## [0.2.8] — 2026-04-26
 
 ### Fixed

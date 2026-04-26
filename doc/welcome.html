@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.8</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.9</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.9</h2>
+      <ul class="tips">
+        <li><strong>Resize node.</strong> New <em>Transform</em> node that resizes an image to an explicit <code>(width, height)</code> using one of three strategies: <em>Scale</em> stretches the X and Y axes independently to match the target (aspect ratio not preserved); <em>CropOrFill</em> centres the source on a target-sized canvas, cropping where the source overflows and padding with black where it doesn't (pixel scale preserved); <em>BestFit</em> scales uniformly to the largest size that fits inside the target and centres on a black canvas (letterbox / pillarbox; aspect ratio preserved). Greyscale, BGR and BGRA inputs are all supported.</li>
+      </ul>
     </section>
 
     <section>

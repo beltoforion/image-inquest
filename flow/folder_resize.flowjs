@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "app_version": "0.2.9",
+  "name": "folder_resize",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.directory_source",
+      "class": "DirectorySource",
+      "position": [
+        -1740.0,
+        -847.0
+      ],
+      "port_defaults": {
+        "directory": "/home/user/Dokumente/GitHub/stj\u00f6rnhorn/output",
+        "include_subdirectories": false
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.resize",
+      "class": "Resize",
+      "position": [
+        -1259.0,
+        -560.0
+      ],
+      "port_defaults": {
+        "width": 256,
+        "height": 256,
+        "method": 0
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1650.0,
+        -658.0
+      ],
+      "port_defaults": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1027.0,
+        -811.0
+      ],
+      "port_defaults": {},
+      "size": [
+        697.0,
+        784.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
