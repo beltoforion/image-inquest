@@ -90,7 +90,7 @@ _ALLOWED_CONSTANTS: Final[dict[str, float]] = {
 }
 
 
-_VARIABLE_NAMES: Final[frozenset[str]] = frozenset({"A", "B", "C", "D"})
+_VARIABLE_NAMES: Final[frozenset[str]] = frozenset({"a", "b", "c", "d"})
 
 
 # Pre-computed once: the union of every name a parsed Name node may
@@ -114,15 +114,16 @@ class Math(NodeBase):
 
     Param:
       ``expression`` — a Python-style arithmetic expression in the
-      variables ``A``, ``B``, ``C``, ``D`` plus the helpers in
+      lowercase variables ``a``, ``b``, ``c``, ``d`` (matching the
+      input port names) plus the helpers in
       :data:`_ALLOWED_FUNCTIONS` and the constants ``pi`` / ``e``.
-      Default ``"A"``.
+      Default ``"a"``.
 
     Examples:
-      ``"A + B"``                  — classic binary add.
-      ``"A * B + C * D"``          — bilinear blend.
-      ``"sin(A * pi/180) * B"``    — A in degrees, scaled by B.
-      ``"A if B > 0 else C"``      — conditional select.
+      ``"a + b"``                  — classic binary add.
+      ``"a * b + c * d"``          — bilinear blend.
+      ``"sin(a * pi/180) * b"``    — a in degrees, scaled by b.
+      ``"a if b > 0 else c"``      — conditional select.
 
     Safety:
       The expression is parsed via :mod:`ast` and every visited node
@@ -147,7 +148,7 @@ class Math(NodeBase):
         self._b: float = 0.0
         self._c: float = 0.0
         self._d: float = 0.0
-        self._expression: str = "A"
+        self._expression: str = "a"
         # Compiled bytecode for the current expression, refreshed by
         # the :meth:`expression` setter. Stored separately so per-frame
         # evaluation skips the parse step.
@@ -166,7 +167,7 @@ class Math(NodeBase):
         self._add_param(NodeParam(
             "expression",
             NodeParamType.STRING,
-            default="A",
+            default="a",
         ))
 
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))
@@ -232,7 +233,7 @@ class Math(NodeBase):
         # Unconnected optional ports keep the attribute's current
         # value (the inline-edited default).
         namespace: dict[str, Any] = {
-            "A": self._a, "B": self._b, "C": self._c, "D": self._d,
+            "a": self._a, "b": self._b, "c": self._c, "d": self._d,
             **_ALLOWED_CONSTANTS,
             **_ALLOWED_FUNCTIONS,
         }

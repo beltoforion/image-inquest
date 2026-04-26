@@ -15,11 +15,12 @@ once a first tagged release is cut.
 ### Changed
 - **Math node: four inputs and a free-form arithmetic expression.**
   Replaced the binary-op enum (ADD / SUB / MUL / DIV / MIN / MAX)
-  with a string ``expression`` param evaluated in the variables
-  ``A``, ``B``, ``C``, ``D``. Inputs grew from two (``a``, ``b``)
-  to four; ``a`` is required, ``b`` / ``c`` / ``d`` are optional
-  with default ``0.0`` so an expression like ``"A * 2 + 1"`` works
-  without wiring the unused ports. Allowed functions: trig (``sin``
+  with a string ``expression`` param evaluated in the lowercase
+  variables ``a``, ``b``, ``c``, ``d`` (matching the input port
+  names). Inputs grew from two (``a``, ``b``) to four; ``a`` is
+  required, ``b`` / ``c`` / ``d`` are optional with default
+  ``0.0`` so an expression like ``"a * 2 + 1"`` works without
+  wiring the unused ports. Allowed functions: trig (``sin``
   / ``cos`` / …), hyperbolic, ``exp`` / ``log{,2,10}``, ``sqrt``,
   rounding (``floor`` / ``ceil`` / ``round`` / ``abs``),
   elementwise ``min`` / ``max``, degree/radian conversion (``deg``

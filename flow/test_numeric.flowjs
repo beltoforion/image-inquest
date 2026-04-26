@@ -39,7 +39,7 @@
         -1381.7413559483023
       ],
       "port_defaults": {
-        "expression": "A + B"
+        "expression": "a + b"
       }
     },
     {

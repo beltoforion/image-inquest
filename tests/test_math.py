@@ -12,7 +12,7 @@ Two themes:
   whitelist; the cases below probe each excluded node type and a few
   classic escape primitives, so a regression that accidentally allows
   one (e.g. someone adding ``ast.Attribute`` "to support
-  ``A.real``") fails this suite immediately.
+  ``a.real``") fails this suite immediately.
 """
 from __future__ import annotations
 
@@ -58,8 +58,8 @@ def _wire(node: Math, *, connect_optional: bool = False) -> tuple[
 
 
 def test_default_expression_passes_a_through() -> None:
-    """A brand-new node has expression='A'; emitting on A should
-    return A unchanged on every frame."""
+    """A brand-new node has expression='a'; emitting on a should
+    return a unchanged on every frame."""
     node = Math()
     up_a, _, _, _, captured = _wire(node)
 
@@ -71,10 +71,10 @@ def test_default_expression_passes_a_through() -> None:
 
 
 def test_unconnected_optional_inputs_default_to_zero() -> None:
-    """B / C / D default to 0 when their ports are unconnected, so an
-    expression referencing all four still evaluates with only A wired."""
+    """b / c / d default to 0 when their ports are unconnected, so an
+    expression referencing all four still evaluates with only a wired."""
     node = Math()
-    node.expression = "A + B + C + D"
+    node.expression = "a + b + c + d"
     up_a, *_, captured = _wire(node)
 
     node.before_run()
@@ -85,10 +85,10 @@ def test_unconnected_optional_inputs_default_to_zero() -> None:
 
 def test_inline_default_picks_up_unconnected_optional() -> None:
     """Setting the inline-edited attribute (no upstream) propagates to
-    the expression eval — mirrors the user typing 3.0 into the C
+    the expression eval — mirrors the user typing 3.0 into the c
     spinner without wiring anything to it."""
     node = Math()
-    node.expression = "A + C"
+    node.expression = "a + c"
     node.c = 3.0
     up_a, *_, captured = _wire(node)
 
@@ -103,7 +103,7 @@ def test_inline_default_picks_up_unconnected_optional() -> None:
 
 def test_arithmetic_operators() -> None:
     node = Math()
-    node.expression = "A * B + C / D"
+    node.expression = "a * b + c / d"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -118,7 +118,7 @@ def test_arithmetic_operators() -> None:
 
 def test_pow_floordiv_and_modulo() -> None:
     node = Math()
-    node.expression = "A**2 + B % 3 + C // 2"
+    node.expression = "a**2 + b % 3 + c // 2"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -133,7 +133,7 @@ def test_pow_floordiv_and_modulo() -> None:
 
 def test_unary_negation() -> None:
     node = Math()
-    node.expression = "-A + +B"
+    node.expression = "-a + +b"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -147,7 +147,7 @@ def test_unary_negation() -> None:
 
 def test_trig_function_call() -> None:
     node = Math()
-    node.expression = "sin(A * pi / 180)"
+    node.expression = "sin(a * pi / 180)"
     up_a, *_, captured = _wire(node)
 
     node.before_run()
@@ -158,7 +158,7 @@ def test_trig_function_call() -> None:
 
 def test_min_max_call() -> None:
     node = Math()
-    node.expression = "max(A, B)"
+    node.expression = "max(a, b)"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -172,7 +172,7 @@ def test_min_max_call() -> None:
 
 def test_ternary_select() -> None:
     node = Math()
-    node.expression = "A if B > 0 else C"
+    node.expression = "a if b > 0 else c"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -190,16 +190,16 @@ def test_constants_pi_and_e() -> None:
     up_a, *_, captured = _wire(node)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(0))  # A unused but still triggers dispatch.
+    up_a.send(IoData.from_scalar(0))  # a unused but still triggers dispatch.
 
     assert abs(float(captured[-1].payload.item()) - (math.pi + math.e)) < 1e-12
 
 
 def test_bool_constants_act_as_zero_and_one() -> None:
     """Literal ``True`` / ``False`` are allowed as constants because
-    ``A * True`` is a useful idiom for masking out a value."""
+    ``a * True`` is a useful idiom for masking out a value."""
     node = Math()
-    node.expression = "A * True + B * False"
+    node.expression = "a * True + b * False"
     up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
 
     node.before_run()
@@ -209,6 +209,15 @@ def test_bool_constants_act_as_zero_and_one() -> None:
     up_d.send(IoData.from_scalar(0))
 
     assert int(captured[-1].payload.item()) == 7
+
+
+def test_uppercase_variable_names_rejected() -> None:
+    """Variables are lowercase — uppercase ``A`` etc. must not work,
+    so users don't end up with two parallel naming conventions in the
+    same flow."""
+    node = Math()
+    with pytest.raises(ValueError):
+        node.expression = "A + B"
 
 
 # ── Safety: rejected expressions ──────────────────────────────────────────────
@@ -230,48 +239,48 @@ def test_bool_constants_act_as_zero_and_one() -> None:
     # ── The classic CPython sandbox-escape primitive ─────────────────────
     "().__class__",
     "().__class__.__bases__[0].__subclasses__()",
-    "A.__class__",
+    "a.__class__",
     "(1).__class__.__base__",
 
     # ── Attribute / item access ──────────────────────────────────────────
-    "A.real",                            # Attribute on a Name.
-    "A[0]",                              # Subscript.
-    "A[B]",                              # Subscript with name index.
-    "[A, B]",                            # List literal.
-    "(A, B)",                            # Tuple literal.
-    "{A: B}",                            # Dict literal.
-    "{A, B}",                            # Set literal.
+    "a.real",                            # Attribute on a Name.
+    "a[0]",                              # Subscript.
+    "a[b]",                              # Subscript with name index.
+    "[a, b]",                            # List literal.
+    "(a, b)",                            # Tuple literal.
+    "{a: b}",                            # Dict literal.
+    "{a, b}",                            # Set literal.
 
     # ── Comprehensions / lambdas / walrus ────────────────────────────────
-    "[A for _ in (1,)]",                 # List comprehension.
-    "{A: B for _ in (1,)}",              # Dict comprehension.
-    "{A for _ in (1,)}",                 # Set comprehension.
-    "lambda: A",                         # Lambda.
-    "(x := A) + x",                      # Walrus.
+    "[a for _ in (1,)]",                 # List comprehension.
+    "{a: b for _ in (1,)}",              # Dict comprehension.
+    "{a for _ in (1,)}",                 # Set comprehension.
+    "lambda: a",                         # Lambda.
+    "(x := a) + x",                      # Walrus.
 
     # ── String interpolation / f-string ──────────────────────────────────
-    "f'{A}'",                            # f-string.
+    "f'{a}'",                            # f-string.
 
     # ── Argument / keyword tricks ────────────────────────────────────────
-    "min(*[A, B])",                      # Star-args.
-    "min(a=A, b=B)",                     # Keyword arg.
+    "min(*[a, b])",                      # Star-args.
+    "min(x=a, y=b)",                     # Keyword arg.
 
     # ── Unwhitelisted names / functions ──────────────────────────────────
-    "Z + 1",                             # Unknown variable.
-    "unknown(A)",                        # Unknown function name.
-    "pi(A)",                             # Constant used as a function.
-    "(sin if A else cos)(B)",            # Indirect call (Call.func not
+    "z + 1",                             # Unknown variable.
+    "unknown(a)",                        # Unknown function name.
+    "pi(a)",                             # Constant used as a function.
+    "(sin if a else cos)(b)",            # Indirect call (Call.func not
                                          # a bare ast.Name).
 
     # ── Unwhitelisted operators ──────────────────────────────────────────
-    "A | B",                             # BitOr.
-    "A & B",                             # BitAnd.
-    "A ^ B",                             # BitXor.
-    "A << 1",                            # LShift.
-    "A >> 1",                            # RShift.
-    "~A",                                # Invert.
-    "A is B",                            # Identity.
-    "A in (1,)",                         # Membership.
+    "a | b",                             # BitOr.
+    "a & b",                             # BitAnd.
+    "a ^ b",                             # BitXor.
+    "a << 1",                            # LShift.
+    "a >> 1",                            # RShift.
+    "~a",                                # Invert.
+    "a is b",                            # Identity.
+    "a in (1,)",                         # Membership.
 
     # ── Unwhitelisted constant types ─────────────────────────────────────
     "'hello'",                           # String literal.
@@ -289,7 +298,7 @@ def test_statements_rejected() -> None:
     """``ast.parse`` in ``mode='eval'`` rejects statements outright;
     we surface that as a ``ValueError`` along with everything else."""
     node = Math()
-    for stmt in ("import os", "x = A", "del A"):
+    for stmt in ("import os", "x = a", "del a"):
         with pytest.raises(ValueError):
             node.expression = stmt
 
@@ -303,17 +312,17 @@ def test_empty_expression_rejected() -> None:
 def test_syntax_error_rejected() -> None:
     node = Math()
     with pytest.raises(ValueError, match="invalid expression syntax"):
-        node.expression = "A + + + "
+        node.expression = "a + + + "
 
 
 def test_failed_set_keeps_previous_expression() -> None:
     """A bad expression must not corrupt the node's state — the
     previously-valid expression keeps evaluating."""
     node = Math()
-    node.expression = "A * 2"
+    node.expression = "a * 2"
     with pytest.raises(ValueError):
         node.expression = "garbage syntax !!"
-    # Still emits via "A * 2".
+    # Still emits via "a * 2".
     up_a, *_, captured = _wire(node)
     node.before_run()
     up_a.send(IoData.from_scalar(5))
@@ -336,10 +345,10 @@ def test_eval_runs_with_empty_builtins() -> None:
 
 
 def test_streams_per_frame_when_only_a_is_required() -> None:
-    """Optional ports unconnected: every value on A fires the
+    """Optional ports unconnected: every value on a fires the
     dispatcher, mirroring the old binary-op streaming test."""
     node = Math()
-    node.expression = "A * 10"
+    node.expression = "a * 10"
     up_a, *_, captured = _wire(node)
 
     node.before_run()
