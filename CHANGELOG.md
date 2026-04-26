@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.5] — 2026-04-26
+
+### Changed
+- **Overlay placement is now centre-anchored.** The Overlay node's
+  `xpos` / `ypos` params (and their matching SCALAR ports) now denote
+  the centre of the rotated, scaled overlay's bounding box on the
+  base instead of its top-left corner. Rotation already pivoted
+  around the overlay's centre, so placement and rotation now share
+  the same reference point — a logo driven by a 0..360° angle ramp
+  stays put instead of orbiting the anchor. Behavioural break for
+  existing flows: an old `xpos=0, ypos=0` placement now centres the
+  overlay at the base's top-left corner; bump those numbers by half
+  the overlay's rendered width / height to recover the previous look.
+  The bundled `flow/video_overlay.flowjs` and
+  `flow/video_overlay_rot.flowjs` samples were updated accordingly.
+
 ## [0.2.4] — 2026-04-26
 
 ### Fixed
