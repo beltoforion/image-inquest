@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1705.8258055082183,
-        -1675.2174215333737
+        -1685.6871561211278,
+        -1614.91434963322
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,8 +20,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1706.6621376516161,
-        -1538.6229705026856
+        -1685.6871561211278,
+        -1502.91434963322
       ],
       "port_defaults": {
         "file_path": "logo.png"
@@ -32,14 +32,14 @@
       "module": "nodes.sources.value_source",
       "class": "ValueSource",
       "position": [
-        -1706.237101372058,
-        -1407.3099991170998
+        -1650.728853570314,
+        -1320.1237869678223
       ],
       "port_defaults": {
         "min_value": -180,
         "max_value": 0,
         "multiplier": 2.0,
-        "loop": false
+        "loop": true
       }
     },
     {
@@ -47,8 +47,8 @@
       "module": "nodes.filters.overlay",
       "class": "Overlay",
       "position": [
-        -1365.8860303112353,
-        -1548.9269063481734
+        -1356.2724971097616,
+        -1509.5988159785077
       ],
       "port_defaults": {
         "angle": 0.0,
@@ -63,8 +63,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1073.4436968013247,
-        -1639.9522812184034
+        -1138.9905140841001,
+        -1654.809559802499
       ],
       "port_defaults": {},
       "size": [
@@ -77,8 +77,8 @@
       "module": "nodes.sources.value_source",
       "class": "ValueSource",
       "position": [
-        -1633.147909616484,
-        -1194.288195189537
+        -1650.728853570314,
+        -1124.1237869678223
       ],
       "port_defaults": {
         "min_value": 150,
@@ -120,5 +120,40 @@
       "dst_input": 2
     }
   ],
-  "backdrops": []
+  "backdrops": [
+    {
+      "position": [
+        -1711.6871561211278,
+        -1662.91434963322
+      ],
+      "size": [
+        282.828125,
+        278.0
+      ],
+      "title": "Image Sources",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1676.728853570314,
+        -1368.1237869678223
+      ],
+      "size": [
+        228.8125,
+        446.0
+      ],
+      "title": "Value Sources",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
 }
