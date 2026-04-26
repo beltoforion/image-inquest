@@ -10,19 +10,19 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.2.14] — 2026-04-26
+## [0.2.15] — 2026-04-26
 
 ### Added
 - **Dock-layout presets.** New ``View → Dock Layout`` submenu with two
   one-click arrangements: *Inspector on Right (default)* and
-  *Inspector under Node List* (the pre-0.2.13 layout). Qt's
+  *Inspector under Node List* (the pre-0.2.14 layout). Qt's
   drag-and-drop into a split-with-existing-dock zone is precise enough
   to be hard to discover when the source dock is on the opposite side
   of the canvas, so both useful arrangements are exposed as menu
   entries in addition to the existing freeform drag affordances.
   Issue: #183
 
-## [0.2.13] — 2026-04-26
+## [0.2.14] — 2026-04-26
 
 ### Changed
 - **Output Inspector docks on the right by default.** Previously the
@@ -43,6 +43,50 @@ once a first tagged release is cut.
   wrapper around ``QMainWindow.saveState()``. Corrupt, missing, or
   wrong-version files fall back silently to the right-hand default
   so the editor always comes up in a usable state. Issue: #183
+
+## [0.2.13] — 2026-04-26
+
+### Fixed
+- **Display preview drops 4-channel frames silently.** PNG / WebP
+  images with an alpha channel never appeared in the ``Display``
+  node. The per-frame BGRA → QImage conversion referenced a
+  ``Format_BGRA8888`` enum that does not exist in PySide6;
+  the resulting ``AttributeError`` was swallowed by a broad
+  ``except`` and the frame was dropped. Now uses
+  ``Format_RGBA8888`` with an explicit ``cv2.cvtColor`` channel-
+  order swap. Issue: #179
+
+### Added
+- **Notifications hub** (``core/notifications.py``). Process-wide,
+  Qt-free dispatch for non-fatal info / warning / error messages
+  emitted by nodes or UI widgets. Subscribers receive
+  ``(severity, message)`` tuples synchronously on the producer's
+  thread; the editor page bridges to the UI thread via a queued
+  Qt signal so the banner is safe to mutate.
+- **Three-severity ``MessageBanner``.** The top-right banner used to
+  cover only red errors (``ErrorBanner``); it now also handles
+  amber warnings and blue info messages via ``show_warning(message)``
+  / ``show_info(message)``. Wired to the notifications hub so any
+  ``notifications.info(...)`` / ``notifications.warn(...)`` call
+  surfaces in the UI without interrupting the running flow. The
+  Display preview's frame-conversion path uses ``warn`` instead of
+  the previous silent ``logger.exception``. Renamed
+  ``ErrorBanner`` → ``MessageBanner`` (file, class, refs) to
+  reflect the broader scope.
+- **``Notify`` node** (``UI`` section). Inline image pass-through
+  with ``severity`` (Info / Warning / Error) and a port-style
+  ``message`` input. ``Info`` / ``Warning`` emit through the
+  notifications hub (run keeps going); ``Error`` raises a
+  ``RuntimeError`` (run aborts at the node). The ``message`` port
+  accepts a typed-in literal or any upstream ``STRING`` source so
+  the banner text can be driven dynamically per frame.
+
+### Changed
+- **``Delay`` node moved from ``Debug`` → ``UI`` section.** The node
+  is genuinely useful as a "slideshow pacing" knob (one frame per
+  second from a directory walker into a Display, etc.), not only
+  as a development aid; the section move makes it discoverable
+  from the regular palette layout.
 
 ## [0.2.12] — 2026-04-26
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+import cv2
 import numpy as np
 from typing_extensions import override
 
@@ -9,6 +10,7 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from core import notifications
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
 from nodes.filters.display import Display
@@ -110,8 +112,16 @@ class DisplayPreview(_PreviewWidgetBase):
 
         try:
             qimg = _numpy_to_qimage(in_data.payload)
-        except Exception:
+        except Exception as exc:
+            # Don't crash the run on a single bad frame; surface the
+            # failure as a non-blocking warning so the user notices
+            # (used to silently log-and-drop, which hid issue #179
+            # for both PNG and WebP).
             logger.exception("DisplayPreview: failed to convert frame to QImage")
+            notifications.warn(
+                f"Display preview: could not render frame "
+                f"(shape={getattr(in_data.payload, 'shape', '?')}): {exc}"
+            )
             return
         self._frame_ready.emit(qimg)
 
@@ -173,10 +183,10 @@ def _format_matrix(arr: np.ndarray) -> str:
 def _numpy_to_qimage(frame: np.ndarray) -> QImage:
     """Wrap a uint8 numpy frame as a self-owning :class:`QImage`.
 
-    Supports single-channel greyscale and 3-channel BGR (cv2
-    convention). The returned QImage is ``.copy()``-ed so it owns its
-    pixel data independently of the numpy array — safe to hand across
-    threads or to keep after the source buffer is rewritten.
+    Supports single-channel greyscale, 3-channel BGR, and 4-channel
+    BGRA (cv2 convention). The returned QImage is ``.copy()``-ed so it
+    owns its pixel data independently of the numpy array — safe to
+    hand across threads or to keep after the source buffer is rewritten.
     """
     if frame.dtype != np.uint8:
         frame = frame.astype(np.uint8, copy=False)
@@ -193,8 +203,14 @@ def _numpy_to_qimage(frame: np.ndarray) -> QImage:
         # per-pixel swap is needed.
         qimg = QImage(frame.data, w, h, 3 * w, QImage.Format.Format_BGR888)
     elif frame.ndim == 3 and frame.shape[2] == 4:
-        h, w, _ = frame.shape
-        qimg = QImage(frame.data, w, h, 4 * w, QImage.Format.Format_BGRA8888)
+        # PySide6 has no Format_BGRA8888 enum (only Format_RGBA8888),
+        # so the channel order has to flip before construction. The
+        # cvtColor copy is unavoidable — passing BGRA bytes through
+        # an RGBA-tagged QImage swaps the red and blue channels.
+        # Issue: #179
+        rgba = np.ascontiguousarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA))
+        h, w, _ = rgba.shape
+        qimg = QImage(rgba.data, w, h, 4 * w, QImage.Format.Format_RGBA8888)
     else:
         raise ValueError(f"Unsupported frame shape for preview: {frame.shape}")
 
