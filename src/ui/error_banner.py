@@ -14,13 +14,20 @@ from PySide6.QtWidgets import (
 
 
 class ErrorBanner(QFrame):
-    """Floating error toast anchored to the top-right of a parent widget.
+    """Floating notification toast anchored to the top-right of a parent widget.
 
-    Used to surface multi-line error messages that do not fit into the
-    single-line status bar. The banner stays visible until the user clicks
-    its close button; a subsequent :meth:`show_error` replaces the text in
-    place. A parent-resize event filter keeps the banner glued to the
-    upper-right corner of the client area.
+    Used to surface multi-line messages that do not fit into the single-line
+    status bar. The banner stays visible until the user clicks its close
+    button; a subsequent :meth:`show_error` / :meth:`show_warning` replaces
+    the text in place. A parent-resize event filter keeps the banner glued
+    to the upper-right corner of the client area.
+
+    Two severities are supported:
+      - **error** (red) — call :meth:`show_error`. Used for run-aborting
+        problems the user must see (connection rejections, exceptions).
+      - **warning** (amber) — call :meth:`show_warning`. Used for
+        non-fatal issues that should not interrupt the run (e.g. a
+        single frame failing to render in the preview).
     """
 
     MARGIN: int = 12
@@ -30,6 +37,78 @@ class ErrorBanner(QFrame):
     MIN_HEIGHT: int = 120
     OPACITY: float = 0.85
 
+    # Per-severity palette. Both share the same shape so swapping
+    # styles at show-time is a single setStyleSheet call. The
+    # warning palette stays warm-amber so it reads as "attention
+    # needed" without the "something is broken" weight of red.
+    _ERROR_STYLE: str = """
+        QFrame#ErrorBanner {
+            background: #5a1e22;
+            border: 1px solid #e05050;
+            border-radius: 4px;
+        }
+        QLabel#ErrorBannerTitle {
+            color: #ffdcdc;
+            font-weight: bold;
+            background: transparent;
+        }
+        QLabel#ErrorBannerMessage {
+            color: #ffeaea;
+            background: transparent;
+        }
+        QToolButton#ErrorBannerClose {
+            color: #ffdcdc;
+            background: transparent;
+            border: none;
+            padding: 0 6px;
+            font-size: 14px;
+        }
+        QToolButton#ErrorBannerClose:hover {
+            color: #ffffff;
+        }
+        QScrollArea#ErrorBannerScroll {
+            background: transparent;
+            border: none;
+        }
+        QScrollArea#ErrorBannerScroll > QWidget > QWidget {
+            background: transparent;
+        }
+    """
+
+    _WARNING_STYLE: str = """
+        QFrame#ErrorBanner {
+            background: #5a4a1e;
+            border: 1px solid #e0b850;
+            border-radius: 4px;
+        }
+        QLabel#ErrorBannerTitle {
+            color: #fff0c8;
+            font-weight: bold;
+            background: transparent;
+        }
+        QLabel#ErrorBannerMessage {
+            color: #fff5d8;
+            background: transparent;
+        }
+        QToolButton#ErrorBannerClose {
+            color: #fff0c8;
+            background: transparent;
+            border: none;
+            padding: 0 6px;
+            font-size: 14px;
+        }
+        QToolButton#ErrorBannerClose:hover {
+            color: #ffffff;
+        }
+        QScrollArea#ErrorBannerScroll {
+            background: transparent;
+            border: none;
+        }
+        QScrollArea#ErrorBannerScroll > QWidget > QWidget {
+            background: transparent;
+        }
+    """
+
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
 
@@ -37,54 +116,20 @@ class ErrorBanner(QFrame):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        # Let the red backdrop blend slightly with whatever is underneath
+        # Let the backdrop blend slightly with whatever is underneath
         # (canvas, docks) so the banner reads as an overlay rather than an
         # opaque panel.
         opacity = QGraphicsOpacityEffect(self)
         opacity.setOpacity(self.OPACITY)
         self.setGraphicsEffect(opacity)
-        self.setStyleSheet(
-            """
-            QFrame#ErrorBanner {
-                background: #5a1e22;
-                border: 1px solid #e05050;
-                border-radius: 4px;
-            }
-            QLabel#ErrorBannerTitle {
-                color: #ffdcdc;
-                font-weight: bold;
-                background: transparent;
-            }
-            QLabel#ErrorBannerMessage {
-                color: #ffeaea;
-                background: transparent;
-            }
-            QToolButton#ErrorBannerClose {
-                color: #ffdcdc;
-                background: transparent;
-                border: none;
-                padding: 0 6px;
-                font-size: 14px;
-            }
-            QToolButton#ErrorBannerClose:hover {
-                color: #ffffff;
-            }
-            QScrollArea#ErrorBannerScroll {
-                background: transparent;
-                border: none;
-            }
-            QScrollArea#ErrorBannerScroll > QWidget > QWidget {
-                background: transparent;
-            }
-            """
-        )
+        self.setStyleSheet(self._ERROR_STYLE)
 
         self._title = QLabel("Error")
         self._title.setObjectName("ErrorBannerTitle")
 
         self._close = QToolButton()
         self._close.setObjectName("ErrorBannerClose")
-        self._close.setText("\u2715")
+        self._close.setText("✕")
         self._close.setToolTip("Dismiss")
         self._close.setCursor(Qt.CursorShape.PointingHandCursor)
         self._close.clicked.connect(self.hide)
@@ -122,8 +167,26 @@ class ErrorBanner(QFrame):
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def show_error(self, message: str, *, title: str = "Error") -> None:
-        """Display ``message`` in the banner and bring it to the front."""
-        
+        """Display *message* in the red error palette."""
+        self._show(message, title, self._ERROR_STYLE)
+
+    def show_warning(self, message: str, *, title: str = "Warning") -> None:
+        """Display *message* in the amber warning palette.
+
+        Non-blocking — the banner just appears in the corner and the
+        caller continues; the user dismisses with the close button.
+        """
+        self._show(message, title, self._WARNING_STYLE)
+
+    def _show(self, message: str, title: str, style: str) -> None:
+        # setStyleSheet on each show so the palette flips correctly
+        # when the same banner alternates between an error and a
+        # warning (last-call-wins). polish/unpolish forces Qt to
+        # re-resolve the stylesheet against the new selectors.
+        self.setStyleSheet(style)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
         self._title.setText(title)
         self._message.setText(message)
         self._reposition()
@@ -141,7 +204,7 @@ class ErrorBanner(QFrame):
         parent = self.parentWidget()
         if parent is None:
             return
-        
+
         margin = self.MARGIN
         max_w = min(self.MAX_WIDTH, max(self.MIN_WIDTH, parent.width() - 2 * margin))
         max_h = max(self.MIN_HEIGHT, int(parent.height() * self.MAX_HEIGHT_FRACTION))
@@ -151,7 +214,7 @@ class ErrorBanner(QFrame):
         # adjustSize lets the banner shrink-to-fit short messages and keeps
         # the scroll area kicking in only when the message would exceed max_h.
         self.adjustSize()
-        
+
         x = parent.width() - self.width() - margin
         y = margin
         self.move(max(margin, x), y)

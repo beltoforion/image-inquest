@@ -10,6 +10,39 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.11] — 2026-04-26
+
+### Fixed
+- **Display preview drops 4-channel frames silently.** PNG / WebP
+  images with an alpha channel never appeared in the ``Display``
+  node. The per-frame BGRA → QImage conversion referenced a
+  ``Format_BGRA8888`` enum that does not exist in PySide6;
+  the resulting ``AttributeError`` was swallowed by a broad
+  ``except`` and the frame was dropped. Now uses
+  ``Format_RGBA8888`` with an explicit ``cv2.cvtColor`` channel-
+  order swap. Issue: #179
+
+### Added
+- **Notifications hub** (``core/notifications.py``). Process-wide,
+  Qt-free dispatch for non-fatal warnings (and errors) emitted by
+  nodes / UI widgets. Subscribers receive ``(severity, message)``
+  tuples synchronously on the producer's thread; the editor page
+  bridges to the UI thread via a queued Qt signal so the banner
+  is safe to mutate.
+- **Yellow warning toast.** The top-right ``ErrorBanner`` now also
+  shows non-blocking warnings in an amber palette via a new
+  ``show_warning(message)`` method. Wired to the notifications
+  hub so any ``notifications.warn(...)`` call surfaces in the UI
+  without interrupting the running flow. The Display preview's
+  frame-conversion path uses it instead of the previous
+  silent ``logger.exception``.
+- **``Notify`` debug node** (``Debug`` section). Inline image
+  pass-through with ``severity`` (Warning / Error) and ``message``
+  parameters. ``Warning`` emits through the notifications hub
+  (run keeps going); ``Error`` raises a ``RuntimeError`` (run
+  aborts at the node). Useful for exercising the banner UI
+  without contriving real failures.
+
 ## [0.2.10] — 2026-04-26
 
 ### Changed

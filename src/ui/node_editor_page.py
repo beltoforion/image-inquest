@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QThread, QTimer
+from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from constants import FLOW_DIR
+from core import notifications
 from core.flow import Flow, is_valid_flow_name
 from core.flow_runner import FlowRunner
 from core.io_data import IMAGE_TYPES
@@ -63,6 +64,14 @@ class NodeEditorPage(PageBase):
     default and flips to a spinner + flow/node labels while a run is in
     flight.
     """
+
+    #: Bridge for :mod:`core.notifications` events. The subscriber
+    #: callback emits this signal so Qt's auto-connection delivers
+    #: it to ``_on_notification`` on the UI thread (queued across
+    #: threads), where the banner is safe to mutate. The first arg
+    #: is the :class:`core.notifications.Severity` value (str), the
+    #: second is the message.
+    _notification_received = Signal(str, str)
 
     def __init__(
         self,
@@ -164,6 +173,12 @@ class NodeEditorPage(PageBase):
         # client area. Used instead of the status bar for failures because
         # error messages can be long and multi-line.
         self._error_banner = ErrorBanner(self._inner)
+
+        # Bridge core.notifications → banner. Producers fire on worker
+        # threads; the signal carries the payload back to the UI thread
+        # via Qt's auto-queued connection.
+        self._notification_received.connect(self._on_notification)
+        notifications.subscribe(self._forward_notification)
 
         # Wire scene → viewer.
         self._scene.selected_node_changed.connect(self._viewer.show_node)
@@ -684,6 +699,26 @@ class NodeEditorPage(PageBase):
     def _on_connection_error(self, message: str) -> None:
         """Surface a FlowScene connection rejection in the error banner."""
         self._set_status(message, kind="fail")
+
+    # ── Notifications hub ──────────────────────────────────────────────────────
+
+    def _forward_notification(
+        self, severity: notifications.Severity, message: str,
+    ) -> None:
+        """Subscriber for ``core.notifications``; runs on the producer's thread.
+
+        Just hops the payload across the signal so the actual banner
+        update happens on the UI thread.
+        """
+        self._notification_received.emit(severity.value, message)
+
+    @Slot(str, str)
+    def _on_notification(self, severity_value: str, message: str) -> None:
+        """UI-thread slot that pops the toast for a hub notification."""
+        if severity_value == notifications.Severity.ERROR.value:
+            self._error_banner.show_error(message)
+        else:
+            self._error_banner.show_warning(message)
 
     # ── Status line ────────────────────────────────────────────────────────────
 
