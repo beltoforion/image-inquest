@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.5",
+  "app_version": "0.2.6",
   "name": "video_overlay_rot",
   "nodes": [
     {
@@ -112,6 +112,12 @@
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 4
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 2
     }
   ],
   "backdrops": []
