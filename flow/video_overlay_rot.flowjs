@@ -47,8 +47,8 @@
       "module": "nodes.filters.overlay",
       "class": "Overlay",
       "position": [
-        -1390.1707575917778,
-        -1545.45765959381
+        -1365.8860303112353,
+        -1548.9269063481734
       ],
       "port_defaults": {
         "angle": 0.0,
@@ -82,7 +82,7 @@
       ],
       "port_defaults": {
         "min_value": 150,
-        "max_value": 800,
+        "max_value": 1500,
         "multiplier": 1.0,
         "loop": false
       }
@@ -100,12 +100,6 @@
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 1
-    },
-    {
-      "src_node": 2,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 2
     },
     {
       "src_node": 3,
