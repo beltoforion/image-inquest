@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.11] — 2026-04-26
+
+### Fixed
+- **ImageSource default file fixed.** The `file_path` default was
+  `"example.jpg"`, which was never bundled under `input/` — dropping a
+  fresh `ImageSource` node and pressing Run raised a `FileNotFoundError`
+  immediately. Default is now `"ship.jpg"`, which ships with the
+  application. A new regression test (`tests/test_default_inputs_exist.py`)
+  asserts that every read-side source node's file-path default resolves to
+  an existing file under `INPUT_DIR`. Issue: #173
+
 ## [0.2.10] — 2026-04-26
 
 ### Changed
