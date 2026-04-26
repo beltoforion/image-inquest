@@ -39,6 +39,18 @@ class FlowRunner(QObject):
         self._flow = flow
 
     @Slot()
+    def request_stop(self) -> None:
+        """Forward a Stop click from the UI thread to the running flow.
+
+        Sets a polled flag inside :class:`Flow.run` — the worker thread
+        keeps decoding the in-flight frame, then unwinds and fires
+        ``after_run`` on every node so file handles / video captures
+        release. No thread synchronisation needed beyond what the GIL
+        already gives us for the bool write.
+        """
+        self._flow.request_stop()
+
+    @Slot()
     def run(self) -> None:
         # Route every node's process() call through our node_started
         # signal. The observer fires on the worker thread, but the

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator
 
 from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
@@ -46,6 +47,13 @@ class Flow:
     def __init__(self, name: str = DEFAULT_FLOW_NAME) -> None:
         self._name: str = sanitize_flow_name(name)
         self._nodes: list[NodeBase] = []
+        # Set by :meth:`request_stop` (typically from the UI thread when
+        # the user clicks Stop). The execution loop checks the flag
+        # between every interleave step and unwinds cleanly so nodes get
+        # their normal ``after_run`` cleanup. Plain bool — relies on the
+        # GIL making the read/write atomic; no lock needed for the
+        # set-once / poll-many pattern used here.
+        self._stop_requested: bool = False
 
     # ── Identity ───────────────────────────────────────────────────────────────
 
@@ -128,17 +136,57 @@ class Flow:
         """Return the flow's sink nodes in registration order."""
         return [n for n in self._nodes if isinstance(n, SinkNodeBase)]
 
+    def request_stop(self) -> None:
+        """Ask the running flow to stop at the next interleave step.
+
+        Safe to call from any thread (the runner typically runs on a
+        worker thread; the UI Stop button triggers this from the main
+        thread). Sets a flag the execution loop polls between every
+        step — each currently-executing node still finishes its
+        in-flight frame, then the loop unwinds and ``after_run`` fires
+        on every node so file handles / video captures release cleanly.
+        """
+        self._stop_requested = True
+
+    @property
+    def stop_requested(self) -> bool:
+        """True between :meth:`request_stop` and the next :meth:`run`."""
+        return self._stop_requested
+
     def run(self) -> None:
-        """Start every source node in the flow.
+        """Drive every source node in the flow.
 
         A runnable flow must contain at least one source (an entry point
         that drives data through the graph). A sink is *not* required —
         a graph terminating at a Display (which surfaces the result via
-        its inline preview) is a perfectly valid flow. Multi-source
-        flows are legal — e.g. three file sources feeding an RGB-join
-        filter — so every source is started in registration order. In
-        the push-based execution model, each start() propagates data
-        downstream through connected ports.
+        its inline preview) is a perfectly valid flow.
+
+        Execution model:
+
+        * Reactive (one-shot) sources fire first so their value is
+          latched on downstream inputs before any streaming source
+          starts pushing frames — otherwise a multi-input filter like
+          Ncc would only process once, at the moment the one-shot
+          source finally fires. See :meth:`SourceNodeBase.start` and
+          :meth:`InputPort.clear` for the two halves of the latching
+          mechanism.
+
+        * Streaming sources are then **round-robined** via their
+          :meth:`SourceNodeBase.iter_frames` generators: each iteration
+          of the outer loop steps every active source once, so two
+          streaming sources driving two param ports on the same node
+          (e.g. two ``ValueSource``s feeding ``Overlay.angle`` and
+          ``Overlay.xpos``) advance together and both animate. When a
+          source's iterator is exhausted, its outputs are finished —
+          :meth:`InputPort.clear`'s "retain after upstream finish"
+          rule then latches its last value, so any still-running
+          source can keep firing the dispatcher with the exhausted
+          source's last value held in place.
+
+        * The loop checks :attr:`stop_requested` between every step;
+          on stop, every source's outputs are finished (idempotent)
+          and ``after_run`` runs on every node so cleanup happens
+          even after a partial run.
 
         Raises:
             RuntimeError: if the flow has no source node.
@@ -149,37 +197,68 @@ class Flow:
         if not self.sources:
             raise RuntimeError("Flow has no source node; at least one is required")
 
+        # Reset stop flag for this run so a previous Stop click doesn't
+        # short-circuit the next Run.
+        self._stop_requested = False
+
         logger.info("initializing nodes")
-        
+
         # initialize all nodes before starting any source
         for node in self._nodes:
             node.before_run()
 
-        # Starting a source node triggers the flow's execution.
-        # Reactive (one-shot) sources run first so their value is latched
-        # on downstream inputs before any streaming source starts pushing
-        # frames — otherwise a multi-input filter like Ncc would only
-        # process once, at the moment the one-shot source finally fires.
-        # See SourceNodeBase.start() and InputPort.clear() for the two
-        # halves of the latching mechanism.
-        ordered_sources = sorted(self.sources, key=lambda s: not s.is_reactive)
-
-        success : bool = False
+        success: bool = False
         try:
-            for source in ordered_sources:
+            reactive = [s for s in self.sources if s.is_reactive]
+            streaming = [s for s in self.sources if not s.is_reactive]
+
+            # ── Phase 1: reactive sources ─────────────────────────────────
+            for source in reactive:
+                if self._stop_requested:
+                    break
                 source.start()
 
-            # Every source has delivered all its data — signal end-of-stream
-            # centrally so lifetime doesn't have to ride the data channel.
-            # Propagates through the graph via the dispatcher in NodeBase.
-            # Reactive sources already finished their outputs inside
-            # start(); OutputPort.finish() is idempotent so calling again
-            # here is harmless and keeps streaming sources covered.
-            for source in ordered_sources:
+            # ── Phase 2: round-robin streaming sources ────────────────────
+            # Each entry tracks (source, iterator). When an iterator
+            # raises StopIteration, that source's outputs are finished
+            # right away so its last value latches downstream.
+            iters: list[tuple[SourceNodeBase, "Iterator[None]"]] = [
+                (s, s.iter_frames()) for s in streaming
+            ]
+
+            while iters and not self._stop_requested:
+                next_iters: list[tuple[SourceNodeBase, "Iterator[None]"]] = []
+                for source, it in iters:
+                    if self._stop_requested:
+                        next_iters.append((source, it))
+                        continue
+                    try:
+                        next(it)
+                        next_iters.append((source, it))
+                    except StopIteration:
+                        for out in source.outputs:
+                            out.finish()
+                iters = next_iters
+
+            # Stop / completion: close any still-open iterators (so
+            # generator ``finally`` blocks fire — VideoCapture release,
+            # etc.) and finish their outputs. ``OutputPort.finish`` is
+            # idempotent so already-finished sources from natural
+            # completion are unaffected.
+            for source, it in iters:
+                it.close()
                 for out in source.outputs:
                     out.finish()
 
-            success = True
+            # Belt-and-braces: cover any source whose ``iter_frames``
+            # returned without yielding (zero-frame streaming source —
+            # e.g. an inverted ValueSource range). ``finish`` is
+            # idempotent.
+            for source in self.sources:
+                for out in source.outputs:
+                    out.finish()
+
+            success = not self._stop_requested
         finally:
             logger.info("Cleaning up nodes")
 

@@ -68,6 +68,16 @@ class InputPort:
         # later (and vice versa) — common gotcha when the same default
         # dict is reused across multiple node constructions.
         self.metadata: dict = dict(metadata) if metadata else {}
+        # ``True`` between :meth:`receive` and the next :meth:`clear`
+        # (or :meth:`reset`). Param-style ports retain their *data*
+        # across clear() so the dispatcher can keep firing when one
+        # of two streaming sources advances; this flag distinguishes
+        # "I just got a new value" from "I'm holding a stale latched
+        # value" so the dispatcher only fires on a *fresh* arrival
+        # rather than re-firing every time any port's
+        # state_changed (e.g. a sibling input's ``finish()``) goes
+        # off.
+        self._fresh: bool = False
 
     @property
     def has_data(self) -> bool:
@@ -118,6 +128,7 @@ class InputPort:
                 f"Port '{self.name}' received data after finish()"
             )
         self._data = data
+        self._fresh = True
         if self._on_state_changed is not None:
             self._on_state_changed()
 
@@ -145,15 +156,37 @@ class InputPort:
     def clear(self) -> None:
         """Drop buffered data so the owning node can receive the next frame.
 
-        Data from an upstream that has already called :meth:`finish` is
-        retained (latched) rather than cleared. That lets a one-shot
-        source — e.g. :class:`~nodes.sources.image_source.ImageSource`
-        wired into the ``template`` input of
-        :class:`~nodes.filters.ncc.Ncc` — stay available while another
-        (streaming) source continues to push frames through the other
-        input.
+        Always flips :attr:`is_fresh` to ``False`` — even when the data
+        itself is retained — so a downstream dispatcher can tell the
+        difference between "this port has a freshly-arrived value" and
+        "this port is holding a latched stale value".
+
+        Data is **retained** rather than cleared in two cases:
+
+        * The upstream has already called :meth:`finish` — lets a
+          one-shot source (e.g. an
+          :class:`~nodes.sources.image_source.ImageSource` wired into
+          the ``template`` input of :class:`~nodes.filters.ncc.Ncc`)
+          stay available while another (streaming) source keeps
+          pushing frames through the other input.
+
+        * The port is param-style (``"param_type"`` in
+          :attr:`metadata`) — SCALAR / BOOL / ENUM / PATH ports
+          represent a *current value* like a knob position, not a
+          per-frame data flow. Latching the last received value lets
+          two streaming sources drive two param ports on the same
+          node simultaneously: when round-robin scheduling pairs
+          ``A_n`` with ``B_n`` and clears both, B's last value stays
+          live so the next ``A_{n+1}`` send can fire the dispatcher
+          without B having to push a fresh value first. Once a
+          source is exhausted and its output finishes, the
+          finished-upstream rule above takes over from the
+          param-port rule — semantically the same outcome.
         """
+        self._fresh = False
         if self._finished:
+            return
+        if "param_type" in self.metadata:
             return
         self._data = None
 
@@ -166,6 +199,20 @@ class InputPort:
         """
         self._data = None
         self._finished = False
+        self._fresh = False
+
+    @property
+    def is_fresh(self) -> bool:
+        """``True`` when this port has received data since the last
+        :meth:`clear` (or :meth:`reset`).
+
+        Used by :meth:`~core.node_base.NodeBase._signal_input_ready`
+        so the dispatcher only fires when *some* connected port has
+        actually changed value — without it, a sibling input's
+        :meth:`finish` would re-fire the dispatcher with stale latched
+        values, producing a duplicate composite frame.
+        """
+        return self._fresh
 
 
 class OutputPort:

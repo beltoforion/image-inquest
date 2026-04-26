@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 
 from enum import Enum
 from typing import Callable, final, override
@@ -318,8 +319,17 @@ class NodeBase(ABC):
         """Called by an InputPort whenever its state changes.
 
         Fires :meth:`process` as soon as every *waited-on* input has data
-        and clears every input afterwards so the node is ready for the
-        next frame.
+        AND at least one of them is *fresh* (received since the last
+        dispatch). The freshness gate matters for nodes whose param-style
+        ports retain their data across :meth:`InputPort.clear`: without
+        it, a sibling input's :meth:`finish` would re-fire the
+        dispatcher against the latched stale values and emit a duplicate
+        composite frame.
+
+        Clears every input after :meth:`process`, so the node is ready
+        for the next frame. Param-style and finished-upstream ports
+        keep their *data* across the clear (their :attr:`is_fresh` is
+        still flipped to ``False``).
 
         An optional input counts as waited-on only while it has an
         upstream connected. An unconnected optional port is skipped
@@ -339,7 +349,10 @@ class NodeBase(ABC):
             if not p.optional or p.upstream is not None
         ]
 
-        if all(p.has_data for p in waited):
+        if (
+            all(p.has_data for p in waited)
+            and any(p.is_fresh for p in waited)
+        ):
             self.process()
             for p in self._inputs:
                 p.clear()
@@ -559,21 +572,45 @@ class SourceNodeBase(NodeBase, ABC):
         """
         return False
 
+    def iter_frames(self) -> Iterator[None]:
+        """Yield once per frame this source emits.
+
+        Default implementation: one-shot — call :meth:`process` once and
+        yield once. Reactive sources (e.g. :class:`ImageSource`) and any
+        source whose ``process_impl`` emits everything in a single call
+        are happy with the default.
+
+        Streaming sources (counters, video readers, directory walkers)
+        should override this to be a true generator that ``yield``s once
+        per emitted frame, so :meth:`core.flow.Flow.run` can round-robin
+        multiple streaming sources frame-by-frame instead of running
+        each to completion sequentially. Without round-robin, two
+        streaming sources driving the same downstream node would only
+        produce one composite frame — the first source drains entirely
+        before the second sends its first value, so the dispatcher only
+        sees all-inputs-have-data once.
+        """
+        self.process()
+        yield
+
     @final
     def start(self) -> None:
-        """Drive the source by invoking :meth:`process`.
+        """Drive the source by draining :meth:`iter_frames`.
 
         Kept as a distinct entry point so :meth:`core.flow.Flow.run` can
         tell source nodes apart from ordinary nodes without type-sniffing
-        on every call.
+        on every call. The flow runner uses :meth:`iter_frames` directly
+        for streaming-source round-robin; ``start()`` remains the
+        all-at-once drain path used by tests and other one-shot callers.
 
         Reactive sources emit a single value, so their outputs are
-        finished right after :meth:`process` returns. Combined with the
+        finished right after the iterator drains. Combined with the
         latching behaviour in :meth:`core.port.InputPort.clear`, that
-        lets the one-shot value persist on downstream inputs while other
-        (streaming) sources keep pushing frames.
+        lets the one-shot value persist on downstream inputs while
+        other (streaming) sources keep pushing frames.
         """
-        self.process()
+        for _ in self.iter_frames():
+            pass
         if self.is_reactive:
             for out in self._outputs:
                 out.finish()

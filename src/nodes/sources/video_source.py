@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import cv2
@@ -79,7 +80,13 @@ class VideoSource(SourceNodeBase):
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
-    def process_impl(self) -> None:
+    def iter_frames(self) -> Iterator[None]:
+        """Per-frame generator: one ``yield`` per decoded video frame.
+
+        The ``finally`` releases the OpenCV capture even if the flow
+        runner aborts mid-stream (Stop button) — the generator's
+        ``close()`` triggers it via ``GeneratorExit``.
+        """
         resolved = self._resolved_path()
         if not resolved.exists():
             raise FileNotFoundError(f"Input file not found: {resolved}")
@@ -100,10 +107,17 @@ class VideoSource(SourceNodeBase):
                     break
                 self.outputs[0].send(IoData.from_image(frame))
                 frame_count += 1
+                yield
                 if self._max_num_frames >= 0 and frame_count >= self._max_num_frames:
                     break
         finally:
             cap.release()
+
+    @override
+    def process_impl(self) -> None:
+        """Direct-invocation path: drain :meth:`iter_frames` in one call."""
+        for _ in self.iter_frames():
+            pass
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
