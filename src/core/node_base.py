@@ -49,10 +49,7 @@ class NodeParamType(Enum):
 #: FLOAT) collapse to a single ``SCALAR`` port type so any scalar
 #: producer can drive any numeric param without a per-type bridge node;
 #: the widget-side "render as int spinner vs float slider" hint stays
-#: in the port's metadata under ``"param_type"``. Used by node code
-#: when declaring ports inline; previously also used to auto-create
-#: ports from NodeParam declarations, before the migration unified
-#: that into the InputPort's own metadata.
+#: in the port's metadata under ``"param_type"``.
 NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
     NodeParamType.INT:       IoDataType.SCALAR,
     NodeParamType.FLOAT:     IoDataType.SCALAR,
@@ -154,16 +151,15 @@ class NodeBase(ABC):
         """The editable input ports this node exposes to the UI.
 
         Returns the subset of ``self._inputs`` whose ``metadata``
-        carries a ``"param_type"`` key — i.e. the ports that used to
-        be :class:`NodeParam` objects before the param-as-port
-        migration. The UI iterates this list to build inline widgets;
-        each port carries everything the widget needs (``name``,
-        ``metadata["param_type"]``, ``metadata`` for widget hints,
-        ``upstream`` for the connected/disconnected state).
+        carries a ``"param_type"`` key. The UI iterates this list to
+        build one inline widget per port; each port carries everything
+        the widget needs (``name`` to address the node attribute,
+        ``metadata["param_type"]`` for widget-class dispatch,
+        ``metadata`` for widget hints, ``upstream`` for the
+        connected/disconnected state).
 
-        Image-flow inputs (no ``param_type`` in their metadata) are
-        excluded so the property panel doesn't accidentally render a
-        widget for an image socket.
+        Image-flow inputs leave ``metadata`` empty and are filtered out
+        so the renderer doesn't draw a widget for an image socket.
         """
         return [
             port for port in self._inputs

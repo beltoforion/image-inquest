@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.26",
+  "app_version": "0.1.35",
   "name": "test_overlay_rot",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1705.8258055082183,
         -1675.2174215333737
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "ship.jpg"
       }
     },
@@ -23,7 +23,7 @@
         -1706.6621376516161,
         -1538.6229705026856
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "logo.png"
       }
     },
@@ -35,7 +35,7 @@
         -1707.9717247492397,
         -1398.636882231192
       ],
-      "params": {
+      "port_defaults": {
         "min_value": 0,
         "max_value": 99,
         "multiplier": 1.0,
@@ -50,7 +50,7 @@
         -1390.1707575917778,
         -1545.45765959381
       ],
-      "params": {
+      "port_defaults": {
         "scale": 1.0,
         "angle": 0.0,
         "xpos": 0,
@@ -66,7 +66,7 @@
         -1073.4436968013247,
         -1639.9522812184034
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         702.3323880953664,
         570.9432352481874

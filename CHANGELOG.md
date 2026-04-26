@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.35] — 2026-04-26
+
+### Changed
+- **Param-as-port migration (step 8/8): flow file format
+  finalised.** The on-disk per-node ``params`` key is renamed to
+  ``port_defaults`` to reflect the post-NodeParam mental model —
+  what's persisted are the literal default values each port uses
+  when no upstream is connected, not "node parameters" as a
+  separate concept.
+  Saver writes the new key. Loader reads ``port_defaults`` first
+  and falls back to ``params`` if absent, so flow files saved
+  before this version still load identically; their ``params``
+  shape (``{name: value, …}``) is byte-compatible with the new
+  ``port_defaults``. All 15 bundled sample flow files have been
+  re-saved to the new format.
+- **Last lingering NodeParam reference cleared.** The ASCII layout
+  diagram in ``NodeItem``'s docstring still mentioned "param rows
+  (QWidget) — one label + editor per NodeParam"; rewritten to
+  describe the inline-socket layout that replaced it in 0.1.34.
+
 ## [0.1.34] — 2026-04-26
 
 ### Changed

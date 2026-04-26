@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.26",
+  "app_version": "0.1.35",
   "name": "test_numeric",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1622.9180289865512,
         -1581.7170140091837
       ],
-      "params": {
+      "port_defaults": {
         "min_value": 0,
         "max_value": 95,
         "multiplier": 1.0,
@@ -26,7 +26,7 @@
         -1617.8935149649212,
         -1301.349131602219
       ],
-      "params": {
+      "port_defaults": {
         "value": -0.5
       }
     },
@@ -38,7 +38,7 @@
         -1220.9569072561362,
         -1381.7413559483023
       ],
-      "params": {
+      "port_defaults": {
         "op": 0
       }
     },
@@ -50,7 +50,7 @@
         -1001.8880959130598,
         -1351.594271818521
       ],
-      "params": {}
+      "port_defaults": {}
     }
   ],
   "connections": [

@@ -291,15 +291,17 @@ class NodeItem(QGraphicsItem):
         ┌──────────────────────────┐
         │  header (category color) │   node.display_name
         ├──────────────────────────┤
-        │  param rows (QWidget)    │   one label + editor per NodeParam
-        ├──────────────────────────┤
-        │◉ in_name    out_name    ◉│   port rows; inputs left, outputs right
-        │◉ in_name    out_name    ◉│
+        │◉ image                  ◉│   image-flow port row (no widget)
+        │◉ angle      [ slider  ]  │   param-style port row: socket dot +
+        │◉ scale      [ spinbox ]  │   name + inline editor (Blender-style)
+        │  preview pixmap / text   │   optional preview, fills spare height
         └──────────────────────────┘
 
-    Parameter widgets are embedded via a :class:`QGraphicsProxyWidget`
-    so the native Qt form controls (line edit, spin box, browse button)
-    behave exactly as they would in any dialog.
+    Each editable input port hosts its own inline widget on the same
+    row as its socket dot; the widget is built by
+    :func:`ui.param_widgets.build_param_widget` from the port's
+    metadata and embedded via a :class:`QGraphicsProxyWidget`.
+    Image-flow inputs have no widget — just the socket dot + name.
     """
 
     MIN_WIDTH: float = 120.0
