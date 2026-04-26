@@ -41,7 +41,7 @@ class ImageSource(SourceNodeBase):
         self._add_param(NodeParam(
             "file_path",
             NodeParamType.FILE_PATH,
-            default="example.jpg",
+            default="ship.jpg",
             metadata={
                 "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
                 "base_dir": INPUT_DIR,
