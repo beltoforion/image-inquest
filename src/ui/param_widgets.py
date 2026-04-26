@@ -56,7 +56,7 @@ PARAM_BUTTON_WIDTH: int = 36
 #: visually inconsistent across rows when widget kinds disagree on
 #: their natural height. 22 px fits a 14-px font + 4 px of vertical
 #: padding (matches the QSS ``padding: 3px 6px``) + 2 px of border.
-PARAM_VALUE_HEIGHT: int = 22
+PARAM_VALUE_HEIGHT: int = 24
 
 
 class ParamWidgetBase(QWidget):
