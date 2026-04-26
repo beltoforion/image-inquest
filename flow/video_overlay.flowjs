@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
-  "name": "sample_overlay",
+  "app_version": "0.2.4",
+  "name": "video_overlay",
   "nodes": [
     {
       "id": 0,
@@ -12,7 +12,7 @@
         -802.0
       ],
       "port_defaults": {
-        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "file_path": "video.mp4",
         "max_num_frames": -1
       }
     },
@@ -35,12 +35,12 @@
       "module": "nodes.filters.overlay",
       "class": "Overlay",
       "position": [
-        -1356.95498783455,
-        -893.2798053527981
+        -1318.3359604734826,
+        -886.5214755646113
       ],
       "port_defaults": {
-        "scale": 0.42,
         "angle": 0.0,
+        "scale": 0.42,
         "xpos": 0,
         "ypos": 0,
         "alpha": 0.5
@@ -98,5 +98,6 @@
       "dst_node": 1,
       "dst_input": 0
     }
-  ]
+  ],
+  "backdrops": []
 }

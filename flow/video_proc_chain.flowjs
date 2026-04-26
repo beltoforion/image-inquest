@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.1.43",
-  "name": "sample_video_proc",
+  "app_version": "0.2.4",
+  "name": "video_proc_chain",
   "nodes": [
     {
       "id": 0,

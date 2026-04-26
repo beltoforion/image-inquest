@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
-  "name": "mosaic",
+  "app_version": "0.2.4",
+  "name": "image_rgb_mosaic",
   "nodes": [
     {
       "id": 0,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1782.1540770430568,
-        -1030.7276534299565
+        -1786.8334862010145,
+        -1179.1317724394748
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,8 +20,8 @@
       "module": "nodes.filters.subpixel_mosaic",
       "class": "SubpixelMosaic",
       "position": [
-        -1536.1353712382718,
-        -884.7555670892272
+        -1540.8147803962297,
+        -1031.8227120536144
       ],
       "port_defaults": {
         "keep_aspect": true,
@@ -33,8 +33,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -1019.5364119455451,
-        -861.1330919745274
+        -977.4217295239251,
+        -1082.4022964436735
       ],
       "port_defaults": {
         "output_path": "out.png"
@@ -45,8 +45,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1369.0933084094313,
-        -1164.740210510855
+        -1352.3811328452964,
+        -1214.8767372032596
       ],
       "port_defaults": {},
       "size": [
@@ -74,5 +74,6 @@
       "dst_node": 2,
       "dst_input": 0
     }
-  ]
+  ],
+  "backdrops": []
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
-  "name": "test_overlay_rot",
+  "app_version": "0.2.4",
+  "name": "video_overlay_rot",
   "nodes": [
     {
       "id": 0,
@@ -51,8 +51,8 @@
         -1545.45765959381
       ],
       "port_defaults": {
-        "scale": 1.0,
         "angle": 0.0,
+        "scale": 1.0,
         "xpos": 0,
         "ypos": 0,
         "alpha": 1.0

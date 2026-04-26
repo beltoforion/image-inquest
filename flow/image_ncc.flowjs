@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
-  "name": "sample_ncc",
+  "app_version": "0.2.4",
+  "name": "image_ncc",
   "nodes": [
     {
       "id": 0,

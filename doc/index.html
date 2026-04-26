@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stjörnhorn — Documentation</title>
+  <style>
+    :root {
+      --bg:            #262629;
+      --bg-panel:      #2f2f33;
+      --bg-panel-alt:  #35353a;
+      --bg-code:       #1f1f22;
+      --border:        #1a1a1d;
+      --text:          #e0e0e0;
+      --text-muted:    #9a9a9f;
+      --accent:        #f0c83c;
+      --accent-soft:   #f0c83c1f;
+      --source:        #7fb6ee;
+      --filter:        #7dd896;
+      --sink:          #e8a86b;
+      --output:        #d39ee8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code, pre, kbd {
+      font-family: "Consolas", "Menlo", "DejaVu Sans Mono", monospace;
+    }
+    code {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.9em;
+    }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+    kbd {
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 0 5px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+
+    .page {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    nav.sidebar {
+      grid-column: 1;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav.sidebar .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    nav.sidebar .brand img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      mix-blend-mode: screen;
+    }
+    nav.sidebar .brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    nav.sidebar .brand-name {
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      font-size: 16px;
+    }
+    nav.sidebar .brand-version {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    nav.sidebar h3 {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 18px 0 6px;
+    }
+    nav.sidebar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    nav.sidebar li a {
+      display: block;
+      padding: 4px 8px;
+      color: var(--text);
+      border-radius: 3px;
+      font-size: 13px;
+    }
+    nav.sidebar li a:hover {
+      background: var(--bg-panel-alt);
+      text-decoration: none;
+    }
+
+    main {
+      grid-column: 2;
+      padding: 32px clamp(20px, 4vw, 64px) 64px;
+      max-width: 1100px;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+
+    header.hero {
+      padding: 24px 0 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    header.hero h1 {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    header.hero h1 .version {
+      margin-left: 12px;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-muted);
+      vertical-align: middle;
+    }
+    header.hero .tagline {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    /* ── Sections ────────────────────────────────────────────────────── */
+
+    section {
+      margin-bottom: 40px;
+      scroll-margin-top: 16px;
+    }
+    section h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 24px 0 8px;
+      color: var(--text);
+    }
+    section h4 {
+      font-size: 13.5px;
+      font-weight: 600;
+      margin: 18px 0 6px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    section p { margin: 0 0 10px; color: var(--text); }
+    section ul, section ol { margin: 0 0 12px; padding-left: 22px; }
+    section li { margin-bottom: 4px; }
+
+    /* ── Screenshots ────────────────────────────────────────────────── */
+
+    figure.screenshot {
+      margin: 16px 0 20px;
+      padding: 0;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    figure.screenshot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    figure.screenshot figcaption {
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel-alt);
+    }
+
+    /* ── Tables ─────────────────────────────────────────────────────── */
+
+    table {
+      border-collapse: collapse;
+      margin: 12px 0;
+      width: 100%;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11.5px;
+    }
+    tr:last-child td { border-bottom: 0; }
+
+    /* ── Node cards ─────────────────────────────────────────────────── */
+
+    .node-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .node-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+    }
+    .node-card h4 {
+      margin: 0 0 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text);
+    }
+    .node-card p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .node-card .params {
+      margin-top: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-family: "Consolas", "Menlo", monospace;
+    }
+    .node-card.source { border-left: 3px solid var(--source); }
+    .node-card.filter { border-left: 3px solid var(--filter); }
+    .node-card.sink   { border-left: 3px solid var(--sink); }
+    .node-card.output { border-left: 3px solid var(--output); }
+
+    /* ── Callouts ────────────────────────────────────────────────────── */
+
+    .note {
+      background: var(--accent-soft);
+      border-left: 3px solid var(--accent);
+      padding: 10px 14px;
+      margin: 12px 0;
+      border-radius: 0 3px 3px 0;
+      font-size: 13.5px;
+    }
+    .note strong { color: var(--accent); }
+
+    /* ── Type / port pills ──────────────────────────────────────────── */
+
+    .pill {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-family: "Consolas", "Menlo", monospace;
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      margin-right: 4px;
+    }
+    .pill.image       { color: #c8e3ff; }
+    .pill.image-grey  { color: #cfcfcf; }
+    .pill.scalar      { color: #f3d36a; }
+    .pill.matrix      { color: #f3a96a; }
+    .pill.bool        { color: #b1f0c8; }
+    .pill.string      { color: #e8a8c5; }
+    .pill.enum        { color: #c5b4ff; }
+    .pill.path        { color: #f0c83c; }
+
+    footer.page-foot {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* ── Mobile ─────────────────────────────────────────────────────── */
+
+    @media (max-width: 880px) {
+      .page { grid-template-columns: 1fr; }
+      nav.sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+      main { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <img src="images/stjörnhorn.png" alt="Stjörnhorn mascot">
+      <div class="brand-text">
+        <span class="brand-name">Stjörnhorn</span>
+        <span class="brand-version">v0.2.4 · Documentation</span>
+      </div>
+    </div>
+
+    <h3>Getting started</h3>
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#install">Installation</a></li>
+      <li><a href="#running">Running</a></li>
+    </ul>
+
+    <h3>Using the app</h3>
+    <ul>
+      <li><a href="#start-page">Start page</a></li>
+      <li><a href="#node-editor">Node editor</a></li>
+      <li><a href="#workflow">Building a flow</a></li>
+      <li><a href="#flow-files">Flow files</a></li>
+    </ul>
+
+    <h3>Concepts</h3>
+    <ul>
+      <li><a href="#execution-model">Execution model</a></li>
+      <li><a href="#data-types">Data types</a></li>
+      <li><a href="#param-as-port">Param-as-port</a></li>
+      <li><a href="#skipping">Skipping nodes</a></li>
+    </ul>
+
+    <h3>Node reference</h3>
+    <ul>
+      <li><a href="#nodes-sources">Sources</a></li>
+      <li><a href="#nodes-output">Output</a></li>
+      <li><a href="#nodes-sinks">Sinks</a></li>
+      <li><a href="#nodes-color">Color Spaces</a></li>
+      <li><a href="#nodes-transform">Transform</a></li>
+      <li><a href="#nodes-processing">Processing</a></li>
+      <li><a href="#nodes-temporal">Temporal</a></li>
+      <li><a href="#nodes-math">Math</a></li>
+      <li><a href="#nodes-composit">Composit</a></li>
+      <li><a href="#nodes-debug">Debug</a></li>
+    </ul>
+
+    <h3>Reference</h3>
+    <ul>
+      <li><a href="#paths">File locations</a></li>
+      <li><a href="#user-nodes">User-defined nodes</a></li>
+      <li><a href="#shortcuts">Shortcuts</a></li>
+      <li><a href="#license">License</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <header class="hero">
+      <h1>Stjörnhorn <span class="version">v0.2.4</span></h1>
+      <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
+    </header>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>
+        Stjörnhorn is a desktop application for building image- and
+        video-processing workflows in a node-based visual editor. Drop
+        sources, filters, and sinks onto a canvas, wire them up,
+        press <strong>Run</strong>, and watch the output update in the
+        built-in viewer.
+      </p>
+      <p>Typical uses:</p>
+      <ul>
+        <li>Experiment with image-processing operations
+          (dithering, thresholding, normalisation, scaling, channel
+          splitting, …) without writing code.</li>
+        <li>Compose filters into reusable flows and save them to disk.</li>
+        <li>Batch-convert and composite images by wiring up file sources
+          and sinks.</li>
+        <li>Drive parameters from numeric streams to animate values across
+          a video — slide an overlay, ramp a threshold, fade in a
+          mask.</li>
+      </ul>
+    </section>
+
+    <section id="install">
+      <h2>Installation</h2>
+      <p>Prerequisite: <strong>Python 3.10 or newer</strong>.</p>
+      <pre><code>pip install -r requirements.txt</code></pre>
+      <p>
+        Or install in editable mode together with the
+        <code>stjornhorn</code> console entry point:
+      </p>
+      <pre><code>pip install -e .</code></pre>
+      <p>
+        Pre-built binaries (Windows zip, Linux AppImage) are also
+        attached to each tagged GitHub release — no Python toolchain
+        required for end users.
+      </p>
+    </section>
+
+    <section id="running">
+      <h2>Running</h2>
+      <pre><code>python src/main.py</code></pre>
+      <p>Optional command-line arguments:</p>
+      <table>
+        <thead>
+          <tr><th>Flag</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--no-splash</code></td>
+            <td>Skip the startup splash screen.</td>
+          </tr>
+          <tr>
+            <td><code>--flow FILE</code></td>
+            <td>
+              Load a flow at startup and open it directly in the editor.
+              Accepts a full path to a <code>.flowjs</code> file or a
+              bare flow name (looked up in <code>flow/</code>, with or
+              without the <code>.flowjs</code> extension).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Unrecognised flags are forwarded to Qt — useful for
+        <code>-style</code>, <code>-platform</code>, etc.
+      </p>
+    </section>
+
+    <section id="start-page">
+      <h2>Start page</h2>
+      <figure class="screenshot">
+        <img src="images/start_page.png" alt="Stjörnhorn start page">
+        <figcaption>The start page is the launch pad for working with flows.</figcaption>
+      </figure>
+      <p>
+        The start page is the landing screen when the app opens. From here
+        you create a new flow or pick up where you left off with an
+        existing one.
+      </p>
+      <ul>
+        <li><strong>Name input</strong> — type a name for a new flow.
+          Names may contain ASCII letters, digits, and the characters
+          <code>_ # + -</code>. The input also sets the filename stem
+          that <strong>Save</strong> will use later (e.g. the name
+          <code>dither_lab</code> saves to
+          <code>flow/dither_lab.flowjs</code>).</li>
+        <li><strong>Create</strong> — opens the node editor with a fresh
+          empty flow whose name matches the input. Disabled until the
+          input contains a valid name; pressing <kbd>Enter</kbd> in the
+          input triggers it.</li>
+        <li><strong>Open</strong> (toolbar, top) — launches a file dialog
+          to load any <code>.flowjs</code> file from disk. The dialog
+          starts in the app's <code>flow/</code> directory but you can
+          browse anywhere.</li>
+        <li><strong>Recent Flows</strong> — a grid of tiles for flows
+          you have recently created, opened, or saved. Click a tile to
+          open that flow. Each tile shows the flow's name; hover to see
+          the full path. The grid reads "No recent flows" until you
+          have used one.</li>
+      </ul>
+    </section>
+
+    <section id="node-editor">
+      <h2>Node editor</h2>
+      <figure class="screenshot">
+        <img src="images/node_editor.png" alt="Stjörnhorn node editor">
+        <figcaption>Palette on the left, canvas in the middle, output preview docked below.</figcaption>
+      </figure>
+      <p>
+        The node editor is where flows are built and run. A flow is a
+        graph of nodes — sources produce images, filters transform
+        them, sinks consume them — connected by typed ports. The editor
+        gives you a palette, a canvas to wire nodes together, an output
+        preview, and a toolbar to drive the flow.
+      </p>
+
+      <h3>Layout</h3>
+      <ul>
+        <li><strong>Node List</strong> (dockable, left) — the palette of
+          every registered node, grouped into a tree by section
+          (Sources, Sinks, Output, Color Spaces, Transform, Processing,
+          Temporal, Math, Composit, Debug, …). Each section is
+          collapsible; the dock has expand-all / collapse-all buttons.
+          A search box at the top filters live and auto-expands matching
+          groups so leaves never hide behind a closed section. Drag an
+          entry onto the canvas to instantiate it. Toggle the dock via
+          the <strong>View</strong> menu; it can be floated, re-docked,
+          or closed.</li>
+        <li><strong>Canvas</strong> (centre) — the flow graph. Each node
+          shows its title, output sockets stacked at the top, input
+          sockets with inline parameter widgets at the bottom (Blender
+          shader-editor layout). A small × in the top-right of a node
+          deletes it; a diagonal grip in the bottom-right resizes the
+          node — drag wider and every inline widget grows along with
+          the body. Scroll to zoom; middle-mouse-drag to pan. Dropping
+          a node from the palette places it at the cursor.</li>
+        <li><strong>Output Inspector</strong> (dockable, below the Node
+          List) — previews the current output of whichever node is
+          selected. Float it for a larger view; once floating, press
+          <kbd>F11</kbd> to toggle full-screen preview.</li>
+        <li><strong>Status bar</strong> (bottom) — shows the last
+          successful / informational message, such as
+          <em>"Ran at 14:23:55"</em> or
+          <em>"Saved to flow/x.flowjs"</em>. Errors pop up in a
+          floating red banner at the top right instead, so long
+          multi-line messages stay readable.</li>
+      </ul>
+
+      <h3>Connecting nodes</h3>
+      <ul>
+        <li>Drag from an output port (top of a node) to an input port
+          (bottom of another). The connection is only accepted if the
+          port types are compatible — e.g. an
+          <span class="pill image-grey">IMAGE_GREY</span> output may
+          feed an input that accepts greyscale.</li>
+        <li>Drag an existing link off either end to remove it.</li>
+        <li>One output can drive many inputs; each input accepts exactly
+          one upstream.</li>
+        <li>Unconnected port circles are filled black; once connected,
+          the dot fills with the type colour.</li>
+      </ul>
+
+      <h3>Toolbar — Flow section</h3>
+      <ul>
+        <li><strong>Run</strong> — execute the flow once. Sources push
+          data through the graph to the sinks. The status bar updates
+          with the run time; any exception shows up in the error
+          banner.</li>
+        <li><strong>Save</strong> — write the current flow to
+          <code>flow/&lt;name&gt;.flowjs</code>, where
+          <code>&lt;name&gt;</code> is the flow's current name.</li>
+        <li><strong>Save As…</strong> — write the current flow to a
+          path you choose. The stem of the chosen filename becomes the
+          flow's new name (which is then used by future <strong>Save</strong>
+          clicks).</li>
+        <li><strong>Open</strong> — load another <code>.flowjs</code>
+          file, replacing the current flow.</li>
+        <li><strong>Clear</strong> — remove every node and connection
+          from the canvas. Asks for confirmation.</li>
+      </ul>
+
+      <h3>Toolbar — View section</h3>
+      <ul>
+        <li><strong>Fit</strong> — zoom and scroll so the whole graph
+          fits the viewport.</li>
+        <li><strong>1:1</strong> — reset the view transform to 100% zoom.</li>
+        <li><strong>V-Stack</strong> — align two or more selected nodes
+          on a shared X axis and stack them top-to-bottom (preserves
+          their current vertical order). Disabled until ≥ 2 nodes are
+          selected.</li>
+        <li><strong>H-Stack</strong> — align two or more selected nodes
+          on a shared Y axis and arrange them left-to-right (preserves
+          their current horizontal order). Disabled until ≥ 2 nodes
+          are selected.</li>
+      </ul>
+
+      <div class="note">
+        <strong>Re-runs are explicit.</strong> Editing a parameter no
+        longer auto-triggers a run — every re-run goes through the
+        <strong>Run</strong> button. The previous 300 ms debounced
+        auto-run was removed in v0.1.42 to avoid spurious decode work
+        on video flows.
+      </div>
+    </section>
+
+    <section id="workflow">
+      <h2>Building a flow</h2>
+      <ol>
+        <li>From the start page, type a name for the flow and press
+          <strong>Create</strong>.</li>
+        <li>Drag a <strong>source</strong> from the palette (e.g.
+          <em>Image Source</em>) onto the canvas. Click the path widget
+          on the node body to pick an input file.</li>
+        <li>Drag one or more <strong>filters</strong> onto the canvas
+          and wire the source's output to the filter's input.</li>
+        <li>Drag a <strong>Display</strong> node onto the canvas and
+          wire it after the last filter — its inline preview
+          <em>is</em> the result, no sink required.</li>
+        <li>Press <strong>Run</strong>. The status bar shows the run
+          time; the Display node renders the live frame inside its
+          body.</li>
+        <li>Tweak parameters and press <strong>Run</strong> again. To
+          persist work, press <strong>Save</strong> — the flow is
+          written to <code>flow/&lt;name&gt;.flowjs</code>.</li>
+      </ol>
+
+      <h3>Adding an output sink</h3>
+      <p>
+        To save the result to disk, add a <em>File Sink</em> (single
+        image) or <em>Video Sink</em> (encode a stream) downstream of
+        your filters in addition to (or instead of) Display. The eye
+        button next to a File Sink's path opens the written file in
+        the OS image viewer.
+      </p>
+    </section>
+
+    <section id="flow-files">
+      <h2>Flow files</h2>
+      <p>
+        Flows are JSON files with the <code>.flowjs</code> extension
+        (just JSON — the extension makes them easy to associate with
+        the app on the desktop). The format finalised in v0.1.35; on
+        disk every node carries a <code>port_defaults</code> map of
+        the literal default for each editable port. Older flows
+        written with the legacy <code>params</code> key still load —
+        the loader reads it as a fallback.
+      </p>
+      <p>
+        Saved flows store paths under the app's <code>input/</code> and
+        <code>output/</code> folders as relative paths, so a flow stays
+        portable across machines that share the same input layout.
+      </p>
+    </section>
+
+    <section id="execution-model">
+      <h2>Execution model</h2>
+      <p>
+        Stjörnhorn uses a <strong>push-based dispatcher</strong>. There
+        is no central scheduler walking the graph — each port forwards
+        data to the next as soon as it has it.
+      </p>
+      <ul>
+        <li>A source's <code>start()</code> calls
+          <code>process_impl()</code>, which pushes
+          <code>IoData</code> onto its output ports.</li>
+        <li>Each <code>OutputPort.send()</code> forwards the payload to
+          every connected input port.</li>
+        <li>An input port notifies its owner node via an internal
+          <code>_signal_input_ready()</code> hook.</li>
+        <li>Once every waited-on input has data, the node's
+          <code>process()</code> fires and the inputs are cleared so
+          the node is ready for the next frame.</li>
+        <li>Stream lifetime is a separate signal:
+          <code>OutputPort.finish()</code> marks an output as done and
+          propagates downstream, so sinks know when to flush and
+          close.</li>
+      </ul>
+      <p>
+        Flow runs execute on a Qt worker thread (<code>FlowRunner</code>)
+        so the UI stays responsive. The currently-executing node is
+        surfaced live in the editor via a queued signal, so you can
+        see processing march through the graph.
+      </p>
+    </section>
+
+    <section id="data-types">
+      <h2>Data types</h2>
+      <p>Every value flowing across a port is wrapped in an
+      <code>IoData</code> envelope discriminated by an
+      <code>IoDataType</code>:</p>
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Payload</th><th>Used for</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill image">IMAGE</span></td>
+            <td>3-D <code>uint8</code> array (H × W × 3, BGR)</td>
+            <td>Colour frames.</td>
+          </tr>
+          <tr>
+            <td><span class="pill image-grey">IMAGE_GREY</span></td>
+            <td>2-D <code>uint8</code> array (H × W)</td>
+            <td>Single-channel images, masks, binary output.</td>
+          </tr>
+          <tr>
+            <td><span class="pill scalar">SCALAR</span></td>
+            <td>0-d numpy array</td>
+            <td>Numeric streams that drive parameters (counters, ramps).</td>
+          </tr>
+          <tr>
+            <td><span class="pill matrix">MATRIX</span></td>
+            <td>2-D numpy array, arbitrary dtype</td>
+            <td>Transformations, kernels, intermediate stats.</td>
+          </tr>
+          <tr>
+            <td><span class="pill bool">BOOL</span></td>
+            <td>Python <code>bool</code></td>
+            <td>Switches and toggles on params.</td>
+          </tr>
+          <tr>
+            <td><span class="pill string">STRING</span></td>
+            <td>Python <code>str</code></td>
+            <td>Text-valued params.</td>
+          </tr>
+          <tr>
+            <td><span class="pill enum">ENUM</span></td>
+            <td><code>IntEnum</code> member or <code>int</code></td>
+            <td>Selectors (interpolation, codec, dither method).</td>
+          </tr>
+          <tr>
+            <td><span class="pill path">PATH</span></td>
+            <td><code>pathlib.Path</code></td>
+            <td>File / folder params.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <code>IMAGE</code> and <code>IMAGE_GREY</code> together make up
+        the <em>image-typed</em> set: filters that work on either (e.g.
+        Median, Scale, Shift) declare their input as accepting both,
+        and pass-through helpers preserve the type with
+        <code>IoData.with_image()</code>.
+      </p>
+    </section>
+
+    <section id="param-as-port">
+      <h2>Param-as-port</h2>
+      <p>
+        Every editable property on a node is a <strong>socket</strong>
+        (Blender-style). Numeric, boolean, enum, and path params have
+        inline widgets right next to their socket dots. Wire any
+        compatible value source into a param port and the streamed
+        value drives that param per frame; leave it unconnected and
+        the inline widget acts as the literal value.
+      </p>
+      <p>
+        On every <code>process()</code> call, the framework writes any
+        connected input port's current value into the matching
+        <code>self._&lt;port_name&gt;</code> attribute and restores the
+        user-set value afterwards. As a result, a node's
+        <code>process_impl()</code> can read its parameters uniformly
+        with no per-port "is this connected?" branch.
+      </p>
+      <p>
+        When a port is driven, the inline widget for that param is
+        greyed out — the upstream wins until you disconnect it.
+      </p>
+    </section>
+
+    <section id="skipping">
+      <h2>Skipping nodes</h2>
+      <p>
+        Nodes have a Blender-style <em>mute</em> mode: a skipped node
+        forwards each output from the first type-compatible input,
+        bypassing its own logic. Useful for A/B-comparing a flow with
+        and without a filter without rewiring.
+      </p>
+      <p>
+        A node is <code>is_skippable</code> if at least one of its
+        inputs has a type-compatible match among its outputs. Sources
+        (no inputs) and sinks (no outputs) are never skippable.
+        Param-style ports are naturally invisible to skip detection,
+        so adding more of them never breaks a node's skippability.
+      </p>
+    </section>
+
+    <!-- ── NODE REFERENCE ─────────────────────────────────────────────── -->
+
+    <section id="nodes-sources">
+      <h2>Sources</h2>
+      <p>
+        Sources have outputs only — they produce data and drive the
+        graph. <em>Reactive</em> sources emit a single value, so the
+        editor latches their output across runs (handy for still
+        images that stay constant while a video stream pumps frames).
+      </p>
+      <div class="node-grid">
+        <div class="node-card source">
+          <h4>Image Source</h4>
+          <p>Reads a single still image (JPEG, PNG, WebP, CR2 RAW)
+            from disk and pushes it into the flow. Reactive.</p>
+          <div class="params">file_path</div>
+        </div>
+        <div class="node-card source">
+          <h4>Video Source</h4>
+          <p>Decodes frames from a video file (MP4, AVI, MOV, MKV)
+            and streams them through the graph. Triggered only by
+            <strong>Run</strong>.</p>
+          <div class="params">file_path · max_num_frames</div>
+        </div>
+        <div class="node-card source">
+          <h4>Directory Source</h4>
+          <p>Streams every image in a folder as frames, sorted
+            lexicographically. Optional recursive walk.</p>
+          <div class="params">directory · include_subdirectories</div>
+        </div>
+        <div class="node-card source">
+          <h4>Value Source</h4>
+          <p>Numeric counter source emitting one
+            <span class="pill scalar">SCALAR</span> per frame.
+            Wire into a Display to watch the counter live, or into a
+            param port to ramp it across a stream.</p>
+          <div class="params">min_value · max_value · multiplier · loop</div>
+        </div>
+        <div class="node-card source">
+          <h4>Constant Value</h4>
+          <p>Emits a single <span class="pill scalar">SCALAR</span>
+            (latched on streaming consumers). Use as a fixed factor
+            or offset feeding into <em>Math</em> without spinning up
+            a second Value Source.</p>
+          <div class="params">value</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-output">
+      <h2>Output</h2>
+      <div class="node-grid">
+        <div class="node-card output">
+          <h4>Display</h4>
+          <p>Pass-through node that renders each frame inline in its
+            own node body via a live preview. Drop it anywhere in a
+            flow to watch frames flow through. Resize the node to
+            grow the preview. Renders SCALAR / MATRIX payloads as
+            text — the inline preview <em>is</em> the result, no
+            sink required. Image previews show an
+            exponentially-smoothed FPS read-out in the corner.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-sinks">
+      <h2>Sinks</h2>
+      <p>
+        Sinks have inputs only — they consume data as a side effect
+        (writing to a file, encoding a video) and don't propagate
+        further. Sinks are <strong>optional</strong>: a flow that ends
+        at a Display node runs without one.
+      </p>
+      <div class="node-grid">
+        <div class="node-card sink">
+          <h4>File Sink</h4>
+          <p>Writes the incoming frame to disk at a configurable
+            path. Paths under the app's output folder are stored
+            relative to it so saved flows stay portable. An eye
+            button next to the path opens the written file in the OS
+            default image viewer.</p>
+          <div class="params">file_path</div>
+        </div>
+        <div class="node-card sink">
+          <h4>Video Sink</h4>
+          <p>Encodes incoming frames to a video file via
+            <code>cv2.VideoWriter</code>. The writer opens lazily on
+            the first frame (dimensions inferred from the data),
+            frames are written as they arrive, and the container is
+            finalised when the runner signals end-of-stream.
+            Greyscale inputs are promoted to BGR automatically.</p>
+          <div class="params">output_path · fps · codec (MP4V / XVID)</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-color">
+      <h2>Color Spaces</h2>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Grayscale</h4>
+          <p>Converts a BGR colour image to a single-channel
+            greyscale image
+            (<code>cv2.cvtColor(..., COLOR_BGR2GRAY)</code>).</p>
+        </div>
+        <div class="node-card filter">
+          <h4>RGBA Split</h4>
+          <p>Splits an image into its single-channel components
+            (<strong>B</strong>, <strong>G</strong>,
+            <strong>R</strong>, optional <strong>A</strong>) so each
+            channel can be processed independently.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>RGBA Join</h4>
+          <p>Merges single-channel inputs back into a single
+            multi-channel image. The alpha input is optional —
+            connect it for an RGBA output, leave it open for BGR.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-transform">
+      <h2>Transform</h2>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Scale</h4>
+          <p>Resizes by a percentage factor (<code>scale_percent</code>,
+            100 = no change). Interpolation is selectable: Nearest,
+            Linear, Cubic, Area, Lanczos4.</p>
+          <div class="params">scale_percent · interpolation</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Shift</h4>
+          <p>Translates by integer pixel offsets. Output keeps the
+            original canvas size; pixels that move off-frame are
+            dropped, newly exposed areas are black.</p>
+          <div class="params">offset_x · offset_y</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Crop</h4>
+          <p>Cuts a rectangular region out of the input image. Both
+            offsets and the new size are configurable.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Rotate</h4>
+          <p>Rotates an image by an arbitrary angle (in degrees) with
+            optional auto-resize so the result frame fits the rotated
+            content. Works on colour or greyscale.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Flip</h4>
+          <p>Mirrors the image horizontally, vertically, or both.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-processing">
+      <h2>Processing</h2>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Adaptive Gaussian Threshold</h4>
+          <p>Adaptive binary thresholding using a Gaussian-weighted
+            local mean (<code>cv2.adaptiveThreshold</code>). Always
+            emits a greyscale binary image.</p>
+          <div class="params">block_size (odd, &gt; 1) · c</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Dither</h4>
+          <p>Reduces the image to two levels using a selectable
+            algorithm: Bayer 2/4/8, random noise, Floyd–Steinberg,
+            Stucki, Atkinson, Burkes, Sierra, Diffusion-X, or
+            Diffusion-XY. Error-diffusion kernels are JIT-compiled
+            via numba for interactive speed. Colour inputs are
+            auto-converted to grey; output is always greyscale.</p>
+          <div class="params">method</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Median</h4>
+          <p>Square-kernel median blur
+            (<code>cv2.medianBlur</code>). Works on colour or
+            greyscale; output type matches input.</p>
+          <div class="params">size (odd ≥ 1)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Gaussian Blur</h4>
+          <p>Configurable Gaussian smoothing
+            (<code>cv2.GaussianBlur</code>). Independent kernel
+            radius and sigma; works on colour or greyscale.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Normalize</h4>
+          <p>Histogram equalisation
+            (<code>cv2.equalizeHist</code>). Colour inputs are
+            equalised per channel; greyscale inputs are equalised
+            directly. Output type matches input.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Invert</h4>
+          <p>Inverts the pixel values
+            (<code>255 - x</code>). Works on colour or greyscale;
+            type-preserving.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>NCC</h4>
+          <p>Normalised cross-correlation template matching
+            (<code>cv2.matchTemplate</code> with
+            <code>TM_CCORR_NORMED</code>). Both
+            <code>image</code> and <code>template</code> inputs
+            must be greyscale; the output is an 8-bit score map.
+            <code>retain_size=True</code> (default) pads the score
+            map back to the input size and centres each response on
+            its corresponding template-centre pixel.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-temporal">
+      <h2>Temporal</h2>
+      <p>
+        Temporal nodes operate across consecutive frames of a video
+        stream. They hold internal state across frames and reset at
+        the start of each run.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Frame Difference</h4>
+          <p>Per-pixel absolute difference between the current frame
+            and the previous one. The first frame produces a black
+            output; subsequent frames produce the diff.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Temporal Mean</h4>
+          <p>Running mean over a configurable window of recent
+            frames. Useful for low-frequency noise reduction on
+            steady scenes.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Temporal Median</h4>
+          <p>Running median over a window of recent frames. Robust
+            against outlier frames (passing cars, sparkles) where
+            mean averaging would smear them in.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-math">
+      <h2>Math</h2>
+      <p>
+        The math nodes operate on
+        <span class="pill scalar">SCALAR</span> streams. Combine them
+        with Value Source / Constant Value to drive any numeric param
+        on any node from a computed value.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Math</h4>
+          <p>Two-input scalar operator: ADD, SUB, MUL, DIV, MIN,
+            MAX. Wire two scalar producers in and route the result
+            wherever a SCALAR is accepted.</p>
+          <div class="params">op</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Clamp</h4>
+          <p>Clamps a scalar input to <code>[min_value,
+            max_value]</code>. Use as a guard before driving a
+            slider whose receiver has a stricter range.</p>
+          <div class="params">min_value · max_value</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-composit">
+      <h2>Composit</h2>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Merge</h4>
+          <p>Pastes up to four images into a 2 × 2 grid with inputs
+            <code>top_left</code>, <code>top_right</code>,
+            <code>bottom_left</code>,
+            <code>bottom_right</code>. Unconnected quadrants are
+            black; cell sizes are taken per row / per column so
+            mismatched inputs don't distort; mixed colour /
+            greyscale inputs are promoted to colour so nothing is
+            lost.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Overlay</h4>
+          <p>Pastes a foreground image onto a background with
+            per-pixel alpha. Every numeric param
+            (<em>scale</em>, <em>angle</em>, <em>xpos</em>,
+            <em>ypos</em>, <em>alpha</em>) is drivable through its
+            socket — wire ramps in for sliding, zooming, fading or
+            rotating animations.</p>
+          <div class="params">scale · angle · xpos · ypos · alpha</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-debug">
+      <h2>Debug</h2>
+      <p>
+        Debug nodes are utilities for testing the framework itself —
+        confirming param wiring, simulating slow nodes, exercising
+        the error banner. They live in the palette under their own
+        section so they're out of the way for normal use.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Delay</h4>
+          <p>Pass-through that sleeps for a configurable number of
+            milliseconds before forwarding each frame. Useful for
+            simulating a slow node and watching how the dispatcher
+            behaves on a multi-source flow.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Debug Params</h4>
+          <p>Exhaustive node exposing one input port for every
+            <code>IoDataType</code>. Wire whatever you want
+            into it to confirm the param-as-port and inline-widget
+            machinery handles every combination.</p>
+        </div>
+        <div class="node-card filter">
+          <h4>Throw Exception</h4>
+          <p>Raises on every <code>process_impl</code> call. Use to
+            confirm the error banner pops up and that flows
+            recover cleanly when a node blows up mid-graph.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── REFERENCE TAIL ─────────────────────────────────────────────── -->
+
+    <section id="paths">
+      <h2>File locations</h2>
+      <p>
+        In dev mode (running <code>python src/main.py</code> from a
+        clone), all files live next to the source tree. In a frozen
+        bundle they split: read-only data sits inside the bundle
+        (<code>sys._MEIPASS</code>), writable data moves to a per-user
+        directory.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Purpose</th>
+            <th>Dev mode</th>
+            <th>Frozen (Linux)</th>
+            <th>Frozen (Windows)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Saved flows</td>
+            <td><code>flow/</code></td>
+            <td><code>~/.local/share/Stjornhorn/flow/</code></td>
+            <td><code>%LOCALAPPDATA%\Stjornhorn\flow\</code></td>
+          </tr>
+          <tr>
+            <td>Sample inputs</td>
+            <td><code>input/</code></td>
+            <td><code>~/.local/share/Stjornhorn/input/</code></td>
+            <td><code>%LOCALAPPDATA%\Stjornhorn\input\</code></td>
+          </tr>
+          <tr>
+            <td>Default output dir</td>
+            <td><code>output/</code></td>
+            <td><code>~/.local/share/Stjornhorn/output/</code></td>
+            <td><code>%LOCALAPPDATA%\Stjornhorn\output\</code></td>
+          </tr>
+          <tr>
+            <td>Logs</td>
+            <td><code>logs/image-inquest.log</code></td>
+            <td><code>~/.local/share/Stjornhorn/logs/…</code></td>
+            <td><code>%LOCALAPPDATA%\Stjornhorn\logs\…</code></td>
+          </tr>
+          <tr>
+            <td>User-defined nodes</td>
+            <td colspan="3"><code>~/.image-inquest/user_nodes/</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        On first launch of a frozen bundle, the per-user directories
+        are created and seeded from the bundled samples — only files
+        that don't already exist are copied, so anything you save
+        persists across launches.
+      </p>
+    </section>
+
+    <section id="user-nodes">
+      <h2>User-defined nodes</h2>
+      <p>
+        Drop a Python module under
+        <code>~/.image-inquest/user_nodes/</code> that defines a
+        subclass of <code>NodeBase</code>,
+        <code>SourceNodeBase</code>, or <code>SinkNodeBase</code> and
+        Stjörnhorn picks it up at startup via the same AST-based
+        registry scan it uses for built-in nodes. Declare your inputs
+        as <code>InputPort</code> objects (with type, default, and
+        widget metadata) and your outputs as <code>OutputPort</code>
+        objects, implement <code>process_impl()</code>, and your node
+        appears in the palette under whichever
+        <code>section=…</code> string you passed to
+        <code>super().__init__</code>.
+      </p>
+    </section>
+
+    <section id="shortcuts">
+      <h2>Keyboard &amp; mouse</h2>
+      <table>
+        <thead>
+          <tr><th>Action</th><th>Shortcut</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Create the named flow (start page)</td>
+            <td><kbd>Enter</kbd></td>
+          </tr>
+          <tr>
+            <td>Toggle full-screen preview (output inspector floated)</td>
+            <td><kbd>F11</kbd></td>
+          </tr>
+          <tr>
+            <td>Pan the canvas</td>
+            <td>Middle-mouse drag</td>
+          </tr>
+          <tr>
+            <td>Zoom the canvas</td>
+            <td>Mouse wheel</td>
+          </tr>
+          <tr>
+            <td>Delete a node</td>
+            <td>× button on the node, or <kbd>Del</kbd> while selected</td>
+          </tr>
+          <tr>
+            <td>Resize a node</td>
+            <td>Drag the diagonal grip in the bottom-right of the node</td>
+          </tr>
+          <tr>
+            <td>Multi-select nodes</td>
+            <td>Drag a rubber-band on empty canvas, or <kbd>Shift</kbd>+click</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="license">
+      <h2>License</h2>
+      <p>
+        Stjörnhorn is released under the
+        <a href="../LICENSE">MIT License</a>.
+      </p>
+    </section>
+
+    <footer class="page-foot">
+      Stjörnhorn v0.2.4 — generated documentation.
+      Source: <a href="../README.md">README.md</a> ·
+      <a href="../CHANGELOG.md">CHANGELOG.md</a>.
+    </footer>
+
+  </main>
+
+</div>
+
+</body>
+</html>
