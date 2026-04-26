@@ -7,7 +7,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -90,16 +90,16 @@ class Resize(NodeBase):
                 "min": 1,
             },
         ))
-        self._add_input(InputPort(
+        # ``method`` is a constant (NodeParam, not a port-style input)
+        # so it isn't drivable from upstream — the resize strategy is
+        # a build-time choice, not something a streaming source would
+        # animate per frame. Renders as an inline combo box above the
+        # input rows, with no socket dot.
+        self._add_param(NodeParam(
             "method",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=ResizeMethod.SCALE,
-            metadata={
-                "default": ResizeMethod.SCALE,
-                "enum": ResizeMethod,
-                "param_type": NodeParamType.ENUM,
-            },
+            NodeParamType.ENUM,
+            default=ResizeMethod.SCALE,
+            metadata={"enum": ResizeMethod},
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
