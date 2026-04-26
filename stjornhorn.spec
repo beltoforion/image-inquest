@@ -81,6 +81,12 @@ a = Analysis(
         # discover node classes, then importlib imports them. Both halves
         # need to be present in the frozen bundle.
         ('src/nodes',            'src/nodes'),
+        # Sample input images and flow files. Seeded into the user's
+        # writable data dir on first launch (see ``main._seed_user_data``)
+        # so file dialogs land on something useful out of the box.
+        # Issue: #165
+        ('input',                'input'),
+        ('flow',                 'flow'),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
