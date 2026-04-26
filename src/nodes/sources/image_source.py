@@ -10,6 +10,7 @@ from typing_extensions import override
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.path_utils import resolve_against, store_relative_to
 from core.port import OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
@@ -55,13 +56,7 @@ class ImageSource(SourceNodeBase):
 
     @file_path.setter
     def file_path(self, path: str | Path) -> None:
-        p = Path(path)
-        if p.is_absolute():
-            try:
-                p = p.resolve().relative_to(INPUT_DIR.resolve())
-            except (OSError, ValueError):
-                pass  # outside INPUT_DIR — keep absolute
-        self._file_path = p
+        self._file_path = store_relative_to(path, INPUT_DIR)
 
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
@@ -105,6 +100,4 @@ class ImageSource(SourceNodeBase):
 
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""
-        if self._file_path.is_absolute():
-            return self._file_path
-        return INPUT_DIR / self._file_path
+        return resolve_against(self._file_path, INPUT_DIR)

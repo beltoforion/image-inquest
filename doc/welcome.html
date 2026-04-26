@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.9</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.10</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.10</h2>
+      <ul class="tips">
+        <li><strong>Internal cleanup: relative-path normalisation deduplicated.</strong> Six file-IO nodes (<em>ImageSource</em>, <em>VideoSource</em>, <em>DirectorySource</em>, <em>FileSink</em>, <em>VideoSink</em>, <em>Ncc</em>) used to carry their own copy of the same "store relative when inside <code>INPUT_DIR</code>/<code>OUTPUT_DIR</code>, otherwise keep absolute" snippet plus a paired resolver. Now centralised in <code>core/path_utils.py</code> as <code>store_relative_to(value, base_dir)</code> + <code>resolve_against(path, base_dir)</code>; every setter and resolver call through it. No behaviour change. Issue #174.</li>
+      </ul>
     </section>
 
     <section>

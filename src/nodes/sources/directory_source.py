@@ -12,6 +12,7 @@ from typing_extensions import override
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.path_utils import resolve_against, store_relative_to
 from core.port import OutputPort
 
 
@@ -79,13 +80,7 @@ class DirectorySource(SourceNodeBase):
 
     @directory.setter
     def directory(self, path: str | Path) -> None:
-        p = Path(path)
-        if p.is_absolute():
-            try:
-                p = p.resolve().relative_to(INPUT_DIR.resolve())
-            except (OSError, ValueError):
-                pass  # outside INPUT_DIR — keep absolute
-        self._directory = p
+        self._directory = store_relative_to(path, INPUT_DIR)
 
     @property
     def include_subdirectories(self) -> bool:
@@ -123,9 +118,7 @@ class DirectorySource(SourceNodeBase):
 
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""
-        if self._directory.is_absolute():
-            return self._directory
-        return INPUT_DIR / self._directory
+        return resolve_against(self._directory, INPUT_DIR)
 
     def _iter_image_files(self, root: Path) -> list[Path]:
         """Return supported image files under *root* in lexicographic order.
