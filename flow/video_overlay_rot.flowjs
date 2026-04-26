@@ -36,9 +36,9 @@
         -1238.133158669781
       ],
       "port_defaults": {
-        "min_value": -180,
+        "min_value": -360,
         "max_value": 0,
-        "multiplier": 2.0,
+        "increment": 2.0,
         "loop": true
       }
     },
@@ -83,7 +83,7 @@
       "port_defaults": {
         "min_value": 0,
         "max_value": 1000,
-        "multiplier": 1.0,
+        "increment": 1.0,
         "loop": false
       }
     },
@@ -92,14 +92,14 @@
       "module": "nodes.filters.math",
       "class": "Math",
       "position": [
-        -1863.7863811157217,
-        -1104.587032946501
+        -1833.9929637518644,
+        -1094.6558938252151
       ],
       "port_defaults": {
         "b": 0.0,
         "c": 0.0,
         "d": 0.0,
-        "expression": "A+150"
+        "expression": "a+150"
       }
     }
   ],

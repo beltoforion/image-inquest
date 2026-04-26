@@ -13,34 +13,25 @@ once a first tagged release is cut.
 ## [0.2.7] — 2026-04-26
 
 ### Changed
-- **Math node: four inputs and a free-form arithmetic expression.**
-  Replaced the binary-op enum (ADD / SUB / MUL / DIV / MIN / MAX)
-  with a string ``expression`` param evaluated in the lowercase
-  variables ``a``, ``b``, ``c``, ``d`` (matching the input port
-  names). Inputs grew from two (``a``, ``b``) to four; ``a`` is
-  required, ``b`` / ``c`` / ``d`` are optional with default
-  ``0.0`` so an expression like ``"a * 2 + 1"`` works without
-  wiring the unused ports. Allowed functions: trig (``sin``
-  / ``cos`` / …), hyperbolic, ``exp`` / ``log{,2,10}``, ``sqrt``,
-  rounding (``floor`` / ``ceil`` / ``round`` / ``abs``),
-  elementwise ``min`` / ``max``, degree/radian conversion (``deg``
-  / ``rad``); constants ``pi`` and ``e``.
-- **Strict expression sandbox.** The expression is parsed via
-  :mod:`ast` and every walked node is validated against a tight
-  whitelist before compile: no attribute access, no item access, no
-  statements, no comprehensions, no lambdas, no walrus, no
-  f-strings, no star-args, no keyword args, no bitwise / matmul /
-  shift ops, no identity / membership comparisons, only numeric
-  constant literals (int / float / complex / bool — strings,
-  bytes, ``None`` and ``Ellipsis`` are rejected). Calls must target
-  a bare ``ast.Name`` whose id is in the function whitelist, so
-  ``pi(A)`` or ``(sin if A else cos)(B)`` both fail. The per-frame
-  ``eval`` runs with ``{"__builtins__": {}}``. Validation happens
-  at the moment ``expression`` is set, so typos surface in the UI
-  rather than mid-flow; failed sets keep the previous valid
-  expression intact. **No backward compatibility** with the old
-  binary-op ``op`` enum — flows saved with the previous Math node
-  fail to load and need their Math node re-configured.
+- **Value Source: ``multiplier`` replaced with ``increment``.** The
+  emitted sequence is now defined directly by step size:
+  ``min_value=0, max_value=10, increment=0.5`` emits ``0, 0.5, 1.0,
+  …, 10.0``. Whole-number increments keep emitted values integer
+  (so a downstream Display shows ``42`` rather than ``42.0``);
+  fractional increments promote every value to float. ``increment``
+  must be > 0 — the setter rejects 0 / negative values rather than
+  silently producing an empty / infinite range. The upper-bound
+  comparison carries a small tolerance so float drift (10 * 0.1 ==
+  1.0000000000000002) doesn't truncate the last value of a range
+  like ``min=0, max=1, increment=0.1``. **No backward compatibility**
+  with the previous ``multiplier`` param: flows saved against the old
+  schema still load (the unknown ``multiplier`` key is logged and
+  ignored, ``increment`` falls back to its 1.0 default), but anyone
+  relying on a non-1.0 multiplier needs to manually rewrite the
+  range — e.g. old ``min=-180, max=0, multiplier=2.0`` becomes new
+  ``min=-360, max=0, increment=2``. The bundled
+  ``flow/test_numeric.flowjs`` and ``flow/video_overlay_rot.flowjs``
+  samples were updated.
 
 ## [0.2.6] — 2026-04-26
 
