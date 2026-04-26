@@ -62,11 +62,19 @@ class PortItem(QGraphicsEllipseItem):
         self.setZValue(self.Z_VALUE)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
-        # Optional input ports render as a hollow outline in the port's
-        # colour, so the "can be left unconnected" affordance reads at a
-        # glance without cluttering the label. Regular ports keep the
-        # subtle neutral border.
-        if self._is_optional():
+        # Pen (outline) by port kind:
+        #   * Optional input  → bright PORT_INPUT_COLOR ring (the
+        #     pre-existing "OK to leave unconnected" affordance).
+        #   * Required input  → subtle dark NODE_BORDER_COLOR.
+        #   * Output          → bright PORT_OUTPUT_COLOR ring so the
+        #     unconnected fill (set by ``_apply_default_brush``) is
+        #     visibly haloed in yellow, mirroring the optional-input
+        #     ring on the opposite side of the node.
+        # The pen stays put for the lifetime of the port; brush is
+        # what tracks connection state via ``_apply_default_brush``.
+        if self._kind == "output":
+            self.setPen(QPen(PORT_OUTPUT_COLOR, 1.4))
+        elif self._is_optional():
             self.setPen(QPen(PORT_INPUT_COLOR, 1.4))
         else:
             self.setPen(QPen(NODE_BORDER_COLOR, 1))

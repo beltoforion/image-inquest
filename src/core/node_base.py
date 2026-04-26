@@ -44,6 +44,54 @@ class NodeParamType(Enum):
     ENUM = 6,
 
 
+class NodeParam:
+    """Descriptor for a node-level *constant* parameter.
+
+    Used by sources and sinks for configuration that's not driveable
+    from upstream — the file path on an :class:`ImageSource`, the
+    output codec on a :class:`VideoSink`, etc. The UI renders these
+    between the output and input port rows of the node body, with
+    the same widget classes the inline-port editors use, and the
+    caption rendered in italics so the user can tell a constant
+    apart from a port-style param at a glance.
+
+    Structurally compatible with :class:`~core.port.InputPort` so
+    :func:`ui.param_widgets.build_param_widget` can dispatch on either
+    kind without a type check: the widget reads ``.name``,
+    ``.metadata`` and ``.upstream`` (always ``None`` on a constant —
+    constants are never connection-driven).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        param_type: NodeParamType,
+        default: object = None,
+        metadata: dict | None = None,
+    ) -> None:
+        self.name: str = name
+        # Stash the full metadata bundle the widgets read, with
+        # ``param_type`` and ``default`` mirrored into it so the
+        # widget builder's ``port.metadata.get("param_type")``
+        # dispatch path keeps working unchanged.
+        meta = dict(metadata) if metadata else {}
+        meta.setdefault("param_type", param_type)
+        meta.setdefault("default", default)
+        self.metadata: dict = meta
+        self.default_value: object = default
+
+    @property
+    def upstream(self) -> None:
+        """Always ``None``; constants are not port-driven.
+
+        Lets the param-widget code call ``editor.setEnabled(
+        port.upstream is None)`` without having to special-case
+        whether the editor is bound to an :class:`InputPort` or a
+        :class:`NodeParam` — both expose the attribute.
+        """
+        return None
+
+
 #: Maps a :class:`NodeParamType` to the :class:`~core.io_data.IoDataType`
 #: that backs an editable parameter port. Numeric param types (INT,
 #: FLOAT) collapse to a single ``SCALAR`` port type so any scalar
@@ -93,6 +141,7 @@ class NodeBase(ABC):
         self._section = section if section is not None else self.DEFAULT_SECTION
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
+        self._params: list[NodeParam] = []
         self._skipped: bool = False
 
     # ── Port registration (called from subclass __init__) ──────────────────────
@@ -106,19 +155,36 @@ class NodeBase(ABC):
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
 
+    def _add_param(self, param: NodeParam) -> None:
+        """Register a constant parameter (not driveable from upstream).
+
+        Used by sources and sinks for config that's set once by the
+        user — file paths, codecs, fps, etc. The UI renders these
+        between the output and input port rows with the same widget
+        classes the port-style param widgets use, but with an italic
+        caption (so the user can tell a constant apart from a port).
+        """
+        self._params.append(param)
+
     # ── Param defaults ─────────────────────────────────────────────────────────
 
     def _apply_default_params(self) -> None:
-        """Push every editable input port's ``default_value`` onto the
-        matching instance attribute via the normal property setter.
+        """Push every editable input port's ``default_value`` and every
+        registered :class:`NodeParam`'s default onto the matching
+        instance attribute via the normal property setter.
 
         Call this at the end of a subclass ``__init__`` so the node's
-        attributes match the values its ports advertise from the moment
-        it is constructed — *before* any UI builder, save routine or
-        scheduler can read stale data. A port is "editable" when its
-        metadata carries a ``"param_type"`` key (the :class:`NodeParamType`
-        the inline widget should render). Image-flow inputs carry no
-        such key and no ``default_value``; they're skipped.
+        attributes match the values it advertises from the moment it
+        is constructed — *before* any UI builder, save routine or
+        scheduler can read stale data. Two sources of editable values
+        are honoured:
+
+        * Port-style: an :class:`InputPort` whose metadata carries a
+          ``"param_type"`` key — drivable from upstream when connected.
+        * Constant-style: a :class:`NodeParam` registered via
+          ``_add_param`` — always edited inline only, never connection-
+          driven (sources / sinks use these for config like file paths
+          or codec choice).
 
         Setter exceptions are logged and swallowed — a property setter
         may legitimately reject some defaults (range setters clip, file
@@ -143,20 +209,45 @@ class NodeBase(ABC):
                     "Failed to apply port default for %s.%s = %r",
                     type(self).__name__, port.name, port.default_value,
                 )
+        for param in self._params:
+            if param.default_value is None and "default" not in param.metadata:
+                continue
+            try:
+                setattr(self, param.name, param.default_value)
+            except Exception:
+                logger.exception(
+                    "Failed to apply param default for %s.%s = %r",
+                    type(self).__name__, param.name, param.default_value,
+                )
 
     # ── Public accessors ───────────────────────────────────────────────────────
 
     @property
-    def params(self) -> list[InputPort]:
-        """The editable input ports this node exposes to the UI.
+    def params(self) -> list[NodeParam]:
+        """The constant parameters this node exposes to the UI.
+
+        Used by sources and sinks for config that's set inline by the
+        user (file paths, codec selections, fps) and isn't driveable
+        from upstream. The UI renders these between the output and
+        input port rows of the node body, with an italic caption to
+        differentiate them from port-style param widgets sitting on
+        input rows.
+
+        For the editable *port* inputs (``param_type`` metadata), see
+        :attr:`param_input_ports`.
+        """
+        return list(self._params)
+
+    @property
+    def param_input_ports(self) -> list[InputPort]:
+        """The editable input ports (port-style params) this node exposes.
 
         Returns the subset of ``self._inputs`` whose ``metadata``
-        carries a ``"param_type"`` key. The UI iterates this list to
-        build one inline widget per port; each port carries everything
-        the widget needs (``name`` to address the node attribute,
-        ``metadata["param_type"]`` for widget-class dispatch,
-        ``metadata`` for widget hints, ``upstream`` for the
-        connected/disconnected state).
+        carries a ``"param_type"`` key. The UI builds an inline widget
+        on each port's row; each port carries everything the widget
+        needs (``name``, ``metadata["param_type"]``, ``metadata`` for
+        widget hints, ``upstream`` for the connected/disconnected
+        state).
 
         Image-flow inputs leave ``metadata`` empty and are filtered out
         so the renderer doesn't draw a widget for an image socket.

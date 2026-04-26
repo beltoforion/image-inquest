@@ -180,7 +180,7 @@ def test_params_property_returns_only_param_style_ports() -> None:
             ...
 
     node = _MixedNode()
-    param_ports = node.params
+    param_ports = node.param_input_ports
     assert len(param_ports) == 1
     assert param_ports[0].name == "size"
     assert param_ports[0].metadata["param_type"] is NodeParamType.INT
@@ -284,6 +284,6 @@ def test_source_node_with_params_exposes_param_ports() -> None:
             ...
 
     node = _ParamSource()
-    assert len(node.params) == 1
-    assert node.params[0].name == "level"
-    assert node.params[0].accepted_types == frozenset({IoDataType.SCALAR})
+    assert len(node.param_input_ports) == 1
+    assert node.param_input_ports[0].name == "level"
+    assert node.param_input_ports[0].accepted_types == frozenset({IoDataType.SCALAR})

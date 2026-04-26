@@ -513,6 +513,29 @@ class NodeItem(QGraphicsItem):
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                 port.name,
             )
+
+        # Constants block: italic captions left-aligned, label
+        # truncated where the inline widget starts. No socket dot —
+        # constants are not driveable from upstream.
+        constants_top = self._constants_top()
+        if self._constant_widgets_by_row:
+            italic_font = painter.font()
+            italic_font.setItalic(True)
+            painter.save()
+            painter.setFont(italic_font)
+            for row, _editor in self._constant_widgets_by_row.items():
+                y = constants_top + (row + 0.5) * self.PORT_ROW_HEIGHT
+                proxy = self._constant_proxies_by_row[row]
+                label_right = proxy.pos().x() - self.WIDGET_INSET
+                painter.drawText(
+                    QRectF(label_inset, y - self.PORT_ROW_HEIGHT / 2,
+                           max(0.0, label_right - label_inset),
+                           self.PORT_ROW_HEIGHT),
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                    self._node.params[row].name,
+                )
+            painter.restore()
+
         # Inputs follow below; rows with a widget truncate the label.
         inputs_top = self._inputs_top()
         for i, port in enumerate(self._input_ports):
@@ -591,11 +614,16 @@ class NodeItem(QGraphicsItem):
         the top of the body, right under the header (Blender-style)."""
         return self.HEADER_HEIGHT
 
+    def _constants_top(self) -> float:
+        """Y of the first constant-param row — sits below the
+        output block, above the input block."""
+        return self.HEADER_HEIGHT + len(self._output_ports) * self.PORT_ROW_HEIGHT
+
     def _inputs_top(self) -> float:
         """Y of the first input row — inputs sit below the output
-        block. Param-style inputs carry an inline widget on the same
-        row as their socket dot."""
-        return self.HEADER_HEIGHT + len(self._output_ports) * self.PORT_ROW_HEIGHT
+        block and the (optional) constants block. Param-style inputs
+        carry an inline widget on the same row as their socket dot."""
+        return self._constants_top() + len(self._constant_widgets_by_row) * self.PORT_ROW_HEIGHT
 
     def _compute_width(self) -> float:
         """Pick a body width that fits the node's content, clamped to MAX_WIDTH.
@@ -637,19 +665,25 @@ class NodeItem(QGraphicsItem):
         # ``label_inset + max_label_w + WIDGET_INSET + max_widget_min
         # + WIDGET_INSET`` — once at the longest label, once at the
         # widest widget-min in the same node.
-        if self._param_widgets_by_row:
-            max_label_w = max(
-                metrics.horizontalAdvance(self._input_ports[i].name)
-                for i in self._param_widgets_by_row
-            )
-            max_widget_min_w = max(
-                float(editor.minimumSizeHint().width())
-                for editor in self._param_widgets_by_row.values()
-            )
+        # Both inline-port widgets and constant widgets share the
+        # same widget-X anchor (see ``_layout_param_widgets``) so the
+        # natural-width budget needs to fit the longest label + widest
+        # widget-min across BOTH groups combined.
+        all_label_widths: list[float] = []
+        all_widget_mins: list[float] = []
+        for i in self._param_widgets_by_row:
+            all_label_widths.append(metrics.horizontalAdvance(self._input_ports[i].name))
+        for row in self._constant_widgets_by_row:
+            all_label_widths.append(metrics.horizontalAdvance(self._node.params[row].name))
+        for editor in self._param_widgets_by_row.values():
+            all_widget_mins.append(float(editor.minimumSizeHint().width()))
+        for editor in self._constant_widgets_by_row.values():
+            all_widget_mins.append(float(editor.minimumSizeHint().width()))
+        if all_label_widths and all_widget_mins:
             row_need = (
-                label_inset + max_label_w
+                label_inset + max(all_label_widths)
                 + 2 * self.WIDGET_INSET
-                + max_widget_min_w
+                + max(all_widget_mins)
             )
             port_need = max(port_need, row_need)
 
@@ -729,6 +763,27 @@ class NodeItem(QGraphicsItem):
             for i, port_model in enumerate(self._node.outputs)
         ]
 
+        # Constant params (NodeParam — sources / sinks declare these
+        # for config that's not driveable from upstream). They render
+        # between the output and input port rows of the node body
+        # with the same widget classes the inline-port editors use,
+        # but with an italic caption (painted in :meth:`paint`) and
+        # no socket dot. Indexed by row inside the constants block.
+        self._constant_widgets_by_row: dict[int, ParamWidgetBase] = {}
+        self._constant_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
+        for row, param in enumerate(self._node.params):
+            editor = build_param_widget(self._node, param)
+            if editor is None:
+                continue
+            editor.value_changed.connect(
+                lambda _v: self._signals.param_changed.emit()
+            )
+            proxy = QGraphicsProxyWidget(self)
+            proxy.setWidget(editor)
+            self._constant_widgets_by_row[row] = editor
+            self._constant_proxies_by_row[row] = proxy
+            self._param_widgets.append(editor)
+
         # Preview widget (Display's pixmap, etc.) lives in its own
         # proxy below the IO rows; it has no port row of its own.
         preview = build_preview_widget(self._node)
@@ -762,12 +817,15 @@ class NodeItem(QGraphicsItem):
             self._width = natural_w
 
         # ── IO area ────────────────────────────────────────────────────────────
-        # Blender-style vertical split: outputs first (at top of body,
-        # right-edge sockets), then inputs below (left-edge sockets,
-        # with optional inline widgets). No per-row pairing.
+        # Blender-style vertical split: outputs first (at top of body),
+        # then constant params (sources / sinks register these via
+        # ``_add_param``; rendered with italic captions, no socket
+        # dots), then input ports (left-edge sockets, with optional
+        # inline widgets on each row).
         n_outputs = len(self._output_ports)
         n_inputs  = len(self._input_ports)
-        io_height = (n_outputs + n_inputs) * self.PORT_ROW_HEIGHT
+        n_consts  = len(self._constant_widgets_by_row)
+        io_height = (n_outputs + n_consts + n_inputs) * self.PORT_ROW_HEIGHT
 
         # Preview (if any) gets a natural minimum and stretches to fill
         # whatever vertical space the user dragged the resize grip to.
@@ -836,35 +894,56 @@ class NodeItem(QGraphicsItem):
         self.update()
 
     def _layout_param_widgets(self, inputs_top: float) -> None:
-        """Position each per-row inline param widget on its input port row.
+        """Position each editable widget — both the inline-port
+        widgets sitting on input rows and the constant-param widgets
+        in the constants block — along a shared left/right anchor.
 
-        Widgets share two anchors: a common left X (one
-        ``WIDGET_INSET`` past the longest input-row label, so labels
-        never overlap the widget area), and the right edge of the
-        node body (``width - WIDGET_INSET``). Each widget fills the
-        whole strip in between — when the user drags the resize grip
-        wider, widgets keep growing along with the node instead of
-        stopping at their natural ``sizeHint`` and leaving ragged
-        right edges. The minimum is the widget's own
-        ``minimumSizeHint`` so a multi-element FilePathParamWidget
-        still has room for its line-edit + buttons even on a narrow
-        node; the natural ``sizeHint`` is no longer a cap.
+        The left anchor is one ``WIDGET_INSET`` past the longest
+        label across BOTH groups (port labels + constant captions),
+        so widgets in the constants block line up with widgets on
+        input rows. The right anchor is ``width - WIDGET_INSET`` —
+        widgets fill the whole strip, growing with the node on
+        resize. Vertical position is per-row (constant rows in the
+        constants block, input-port widgets in the input block).
         """
-        if not self._param_widgets_by_row:
-            return
         metrics = QFontMetricsF(QApplication.font())
         label_inset = PortItem.LABEL_OFFSET
 
+        # Compute a single widget-X that fits past the longest label
+        # in either block. Constants have no socket dot, so their
+        # caption inset is also ``label_inset`` for consistent
+        # horizontal alignment with the port-row labels.
         max_label_w = 0.0
         for row in self._param_widgets_by_row:
-            label_w = (
-                metrics.horizontalAdvance(self._input_ports[row].name)
-                + label_inset
+            max_label_w = max(
+                max_label_w,
+                metrics.horizontalAdvance(self._input_ports[row].name) + label_inset,
             )
-            max_label_w = max(max_label_w, label_w)
-        widget_x = max_label_w + self.WIDGET_INSET
+        for row, _editor in self._constant_widgets_by_row.items():
+            param = self._node.params[row]
+            max_label_w = max(
+                max_label_w,
+                metrics.horizontalAdvance(param.name) + label_inset,
+            )
+        if max_label_w == 0.0:
+            return
 
+        widget_x = max_label_w + self.WIDGET_INSET
         avail = self._width - widget_x - self.WIDGET_INSET
+
+        # Constants block: one row per constant, starting at
+        # ``_constants_top()``.
+        constants_top = self._constants_top()
+        for row, editor in self._constant_widgets_by_row.items():
+            proxy = self._constant_proxies_by_row[row]
+            min_w = float(editor.minimumSizeHint().width())
+            widget_w = max(min_w, avail)
+            widget_h = float(editor.sizeHint().height())
+            y = constants_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
+            editor.setFixedSize(int(widget_w), int(widget_h))
+            proxy.setPos(widget_x, y)
+
+        # Input block: widgets sit on the same row as their port dot.
         for row, editor in self._param_widgets_by_row.items():
             proxy = self._param_proxies_by_row[row]
             min_w = float(editor.minimumSizeHint().width())

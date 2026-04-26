@@ -8,8 +8,8 @@ import numpy as np
 from typing_extensions import override
 
 from constants import OUTPUT_DIR
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import SinkNodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeParam, NodeParamType, SinkNodeBase
 from core.port import InputPort
 
 
@@ -58,26 +58,22 @@ class VideoSink(SinkNodeBase):
         self._frame_shape: tuple[int, ...] | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "output_path",
-            {IoDataType.PATH},
-            optional=True,
-            default_value="out.mp4",
-            metadata={"default": "out.mp4", "mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR, "param_type": NodeParamType.FILE_PATH},
+            NodeParamType.FILE_PATH,
+            default="out.mp4",
+            metadata={"mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR},
         ))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "fps",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=30.0,
-            metadata={"default": 30.0, "param_type": NodeParamType.FLOAT},
+            NodeParamType.FLOAT,
+            default=30.0,
         ))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "codec",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=VideoCodec.MP4V,
-            metadata={"default": VideoCodec.MP4V, "enum": VideoCodec, "param_type": NodeParamType.ENUM},
+            NodeParamType.ENUM,
+            default=VideoCodec.MP4V,
+            metadata={"enum": VideoCodec},
         ))
         self._apply_default_params()
 

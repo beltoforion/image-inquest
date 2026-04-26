@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParamType
-from core.port import InputPort, OutputPort
+from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.port import OutputPort
 
 
 class ValueSource(SourceNodeBase):
@@ -41,33 +41,25 @@ class ValueSource(SourceNodeBase):
         self._max_value: int = 99
         self._multiplier: float = 1.0
         self._loop: bool = False
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "min_value",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            NodeParamType.INT,
+            default=0,
         ))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "max_value",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=99,
-            metadata={"default": 99, "param_type": NodeParamType.INT},
+            NodeParamType.INT,
+            default=99,
         ))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "multiplier",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=1.0,
-            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+            NodeParamType.FLOAT,
+            default=1.0,
         ))
-        self._add_input(InputPort(
+        self._add_param(NodeParam(
             "loop",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=False,
-            metadata={"default": False, "param_type": NodeParamType.BOOL},
+            NodeParamType.BOOL,
+            default=False,
         ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
         self._apply_default_params()
