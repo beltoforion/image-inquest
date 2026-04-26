@@ -10,6 +10,38 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.7] — 2026-04-26
+
+### Changed
+- **Math node: four inputs and a free-form arithmetic expression.**
+  Replaced the binary-op enum (ADD / SUB / MUL / DIV / MIN / MAX)
+  with a string ``expression`` param evaluated in the lowercase
+  variables ``a``, ``b``, ``c``, ``d`` (matching the input port
+  names). Inputs grew from two (``a``, ``b``) to four; ``a`` is
+  required, ``b`` / ``c`` / ``d`` are optional with default
+  ``0.0`` so an expression like ``"a * 2 + 1"`` works without
+  wiring the unused ports. Allowed functions: trig (``sin``
+  / ``cos`` / …), hyperbolic, ``exp`` / ``log{,2,10}``, ``sqrt``,
+  rounding (``floor`` / ``ceil`` / ``round`` / ``abs``),
+  elementwise ``min`` / ``max``, degree/radian conversion (``deg``
+  / ``rad``); constants ``pi`` and ``e``.
+- **Strict expression sandbox.** The expression is parsed via
+  :mod:`ast` and every walked node is validated against a tight
+  whitelist before compile: no attribute access, no item access, no
+  statements, no comprehensions, no lambdas, no walrus, no
+  f-strings, no star-args, no keyword args, no bitwise / matmul /
+  shift ops, no identity / membership comparisons, only numeric
+  constant literals (int / float / complex / bool — strings,
+  bytes, ``None`` and ``Ellipsis`` are rejected). Calls must target
+  a bare ``ast.Name`` whose id is in the function whitelist, so
+  ``pi(A)`` or ``(sin if A else cos)(B)`` both fail. The per-frame
+  ``eval`` runs with ``{"__builtins__": {}}``. Validation happens
+  at the moment ``expression`` is set, so typos surface in the UI
+  rather than mid-flow; failed sets keep the previous valid
+  expression intact. **No backward compatibility** with the old
+  binary-op ``op`` enum — flows saved with the previous Math node
+  fail to load and need their Math node re-configured.
+
 ## [0.2.6] — 2026-04-26
 
 ### Added
