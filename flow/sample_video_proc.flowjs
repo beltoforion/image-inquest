@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.20",
+  "app_version": "0.1.21",
   "name": "sample_video_proc",
   "nodes": [
     {
@@ -21,8 +21,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -875.4444444444443,
-        -666.4444444444446
+        -548.916186082276,
+        -1327.1710880430605
       ],
       "params": {
         "output_path": "out.mp4",
@@ -35,8 +35,8 @@
       "module": "nodes.filters.flip",
       "class": "Flip",
       "position": [
-        -1612.4444444444443,
-        -1063.4444444444448
+        -1623.4017685505573,
+        -1071.1145713187238
       ],
       "params": {
         "mode": 1
@@ -47,12 +47,10 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1394.4444444444443,
-        -1322.4444444444448
+        -1398.8273740868894,
+        -1142.7443291041911
       ],
-      "params": {
-        "show_fps": true
-      },
+      "params": {},
       "size": [
         800.0,
         629.0
@@ -63,8 +61,8 @@
       "module": "nodes.filters.temporal_mean",
       "class": "TemporalMean",
       "position": [
-        -1627.2222222222222,
-        -906.5555555555557
+        -1638.1795463283356,
+        -914.2256824298347
       ],
       "params": {
         "window": 5
@@ -72,17 +70,32 @@
       "size": [
         169.0,
         118.0
-      ]
+      ],
+      "skipped": true
     },
     {
       "id": 5,
       "module": "nodes.filters.frame_difference",
       "class": "FrameDifference",
       "position": [
-        -1616.0000000000002,
-        -738.4444444444448
+        -1635.7231833910034,
+        -562.0315263360251
       ],
-      "params": {}
+      "params": {},
+      "skipped": true
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.gaussian_blur",
+      "class": "GaussianBlur",
+      "position": [
+        -1653.021914648212,
+        -763.0680507497117
+      ],
+      "params": {
+        "ksize": 21,
+        "sigma": 0.0
+      }
     }
   ],
   "connections": [
@@ -105,29 +118,35 @@
       "dst_input": 0
     },
     {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 5,
-      "dst_input": 0
-    },
-    {
       "src_node": 5,
       "src_output": 0,
       "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 5,
       "dst_input": 0
     }
   ],
   "backdrops": [
     {
       "position": [
-        -1655.4444444444443,
-        -1111.4444444444448
+        -1699.1833910034602,
+        -1119.1145713187238
       ],
       "size": [
-        221.0,
-        457.0
+        269.0,
+        641.0830449826988
       ],
-      "title": "Processing",
+      "title": "Group",
       "color": [
         70,
         60,
