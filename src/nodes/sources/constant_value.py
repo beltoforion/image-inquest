@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParam, NodeParamType
-from core.port import OutputPort
+from core.node_base import SourceNodeBase, NodeParamType
+from core.port import InputPort, OutputPort
 
 
 class ConstantValue(SourceNodeBase):
@@ -26,17 +26,15 @@ class ConstantValue(SourceNodeBase):
     def __init__(self) -> None:
         super().__init__("Constant Value", section="Sources")
         self._value: float = 0.0
+        self._add_input(InputPort(
+            "value",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0.0,
+            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("value", NodeParamType.FLOAT, {"default": 0.0}),
-        ]
 
     @property
     def value(self) -> float:

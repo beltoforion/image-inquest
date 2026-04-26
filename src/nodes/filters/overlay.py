@@ -5,7 +5,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -63,28 +63,49 @@ class Overlay(NodeBase):
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_input(InputPort("overlay", set(IMAGE_TYPES)))
-        # ``angle`` is declared explicitly so it lands at index 2 and
-        # saved flows that referenced this port before the auto-port
-        # mechanism existed keep loading unchanged. The other param
-        # ports (scale / xpos / ypos / alpha) are created by
-        # _apply_default_params at indices 3..6.
-        self._add_input(InputPort("angle", {IoDataType.SCALAR}, optional=True))
+        # Param-style inputs declared inline. ``angle`` lands at index 2
+        # for backwards compat with saved flows that referenced this
+        # port before the auto-port mechanism existed; scale / xpos /
+        # ypos / alpha follow at indices 3..6 in the same order the
+        # old auto-port pass produced them.
+        self._add_input(InputPort(
+            "angle",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0.0,
+            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "scale",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "xpos",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0,
+            metadata={"default": 0, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "ypos",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0,
+            metadata={"default": 0, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "alpha",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("scale", NodeParamType.FLOAT, {"default": 1.0}),
-            NodeParam("angle", NodeParamType.FLOAT, {"default": 0.0}),
-            NodeParam("xpos",  NodeParamType.INT,   {"default": 0}),
-            NodeParam("ypos",  NodeParamType.INT,   {"default": 0}),
-            NodeParam("alpha", NodeParamType.FLOAT, {"default": 1.0}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

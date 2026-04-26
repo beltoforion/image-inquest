@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.32] — 2026-04-26
+
+### Changed
+- **Param-as-port migration (step 5/8): every node moved to inline
+  port-only declarations.** All editable inputs on every node are
+  now declared via ``_add_input(InputPort(name, types,
+  default_value=..., metadata={"param_type": NodeParamType.X, ...}))``
+  in ``__init__``. The per-node ``params`` property override is
+  gone — :class:`NodeBase` provides a default implementation that
+  synthesises a :class:`NodeParam` for every input port whose
+  metadata carries a ``"param_type"`` key, so the UI keeps
+  rendering its widgets exactly as before. Removes ~25 redundant
+  property overrides across the catalog.
+  ``_apply_default_params()`` learned to apply port-default values
+  even when no matching ``NodeParam`` is in ``self.params`` — the
+  previous NodeParam-driven path still works for any code path
+  that hands the framework an explicit list. Saved flow files
+  load identically: port indices and connection paths are
+  preserved everywhere.
+
 ## [0.1.31] — 2026-04-26
 
 ### Changed

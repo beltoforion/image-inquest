@@ -7,8 +7,8 @@ import cv2
 from typing_extensions import override
 
 from constants import OUTPUT_DIR
-from core.io_data import IMAGE_TYPES
-from core.node_base import SinkNodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import SinkNodeBase, NodeParamType
 from core.port import InputPort
 
 
@@ -34,16 +34,16 @@ class FileSink(SinkNodeBase):
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        # Sync attributes with declared NodeParam defaults; see
+        self._add_input(InputPort(
+            "output_path",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="out.png",
+            metadata={"default": "out.png", "mode": "save", "filter": "Images (*.png *.jpg *.jpeg)", "base_dir": OUTPUT_DIR, "param_type": NodeParamType.FILE_PATH},
+        ))
+        # Sync attributes with declared port defaults; see
         # NodeBase._apply_default_params for rationale.
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "out.png", "mode": "save", "filter": "Images (*.png *.jpg *.jpeg)", "base_dir": OUTPUT_DIR})]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

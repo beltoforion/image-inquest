@@ -6,7 +6,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -46,18 +46,16 @@ class Math(NodeBase):
 
         self._add_input(InputPort("a", {IoDataType.SCALAR}))
         self._add_input(InputPort("b", {IoDataType.SCALAR}))
+        self._add_input(InputPort(
+            "op",
+            {IoDataType.ENUM},
+            optional=True,
+            default_value=MathOp.ADD,
+            metadata={"default": MathOp.ADD, "enum": MathOp, "param_type": NodeParamType.ENUM},
+        ))
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("op", NodeParamType.ENUM, {"default": MathOp.ADD, "enum": MathOp}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

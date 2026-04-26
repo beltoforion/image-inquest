@@ -138,7 +138,9 @@ class NodeBase(ABC):
         — auto-creation only fills the gaps.
         """
         existing_port_names = {port.name for port in self._inputs}
+        params_seen: set[str] = set()
         for p in self.params:
+            params_seen.add(p.name)
             if p.name not in existing_port_names:
                 port_type = _NODE_PARAM_TYPE_TO_PORT_TYPE.get(p.param_type)
                 if port_type is not None:
@@ -163,12 +165,58 @@ class NodeBase(ABC):
                     type(self).__name__, p.name, p.metadata["default"],
                 )
 
+        # Port-only declarations: for input ports that carry their
+        # configuration directly (default_value + metadata) without a
+        # matching :class:`NodeParam` in ``self.params``, push the
+        # ``default_value`` onto the instance attribute the same way
+        # the NodeParam path does. This is the migration target for
+        # step 5 — a node can stop returning NodeParams from ``params``
+        # and instead declare each editable input via a single
+        # ``_add_input(InputPort(name, types, default_value=..., metadata=...))``
+        # call, with the framework handling the rest.
+        for port in self._inputs:
+            if port.name in params_seen:
+                continue  # already handled via NodeParam loop above
+            if not port.has_default:
+                continue
+            try:
+                setattr(self, port.name, port.default_value)
+            except AttributeError:
+                # No setter / backing attribute for this port name —
+                # legitimate for image-flow inputs that carry no
+                # default; skip silently.
+                pass
+            except Exception:
+                logger.exception(
+                    "Failed to apply port default for %s.%s = %r",
+                    type(self).__name__, port.name, port.default_value,
+                )
+
     # ── Public accessors ───────────────────────────────────────────────────────
 
     @property
-    @abstractmethod
     def params(self) -> list[NodeParam]:
-        ...
+        """List of editable parameters this node exposes to the UI.
+
+        Default implementation synthesises a :class:`NodeParam` for
+        every input port whose ``metadata`` carries a ``"param_type"``
+        key. This lets a node declare its editable inputs entirely in
+        ``__init__`` via ``_add_input(InputPort(name, types,
+        default_value=..., metadata={"param_type": NodeParamType.X,
+        ...}))`` and skip overriding ``params`` altogether.
+
+        Subclasses may still override this property to return an
+        explicit ``[NodeParam(...), ...]`` list (existing pre-step-5
+        pattern). Both styles coexist; use whichever is shorter for
+        the node at hand.
+        """
+        result: list[NodeParam] = []
+        for port in self._inputs:
+            param_type = port.metadata.get("param_type")
+            if not isinstance(param_type, NodeParamType):
+                continue
+            result.append(NodeParam(port.name, param_type, port.metadata))
+        return result
 
     @property
     def display_name(self) -> str:

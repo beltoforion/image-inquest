@@ -4,7 +4,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -28,19 +28,23 @@ class Clamp(NodeBase):
         self._max_value: float = 1.0
 
         self._add_input(InputPort("value", {IoDataType.SCALAR}))
+        self._add_input(InputPort(
+            "min_value",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0.0,
+            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "max_value",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("min_value", NodeParamType.FLOAT, {"default": 0.0}),
-            NodeParam("max_value", NodeParamType.FLOAT, {"default": 1.0}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

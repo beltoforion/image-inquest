@@ -10,8 +10,8 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParam, NodeParamType
-from core.port import OutputPort
+from core.node_base import SourceNodeBase, NodeParamType
+from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
 
@@ -53,31 +53,28 @@ class DirectorySource(SourceNodeBase):
         super().__init__("Directory Source", section="Sources")
         self._directory: Path = Path()
         self._include_subdirectories: bool = False
+        self._add_input(InputPort(
+            "directory",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="",
+            metadata={
+                "default":  "",
+                "mode":     "directory",
+                "base_dir": INPUT_DIR,
+                "caption":  "Select Image Directory",
+                "param_type": NodeParamType.FILE_PATH,
+            },
+        ))
+        self._add_input(InputPort(
+            "include_subdirectories",
+            {IoDataType.BOOL},
+            optional=True,
+            default_value=False,
+            metadata={"default": False, "param_type": NodeParamType.BOOL},
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam(
-                "directory",
-                NodeParamType.FILE_PATH,
-                {
-                    "default":  "",
-                    "mode":     "directory",
-                    "base_dir": INPUT_DIR,
-                    "caption":  "Select Image Directory",
-                },
-            ),
-            NodeParam(
-                "include_subdirectories",
-                NodeParamType.BOOL,
-                {"default": False},
-            ),
-        ]
 
     @property
     def directory(self) -> Path:

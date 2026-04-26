@@ -8,7 +8,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -56,13 +56,6 @@ class Display(NodeBase):
 
         self._add_input(InputPort("image", set(_DISPLAY_TYPES)))
         self._add_output(OutputPort("image", set(_DISPLAY_TYPES)))
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

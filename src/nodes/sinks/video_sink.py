@@ -8,8 +8,8 @@ import numpy as np
 from typing_extensions import override
 
 from constants import OUTPUT_DIR
-from core.io_data import IMAGE_TYPES
-from core.node_base import SinkNodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import SinkNodeBase, NodeParamType
 from core.port import InputPort
 
 
@@ -58,22 +58,28 @@ class VideoSink(SinkNodeBase):
         self._frame_shape: tuple[int, ...] | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "output_path",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="out.mp4",
+            metadata={"default": "out.mp4", "mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR, "param_type": NodeParamType.FILE_PATH},
+        ))
+        self._add_input(InputPort(
+            "fps",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=30.0,
+            metadata={"default": 30.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "codec",
+            {IoDataType.ENUM},
+            optional=True,
+            default_value=VideoCodec.MP4V,
+            metadata={"default": VideoCodec.MP4V, "enum": VideoCodec, "param_type": NodeParamType.ENUM},
+        ))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "out.mp4", "mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR}),
-            NodeParam("fps",         NodeParamType.FLOAT,     {"default": 30.0}),
-            NodeParam(
-                "codec",
-                NodeParamType.ENUM,
-                {"default": VideoCodec.MP4V, "enum": VideoCodec},
-            ),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

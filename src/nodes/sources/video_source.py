@@ -7,8 +7,8 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParam, NodeParamType
-from core.port import OutputPort
+from core.node_base import SourceNodeBase, NodeParamType
+from core.port import InputPort, OutputPort
 
 _SUPPORTED_EXTS = {".mp4", ".avi", ".mov", ".mkv"}
 
@@ -37,26 +37,27 @@ class VideoSource(SourceNodeBase):
         super().__init__("Video Source", section="Sources")
         self._file_path: Path = Path()
         self._max_num_frames: int = -1
+        self._add_input(InputPort(
+            "file_path",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="video.mp4",
+            metadata={
+                "default": "video.mp4",
+                "filter": "Video (*.mp4 *.avi *.mov *.mkv)",
+                "base_dir": INPUT_DIR,
+                "param_type": NodeParamType.FILE_PATH,
+            },
+        ))
+        self._add_input(InputPort(
+            "max_num_frames",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=-1,
+            metadata={"default": -1, "param_type": NodeParamType.INT},
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam(
-                "file_path",
-                NodeParamType.FILE_PATH,
-                {
-                    "default": "video.mp4",
-                    "filter": "Video (*.mp4 *.avi *.mov *.mkv)",
-                    "base_dir": INPUT_DIR,
-                },
-            ),
-            NodeParam("max_num_frames", NodeParamType.INT, {"default": -1}),
-        ]
 
     @property
     def file_path(self) -> Path:
