@@ -1,0 +1,175 @@
+name: nightly
+
+# Builds a fresh Windows zip and Linux AppImage every day from the current
+# `main` branch and publishes them as a single rolling pre-release tagged
+# `nightly`. The tag and release are overwritten on each run so users always
+# see the latest build under the same URL. The job is skipped automatically
+# when there have been no commits to `main` in the last 24 hours.
+on:
+  schedule:
+    - cron: '17 3 * * *'   # 03:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.decide.outputs.should_build }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - id: decide
+        shell: bash
+        run: |
+          set -eux
+          # Skip the cron run if `main` had no new commits in the last 24h.
+          # Manual `workflow_dispatch` runs always proceed.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ -z "$(git log --since='24 hours ago' --oneline origin/main)" ]; then
+              echo "should_build=false" >> "$GITHUB_OUTPUT"
+              echo "No new commits in the last 24h – skipping nightly build."
+              exit 0
+            fi
+          fi
+          short=$(git rev-parse --short HEAD)
+          date=$(date -u +%Y%m%d)
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "version=nightly-${date}-${short}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller stjornhorn.spec --noconfirm
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $name = "stjornhorn-${{ needs.check.outputs.version }}-windows-x64.zip"
+          Compress-Archive -Path dist\stjornhorn\* -DestinationPath $name
+
+      - name: Install AppImage tooling (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+          curl -fL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+      - name: Build AppImage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -eux
+          mkdir -p AppDir/usr/bin
+          cp -r dist/stjornhorn/. AppDir/usr/bin/
+
+          cp assets/app_icon.png AppDir/stjornhorn.png
+
+          cat > AppDir/stjornhorn.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Stjörnhorn
+          Comment=Node-based image and video processing editor
+          Exec=stjornhorn
+          Icon=stjornhorn
+          Categories=Graphics;Photography;
+          Terminal=false
+          EOF
+
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/stjornhorn" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          ARCH=x86_64 ./appimagetool AppDir \
+            "Stjornhorn-${{ needs.check.outputs.version }}-x86_64.AppImage"
+
+      - name: Upload Windows zip
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stjornhorn-windows
+          path: stjornhorn-*-windows-x64.zip
+
+      - name: Upload Linux AppImage
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stjornhorn-linux
+          path: Stjornhorn-*-x86_64.AppImage
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # Move the `nightly` tag to the current commit so the rolling release
+      # always points at the build we are about to publish.
+      - name: Move nightly tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git tag -f nightly
+          git push -f origin nightly
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "Nightly build (${{ needs.check.outputs.version }})"
+          body: |
+            Automated nightly build from `main` (${{ needs.check.outputs.version }}).
+
+            These artifacts are overwritten on every run – do not rely on a
+            specific download URL pinning a specific build. Use a tagged
+            release if you need a stable version.
+          prerelease: true
+          make_latest: 'false'
+          files: |
+            artifacts/stjornhorn-windows/stjornhorn-*-windows-x64.zip
+            artifacts/stjornhorn-linux/Stjornhorn-*-x86_64.AppImage
+          fail_on_unmatched_files: true
