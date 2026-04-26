@@ -31,6 +31,7 @@ from ui.icons import material_icon
 from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
+from ui.dock_layout import restore_dock_layout, save_dock_layout
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.error_banner import ErrorBanner
@@ -48,14 +49,16 @@ _FLOW_FILE_FILTER    = "Flow (*.flowjs);;All files (*)"
 
 
 class NodeEditorPage(PageBase):
-    """The editor. Central canvas + palette dock (left) + Output Inspector (left).
+    """The editor. Central canvas + Node List dock (left) + Output Inspector (right).
 
-    Dockable panels are hosted on an inner QMainWindow so the palette and
-    Output Inspector can be dragged around, floated, or closed by the user.
-    By default the Node List and Output Inspector share the left dock area
-    with an equal 50/50 vertical split. Toolbar actions are exposed via
-    :meth:`page_toolbar_actions` so MainWindow can render them in the
-    global toolbar next to the page-selector radio group.
+    Dockable panels are hosted on an inner QMainWindow so the Node List and
+    Output Inspector can be dragged around, floated, tabbed together, or
+    closed by the user. Defaults: Node List on the left, Output Inspector on
+    the right, both full-height. Whatever the user reshapes the docks into is
+    persisted via :mod:`ui.dock_layout` and re-applied on the next launch.
+    Toolbar actions are exposed via :meth:`page_toolbar_actions` so MainWindow
+    can render them in the global toolbar next to the page-selector radio
+    group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
     flow name changes. The toolbar's right-aligned status slot is owned by
@@ -109,18 +112,17 @@ class NodeEditorPage(PageBase):
         self._node_list_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock)
 
-        # Output Inspector dock — also on the left, stacked under the Node
-        # List with a 50/50 vertical split applied after the widget is shown.
+        # Output Inspector dock — defaults to the right-hand area as a
+        # tall full-height column. Image previews stack vertically, so a
+        # narrow-but-tall slot fits the panel's aspect better than the
+        # half-height slot it used to share with the Node List on the
+        # left. Issue: #183
         self._viewer = ViewerPanel()
         self._viewer_dock = QDockWidget("Output Inspector", self._inner)
         self._viewer_dock.setObjectName("OutputInspectorDock")
         self._viewer_dock.setWidget(self._viewer)
         self._viewer_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._viewer_dock)
-        self._inner.splitDockWidget(
-            self._node_list_dock, self._viewer_dock, Qt.Orientation.Vertical,
-        )
-        self._initial_split_applied = False
+        self._inner.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._viewer_dock)
         # A floating QDockWidget defaults to a Qt.Tool window, which on most
         # desktop environments lacks maximise / fullscreen affordances.
         # Promote it to a regular top-level window when it floats so the
@@ -262,23 +264,19 @@ class NodeEditorPage(PageBase):
         self.title_changed.emit(self.page_title())
         self._viewer.refresh()
 
-    def showEvent(self, event) -> None:  # type: ignore[override]
-        super().showEvent(event)
-        # Qt only honours resizeDocks after the main window has real geometry,
-        # so defer the 50/50 split until the first show.
-        if not self._initial_split_applied:
-            self._initial_split_applied = True
-            QTimer.singleShot(0, self._equalize_left_docks)
+    # ── Dock-layout persistence ────────────────────────────────────────────────
 
-    def _equalize_left_docks(self) -> None:
-        """Give the Node List and Output Inspector equal height in the left area."""
-        h = max(self._inner.height(), 2)
-        half = h // 2
-        self._inner.resizeDocks(
-            [self._node_list_dock, self._viewer_dock],
-            [half, h - half],
-            Qt.Orientation.Vertical,
-        )
+    def restore_dock_layout(self) -> None:
+        """Apply the persisted dock arrangement, if any. Issue: #183
+
+        No-op when no layout file exists or the file can't be applied —
+        the constructor already installed the right-hand-default layout.
+        """
+        restore_dock_layout(self._inner)
+
+    def save_dock_layout(self) -> None:
+        """Persist the current dock arrangement so the next launch restores it."""
+        save_dock_layout(self._inner)
 
     # ── Public API (called by MainWindow) ──────────────────────────────────────
 
