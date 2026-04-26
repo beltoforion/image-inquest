@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.10] — 2026-04-26
+
+### Changed
+- **Relative-path normalisation deduplicated.** Six file-IO nodes
+  (``ImageSource``, ``VideoSource``, ``DirectorySource``,
+  ``FileSink``, ``VideoSink``, ``Ncc``) used to carry their own
+  copy of the same five-line "store relative when inside the
+  well-known base dir, otherwise keep absolute" snippet plus a
+  paired three-line resolver. Both halves now live in
+  ``core/path_utils.py`` as ``store_relative_to(value, base_dir)``
+  + ``resolve_against(path, base_dir)``; every setter and
+  ``_resolved_path`` call through it. Behaviour is unchanged
+  (covered by the existing path-normalisation and node-IO test
+  suites plus a new dedicated ``tests/test_path_utils.py``).
+  Issue: #174
+
 ## [0.2.9] — 2026-04-26
 
 ### Added

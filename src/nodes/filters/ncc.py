@@ -9,6 +9,7 @@ from typing_extensions import override
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase, NodeParamType
+from core.path_utils import resolve_against, store_relative_to
 from core.port import InputPort, OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
@@ -73,13 +74,7 @@ class Ncc(NodeBase):
 
     @template.setter
     def template(self, path: str | Path) -> None:
-        p = Path(path)
-        if p.is_absolute():
-            try:
-                p = p.resolve().relative_to(INPUT_DIR.resolve())
-            except (OSError, ValueError):
-                pass  # outside INPUT_DIR — keep absolute
-        self._template_path = p
+        self._template_path = store_relative_to(path, INPUT_DIR)
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
@@ -125,9 +120,7 @@ class Ncc(NodeBase):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _resolved_template_path(self) -> Path:
-        if self._template_path.is_absolute():
-            return self._template_path
-        return INPUT_DIR / self._template_path
+        return resolve_against(self._template_path, INPUT_DIR)
 
     def _load_template(self) -> np.ndarray:
         resolved = self._resolved_template_path()
