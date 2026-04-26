@@ -26,6 +26,13 @@ def _isolated_subscribers():
     notifications._subscribers.extend(saved)
 
 
+def test_info_dispatches_with_info_severity():
+    seen: list[tuple[notifications.Severity, str]] = []
+    notifications.subscribe(lambda sev, msg: seen.append((sev, msg)))
+    notifications.info("fyi")
+    assert seen == [(notifications.Severity.INFO, "fyi")]
+
+
 def test_warn_dispatches_to_subscriber():
     seen: list[tuple[notifications.Severity, str]] = []
     notifications.subscribe(lambda sev, msg: seen.append((sev, msg)))

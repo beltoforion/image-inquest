@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class Severity(Enum):
     """Severity tag carried with every emitted notification."""
+    INFO = "info"
     WARNING = "warning"
     ERROR = "error"
 
@@ -53,6 +54,16 @@ def unsubscribe(callback: Subscriber) -> None:
         _subscribers.remove(callback)
     except ValueError:
         pass
+
+
+def info(message: str) -> None:
+    """Emit an informational message — neutral, no problem implied.
+
+    Use for status updates the user might want to see surfaced in
+    the UI (e.g. a long-running operation announcing a milestone, a
+    node reporting what it's doing). The run keeps going.
+    """
+    _emit(Severity.INFO, message)
 
 
 def warn(message: str) -> None:

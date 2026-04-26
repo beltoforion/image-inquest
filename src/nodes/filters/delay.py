@@ -10,16 +10,17 @@ from core.port import InputPort, OutputPort
 
 
 class Delay(NodeBase):
-    """Debug node that sleeps for ``delay_seconds`` before forwarding its input.
+    """Pace a stream by sleeping for ``delay_seconds`` between frames.
 
-    Exists to make pipeline timing visible during development — dropping it
-    between two nodes introduces a deterministic pause so scheduling, status
-    bar updates and progress indicators can be observed without contrived
-    workloads. The image payload is passed straight through unchanged.
+    Drop between two nodes to slow the throughput of a flow — useful as
+    a UI-paced "slideshow" knob (e.g. one frame per second from a
+    ``DirectorySource`` into a ``Display``), and equally useful during
+    development to make per-frame status updates visible. The image
+    payload is passed straight through unchanged.
     """
 
     def __init__(self) -> None:
-        super().__init__("Delay", section="Debug")
+        super().__init__("Delay", section="UI")
         self._delay_seconds: float = 5.0
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

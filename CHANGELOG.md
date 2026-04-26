@@ -24,24 +24,35 @@ once a first tagged release is cut.
 
 ### Added
 - **Notifications hub** (``core/notifications.py``). Process-wide,
-  Qt-free dispatch for non-fatal warnings (and errors) emitted by
-  nodes / UI widgets. Subscribers receive ``(severity, message)``
-  tuples synchronously on the producer's thread; the editor page
-  bridges to the UI thread via a queued Qt signal so the banner
-  is safe to mutate.
-- **Yellow warning toast.** The top-right ``ErrorBanner`` now also
-  shows non-blocking warnings in an amber palette via a new
-  ``show_warning(message)`` method. Wired to the notifications
-  hub so any ``notifications.warn(...)`` call surfaces in the UI
-  without interrupting the running flow. The Display preview's
-  frame-conversion path uses it instead of the previous
-  silent ``logger.exception``.
-- **``Notify`` debug node** (``Debug`` section). Inline image
-  pass-through with ``severity`` (Warning / Error) and ``message``
-  parameters. ``Warning`` emits through the notifications hub
-  (run keeps going); ``Error`` raises a ``RuntimeError`` (run
-  aborts at the node). Useful for exercising the banner UI
-  without contriving real failures.
+  Qt-free dispatch for non-fatal info / warning / error messages
+  emitted by nodes or UI widgets. Subscribers receive
+  ``(severity, message)`` tuples synchronously on the producer's
+  thread; the editor page bridges to the UI thread via a queued
+  Qt signal so the banner is safe to mutate.
+- **Three-severity ``MessageBanner``.** The top-right banner used to
+  cover only red errors (``ErrorBanner``); it now also handles
+  amber warnings and blue info messages via ``show_warning(message)``
+  / ``show_info(message)``. Wired to the notifications hub so any
+  ``notifications.info(...)`` / ``notifications.warn(...)`` call
+  surfaces in the UI without interrupting the running flow. The
+  Display preview's frame-conversion path uses ``warn`` instead of
+  the previous silent ``logger.exception``. Renamed
+  ``ErrorBanner`` → ``MessageBanner`` (file, class, refs) to
+  reflect the broader scope.
+- **``Notify`` node** (``UI`` section). Inline image pass-through
+  with ``severity`` (Info / Warning / Error) and a port-style
+  ``message`` input. ``Info`` / ``Warning`` emit through the
+  notifications hub (run keeps going); ``Error`` raises a
+  ``RuntimeError`` (run aborts at the node). The ``message`` port
+  accepts a typed-in literal or any upstream ``STRING`` source so
+  the banner text can be driven dynamically per frame.
+
+### Changed
+- **``Delay`` node moved from ``Debug`` → ``UI`` section.** The node
+  is genuinely useful as a "slideshow pacing" knob (one frame per
+  second from a directory walker into a Display, etc.), not only
+  as a development aid; the section move makes it discoverable
+  from the regular palette layout.
 
 ## [0.2.10] — 2026-04-26
 

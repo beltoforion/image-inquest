@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 
-class ErrorBanner(QFrame):
+class MessageBanner(QFrame):
     """Floating notification toast anchored to the top-right of a parent widget.
 
     Used to surface multi-line messages that do not fit into the single-line
@@ -22,12 +22,15 @@ class ErrorBanner(QFrame):
     the text in place. A parent-resize event filter keeps the banner glued
     to the upper-right corner of the client area.
 
-    Two severities are supported:
+    Three severities are supported:
       - **error** (red) — call :meth:`show_error`. Used for run-aborting
         problems the user must see (connection rejections, exceptions).
       - **warning** (amber) — call :meth:`show_warning`. Used for
         non-fatal issues that should not interrupt the run (e.g. a
         single frame failing to render in the preview).
+      - **info** (blue) — call :meth:`show_info`. Used for neutral
+        status messages with no problem implied (a node reporting
+        progress, a flow announcing a milestone).
     """
 
     MARGIN: int = 12
@@ -42,69 +45,103 @@ class ErrorBanner(QFrame):
     # warning palette stays warm-amber so it reads as "attention
     # needed" without the "something is broken" weight of red.
     _ERROR_STYLE: str = """
-        QFrame#ErrorBanner {
+        QFrame#MessageBanner {
             background: #5a1e22;
             border: 1px solid #e05050;
             border-radius: 4px;
         }
-        QLabel#ErrorBannerTitle {
+        QLabel#MessageBannerTitle {
             color: #ffdcdc;
             font-weight: bold;
             background: transparent;
         }
-        QLabel#ErrorBannerMessage {
+        QLabel#MessageBannerMessage {
             color: #ffeaea;
             background: transparent;
         }
-        QToolButton#ErrorBannerClose {
+        QToolButton#MessageBannerClose {
             color: #ffdcdc;
             background: transparent;
             border: none;
             padding: 0 6px;
             font-size: 14px;
         }
-        QToolButton#ErrorBannerClose:hover {
+        QToolButton#MessageBannerClose:hover {
             color: #ffffff;
         }
-        QScrollArea#ErrorBannerScroll {
+        QScrollArea#MessageBannerScroll {
             background: transparent;
             border: none;
         }
-        QScrollArea#ErrorBannerScroll > QWidget > QWidget {
+        QScrollArea#MessageBannerScroll > QWidget > QWidget {
             background: transparent;
         }
     """
 
     _WARNING_STYLE: str = """
-        QFrame#ErrorBanner {
+        QFrame#MessageBanner {
             background: #5a4a1e;
             border: 1px solid #e0b850;
             border-radius: 4px;
         }
-        QLabel#ErrorBannerTitle {
+        QLabel#MessageBannerTitle {
             color: #fff0c8;
             font-weight: bold;
             background: transparent;
         }
-        QLabel#ErrorBannerMessage {
+        QLabel#MessageBannerMessage {
             color: #fff5d8;
             background: transparent;
         }
-        QToolButton#ErrorBannerClose {
+        QToolButton#MessageBannerClose {
             color: #fff0c8;
             background: transparent;
             border: none;
             padding: 0 6px;
             font-size: 14px;
         }
-        QToolButton#ErrorBannerClose:hover {
+        QToolButton#MessageBannerClose:hover {
             color: #ffffff;
         }
-        QScrollArea#ErrorBannerScroll {
+        QScrollArea#MessageBannerScroll {
             background: transparent;
             border: none;
         }
-        QScrollArea#ErrorBannerScroll > QWidget > QWidget {
+        QScrollArea#MessageBannerScroll > QWidget > QWidget {
+            background: transparent;
+        }
+    """
+
+    _INFO_STYLE: str = """
+        QFrame#MessageBanner {
+            background: #1e3a5a;
+            border: 1px solid #5090e0;
+            border-radius: 4px;
+        }
+        QLabel#MessageBannerTitle {
+            color: #d8e8ff;
+            font-weight: bold;
+            background: transparent;
+        }
+        QLabel#MessageBannerMessage {
+            color: #e8f0ff;
+            background: transparent;
+        }
+        QToolButton#MessageBannerClose {
+            color: #d8e8ff;
+            background: transparent;
+            border: none;
+            padding: 0 6px;
+            font-size: 14px;
+        }
+        QToolButton#MessageBannerClose:hover {
+            color: #ffffff;
+        }
+        QScrollArea#MessageBannerScroll {
+            background: transparent;
+            border: none;
+        }
+        QScrollArea#MessageBannerScroll > QWidget > QWidget {
             background: transparent;
         }
     """
@@ -112,7 +149,7 @@ class ErrorBanner(QFrame):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
 
-        self.setObjectName("ErrorBanner")
+        self.setObjectName("MessageBanner")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
@@ -125,10 +162,10 @@ class ErrorBanner(QFrame):
         self.setStyleSheet(self._ERROR_STYLE)
 
         self._title = QLabel("Error")
-        self._title.setObjectName("ErrorBannerTitle")
+        self._title.setObjectName("MessageBannerTitle")
 
         self._close = QToolButton()
-        self._close.setObjectName("ErrorBannerClose")
+        self._close.setObjectName("MessageBannerClose")
         self._close.setText("✕")
         self._close.setToolTip("Dismiss")
         self._close.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -142,13 +179,13 @@ class ErrorBanner(QFrame):
         header.addWidget(self._close)
 
         self._message = QLabel("")
-        self._message.setObjectName("ErrorBannerMessage")
+        self._message.setObjectName("MessageBannerMessage")
         self._message.setWordWrap(True)
         self._message.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self._message.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         self._scroll = QScrollArea()
-        self._scroll.setObjectName("ErrorBannerScroll")
+        self._scroll.setObjectName("MessageBannerScroll")
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -177,6 +214,14 @@ class ErrorBanner(QFrame):
         caller continues; the user dismisses with the close button.
         """
         self._show(message, title, self._WARNING_STYLE)
+
+    def show_info(self, message: str, *, title: str = "Info") -> None:
+        """Display *message* in the blue info palette.
+
+        Non-blocking; intended for neutral status notifications with
+        no problem implied.
+        """
+        self._show(message, title, self._INFO_STYLE)
 
     def _show(self, message: str, title: str, style: str) -> None:
         # setStyleSheet on each show so the palette flips correctly

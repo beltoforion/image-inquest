@@ -5,56 +5,70 @@ from enum import IntEnum
 from typing_extensions import override
 
 from core import notifications
-from core.io_data import IMAGE_TYPES
+from core.io_data import IMAGE_TYPES, IoDataType
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
 
 class NotifySeverity(IntEnum):
-    """Severity choice for the :class:`Notify` debug node."""
-    #: Emit a warning via :mod:`core.notifications`. Run continues; the
-    #: warning surfaces in the floating banner (yellow).
-    WARNING = 0
+    """Severity choice for the :class:`Notify` node."""
+    #: Emit a neutral status message via :mod:`core.notifications`. Run
+    #: continues; the message surfaces in the floating banner (blue).
+    INFO = 0
+    #: Emit a warning. Run continues; the warning surfaces in the
+    #: floating banner (amber).
+    WARNING = 1
     #: Raise a ``RuntimeError`` carrying the configured message. Run
     #: aborts; the banner shows the standard red error.
-    ERROR = 1
+    ERROR = 2
 
 
 class Notify(NodeBase):
-    """Debug node that emits a notification (warning or error) per frame.
+    """Surface a status message in the floating banner.
 
-    Use it to exercise the warning- and error-banner UI without
-    contriving real failures — drop it inline in a flow, pick a
-    severity, type a message, hit Run.
+    Drop the node anywhere on an image edge: the input frame is
+    forwarded unchanged on the output (so the node sits inline
+    without altering the pipeline) and the configured ``message`` is
+    emitted at the chosen ``severity``:
 
-    The image input is forwarded unchanged on the output so the node
-    can sit between any two image nodes without altering the pipeline.
-    For ``WARNING`` the run keeps going (warnings are non-blocking by
-    contract); for ``ERROR`` the node raises and the run aborts at
-    this node, the same way :class:`ThrowException` does.
+    - ``INFO`` (blue) — neutral status, run continues.
+    - ``WARNING`` (amber) — non-fatal issue, run continues.
+    - ``ERROR`` (red) — raises a ``RuntimeError``, run aborts at the
+      node (matching :class:`ThrowException`'s behaviour).
+
+    The ``message`` is a port-style input: type a literal string into
+    the inline editor, or wire any ``STRING`` source into the socket
+    to drive the message per frame (e.g. a ``ConstantValue`` carrying
+    a status line, or a node that computes the text dynamically).
 
     Parameters:
-      severity -- :class:`NotifySeverity` choice; warning vs. error.
-      message  -- Free-form text shown in the banner / exception.
+      severity -- :class:`NotifySeverity` choice; info / warning / error.
+      message  -- Text shown in the banner / exception. Empty messages
+                  are forwarded verbatim.
     """
 
     def __init__(self) -> None:
-        super().__init__("Notify", section="Debug")
-        self._severity: NotifySeverity = NotifySeverity.WARNING
-        self._message:  str = "Notify debug node fired"
+        super().__init__("Notify", section="UI")
+        self._severity: NotifySeverity = NotifySeverity.INFO
+        self._message:  str = ""
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "message",
+            {IoDataType.STRING},
+            optional=True,
+            default_value="",
+            metadata={
+                "default":     "",
+                "placeholder": "message shown in the banner",
+                "param_type":  NodeParamType.STRING,
+            },
+        ))
         self._add_param(NodeParam(
             "severity",
             NodeParamType.ENUM,
-            default=NotifySeverity.WARNING,
+            default=NotifySeverity.INFO,
             metadata={"enum": NotifySeverity},
-        ))
-        self._add_param(NodeParam(
-            "message",
-            NodeParamType.STRING,
-            default="Notify debug node fired",
-            metadata={"placeholder": "message shown in the banner"},
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
@@ -91,5 +105,8 @@ class Notify(NodeBase):
         in_data = self.inputs[0].data
         if self._severity is NotifySeverity.ERROR:
             raise RuntimeError(self._message)
-        notifications.warn(self._message)
+        if self._severity is NotifySeverity.WARNING:
+            notifications.warn(self._message)
+        else:
+            notifications.info(self._message)
         self.outputs[0].send(in_data)
